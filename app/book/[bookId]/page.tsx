@@ -1,18 +1,76 @@
 'use client';
 
 import { useEffect, useState, use } from 'react';
-import { Book } from '@/types';
+import { Book, Chapter, SegmentSummary, StorySegment } from '@/types';
 import { useFetcher } from '@/components/FetcherProvider';
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import { Button } from '@/components/Button';
+import { useAlert } from '@/components/AlertBox';
+import _util from '@/utils/_util';
+import SegmentDisplay from '../_components/SegmentDisplay';
+import ChapterDisplay from '../_components/ChapterDisplay';
+import StatusBar, { StatusBarProps } from '../_components/StatusBar';
+import useDebugPanel from '../_components/useDebugPanel';
+import useInputPanel from '../_components/useInputPanel';
 
 interface PageProps {
   params: Promise<{ bookId: string }>;
 }
 
+interface GameModel extends Book {
+  shouldSave: boolean;
+}
+
+const emptyGameModel: GameModel = {
+  bookId: '',
+  templateId: '',
+  name: null,
+  storySegments: [],
+  segmentSummaries: [],
+  chapters: [],
+  shouldSave: false,
+}
+
 export default function BookPage({ params }: PageProps) {
   const { bookId } = use(params);
-  const [book, setBook] = useState<Book | null>(null);
+  const [gameModel, setGameModel] = useState<GameModel>(emptyGameModel);
   const [loading, setLoading] = useState(true);
   const { fetcher } = useFetcher();
+  const { showAlert } = useAlert();
+
+  //#region UI State
+  const [sbp, setSbp] = useState<StatusBarProps>({
+    loading: false,
+    text: '',
+  });
+
+  const [enhancer, setEnhancer] = useState({
+    visible: false,
+    segment: null as StorySegment | null,
+    prevStory: '',
+  });
+
+  const [summarizer, setSummarizer] = useState({
+    visible: false,
+    placeholder: '',
+  });
+
+  const [chapterWrapper, setChapterWrapper] = useState({
+    visible: false,
+    segments: [] as StorySegment[],
+  });
+  //#endregion
+  
+  const debugPanel = useDebugPanel({
+    defaultSize: 20,
+    minSize: 15,
+    order: 3,
+    book: gameModel,
+  });
+
+  const { element: inputPanelElement, getUserInput } = useInputPanel({
+    inputTag: 'TODO: get from template',
+  });
 
   useEffect(() => {
     const fetchBook = async () => {
@@ -21,7 +79,10 @@ export default function BookPage({ params }: PageProps) {
         const data = await fetcher<Book>(`/api/books/${bookId}`, {
           errorMessage: 'Failed to fetch book',
         });
-        setBook(data);
+        setGameModel({
+          ...data,
+          shouldSave: false,
+        });
       } catch {
       } finally {
         setLoading(false);
@@ -33,20 +94,248 @@ export default function BookPage({ params }: PageProps) {
     }
   }, [bookId, fetcher]);
 
+  const gameAction = {
+    _applyNarration: async (userSegmentContent: string, idLimitExclusive: string | null) => {
+    },
+    narration: async () => {
+    },
+    redoNarration: async (segmentId: string) => {
+      const segmentIndex = gameModel.storySegments.findIndex(seg => seg.id === segmentId);
+      const assistantSegment = gameModel.storySegments[segmentIndex];
+
+      if(segmentIndex !== gameModel.storySegments.length -1 || assistantSegment?.role !== 'assistant' ) {
+        console.error('Can only redo narration for the last assistant segment');
+        return;
+      }
+
+      const prevUserSegment = gameModel.storySegments[segmentIndex -1];
+      if(!prevUserSegment || prevUserSegment.role !== 'user') {
+        showAlert('Previous segment is not a user segment');
+        return;
+      }
+      
+      // Remove the last assistant segment
+      setGameModel(prev => ({
+        ...prev,
+        storySegments: prev.storySegments.filter(seg => seg.id !== segmentId && seg.id !== prevUserSegment.id),
+      }));
+
+      await gameAction._applyNarration(prevUserSegment.content, segmentId);
+    },
+    summarizeSegments: (segmentIds: string[], newSummary: SegmentSummary) => {
+    },
+    wrapChapter: (segmentIds: string[], newChapter: Chapter) => {
+    }
+  }
+
+  const uiAction = {
+    updateStorySegment: (updatedSegment: StorySegment) => {
+      setGameModel(prev => ({
+        ...prev,
+        storySegments: prev.storySegments.map(msg =>
+          msg.id === updatedSegment.id ? updatedSegment : msg
+        ),
+        shouldSave: true,
+      }));
+    },
+    deleteStorySegment: (id: string) => {
+      setGameModel(prev => ({
+        ...prev,
+        storySegments: prev.storySegments.filter(msg => msg.id !== id),
+        shouldSave: true,
+      }));
+    },
+    openChapterWrapper: (segmentId: string) => {
+      const segmentIndex = gameModel.storySegments.findIndex(s => s.id === segmentId);
+
+      const chapterSegments = gameModel.storySegments.filter((s, index) => !s.chapterId && index <= segmentIndex);
+
+      if(chapterSegments.length <= 2) {
+        showAlert('At least 3 segments are required to form a chapter.');
+        return;
+      }
+
+      //TODO
+      // setChapterWrapper({
+      //   visible: true,
+      //   segments: chapterSegments,
+      // });
+    },
+    updateChapter: (updatedChapter: Chapter) => {
+      setGameModel(prev => ({
+        ...prev,
+        chapters: prev.chapters.map(c => c.id === updatedChapter.id ? updatedChapter : c),
+        shouldSave: true,
+      }));
+    }
+  }
+
   if (loading) {
     return <div className="p-8">Loading book...</div>;
   }
 
-  if (!book) {
+  if (_util.isNullOrWhitespace(gameModel.bookId)) {
     return <div className="p-8">Book not found</div>;
   }
 
+  const disableAction = loading; 
+
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold mb-4">Book: {book.bookId}</h1>
-      <pre className="bg-muted p-4 rounded overflow-auto max-h-[80vh]">
+    <div className="h-screen p-8">
+      <h1 className="text-2xl font-bold mb-4">Book: {gameModel.bookId}</h1>
+      {/* <pre className="bg-muted p-4 rounded overflow-auto max-h-[80vh]">
         {JSON.stringify(book, null, 2)}
-      </pre>
+      </pre> */}
+      <PanelGroup
+        direction="horizontal"
+        className=' flex-1'
+      >
+        {/* STORY PANEL */}
+        <Panel id='story' defaultSize={55} minSize={20} order={2}
+          className=' p-3'
+        >
+          <div className=' flex flex-col w-full h-full'>
+            <PanelGroup 
+              direction="vertical"
+              className= ' flex-1'
+            >
+              <Panel defaultSize={75} minSize={15} order={1} className="relative">
+                {gameModel.storySegments.some(seg => seg.toSummarize) && (
+                <div className='absolute top-2 left-1/2 -translate-x-1/2 z-10'>
+                  <Button variant='primary'
+                    onClick={() => {
+                      const assistantSegments = gameModel.storySegments.filter(s => s.role === 'assistant');
+                      const segmentsToSummarize = assistantSegments.filter(s => s.toSummarize);
+
+                      // Validate that segments to summarize are continuous
+                      if (segmentsToSummarize.length > 0) {
+                        const firstIndex = assistantSegments.findIndex(s => s.toSummarize);
+                        const lastIndex = assistantSegments.map(s => s.toSummarize).lastIndexOf(true);
+                        const expectedCount = lastIndex - firstIndex + 1;
+                        
+                        if (segmentsToSummarize.length !== expectedCount) {
+                          showAlert('Segments to summarize must be continuous.');
+                          return;
+                        }
+                      }
+                      //TODO
+                      //setSummarizer(prev => ({ ...prev, visible: true }));
+                    }}
+                  >
+                    Summarize
+                  </Button>
+                </div>
+                )}
+                <div className=' overflow-y-scroll w-full h-full p-2 rounded-md bg-stone-800 border-2 border-zinc-800'>
+                  {(() => {
+                    // Separate segments by whether they have a chapterId
+                    const { segmentsWithoutChapter, segmentsWithChapter } = _util.splitSegmentsWithChapter(gameModel.storySegments);
+                    
+                    // Group segments by chapterId
+                    const chapterGroups = segmentsWithChapter.reduce((acc, seg) => {
+                      if (!acc[seg.chapterId!]) {
+                        acc[seg.chapterId!] = [];
+                      }
+                      acc[seg.chapterId!].push(seg);
+                      return acc;
+                    }, {} as Record<string, StorySegment[]>);
+
+                    return (
+                      <>
+                        {/* Render chapters */}
+                        {Object.entries(chapterGroups).map(([chapterId, segments]) => {
+                          const chapter = gameModel.chapters.find(c => c.id === chapterId);
+                          if (!chapter) return null;
+                          
+                          return (
+                            <ChapterDisplay
+                              key={chapterId}
+                              chapter={chapter}
+                              segments={segments}
+                              onChapterUpdate={uiAction.updateChapter}
+                            />
+                          );
+                        })}
+
+                        {/* Render segments without chapterId */}
+                        {segmentsWithoutChapter.map((seg, index) => {
+                          const segmentSummary = seg.segmentSummaryId 
+                            ? gameModel.segmentSummaries.find(s => s.id === seg.segmentSummaryId)
+                            : null;
+                          
+                          return (
+                            <SegmentDisplay 
+                              key={seg.id}
+                              index={index}
+                              segment={seg}
+                              segmentSummary={segmentSummary}
+                              onUpdateSegment={uiAction.updateStorySegment}
+                              onDeleteSegment={uiAction.deleteStorySegment}
+                              onEnhanceClick={(chat) => {
+                                //TODO
+                                // setEnhancer({
+                                //   visible: true,
+                                //   segment: chat,
+                                //   prevStory: _util.getStorySegmentAsString(segmentsWithoutChapter, gameModel.segmentSummaries, chat.id),
+                                // });
+                              }}
+                              onWrapChapter={uiAction.openChapterWrapper}
+                              onRedoNarration={gameAction.redoNarration}
+                              isLastMessage={index === segmentsWithoutChapter.length - 1}
+                              disabled={disableAction}
+                            />
+                          );
+                        })}
+                      </>
+                    );
+                  })()}
+                </div>
+                
+                {/* {enhancer.visible && enhancer.segment && (
+                  <EnhancerModal
+                    segment={enhancer.segment}
+                    prevStory={enhancer.prevStory}
+                    onClose={() => setEnhancer(prev => ({ ...prev, visible: false }))}
+                    onSave={(segment) => {
+                      setEnhancer(prev => ({ ...prev, visible: false }));
+                      uiAction.updateStorySegment(segment);
+                    }}
+                  />
+                )} */}
+                {/* {summarizer.visible && (
+                  <SummarizerModal 
+                    segments={gameModel.storySegments}
+                    segmentSummaries={gameModel.segmentSummaries}
+                    onClose={() => setSummarizer(prev => ({ ...prev, visible: false }))}
+                    onSave={gameAction.summarizeSegments}
+                  />
+                )} */}
+                {/* {chapterWrapper.visible && (
+                  <ChapterWrapperModal
+                    gameSetting={gameSetting}
+                    segments={chapterWrapper.segments}
+                    onClose={() => setChapterWrapper(prev => ({ ...prev, visible: false }))}
+                    onSave={gameAction.wrapChapter}
+                  />
+                )} */}
+              </Panel>
+              <StatusBar {...sbp} />
+              <PanelResizeHandle className=' h-3 bg-neutral-900' />
+              {inputPanelElement}
+            </PanelGroup>
+            <div className=' h-2'></div>
+            <Button
+              className=' w-full h-7'
+              onClick={gameAction.narration}
+              disabled={disableAction}
+            >
+              SEND
+            </Button>
+          </div>
+        </Panel>
+        <PanelResizeHandle className=' w-1 bg-neutral-600' />
+        {debugPanel.element}
+      </PanelGroup>
     </div>
   );
 }
