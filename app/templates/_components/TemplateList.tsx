@@ -59,33 +59,33 @@ export default function TemplateList() {
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Templates</h1>
+        <h1 className="text-2xl font-bold text-secondary">Templates</h1>
         <Link href="/templates/new">
-          <button className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Create New Template</button>
+          <button className="btn btn-primary">Create New Template</button>
         </Link>
       </div>
 
       {templates.length === 0 ? (
-        <p>No templates found. Create one to get started.</p>
+        <p className="text-muted-foreground">No templates found. Create one to get started.</p>
       ) : (
         <table className="w-full border-collapse">
           <thead>
             <tr>
-              <th className="text-left border-b border-gray-300 p-2">Name</th>
-              <th className="text-left border-b border-gray-300 p-2">Template ID</th>
-              <th className="text-left border-b border-gray-300 p-2">Actions</th>
+              <th className="text-left border-b border-border p-2 text-muted-foreground">Name</th>
+              <th className="text-left border-b border-border p-2 text-muted-foreground">Template ID</th>
+              <th className="text-left border-b border-border p-2 text-muted-foreground">Actions</th>
             </tr>
           </thead>
           <tbody>
             {templates.map((template) => (
-              <tr key={template.templateId}>
-                <td className="border-b border-gray-100 p-2">{template.name}</td>
-                <td className="border-b border-gray-100 p-2">{template.templateId}</td>
-                <td className="border-b border-gray-100 p-2">
+              <tr key={template.templateId} className="hover:bg-muted/50 transition-colors">
+                <td className="border-b border-border p-2">{template.name}</td>
+                <td className="border-b border-border p-2 font-mono text-sm">{template.templateId}</td>
+                <td className="border-b border-border p-2">
                   <Link href={`/templates/${template.templateId}`}>
-                    <button className="mr-2 px-3 py-1 border rounded hover:bg-gray-100">Edit</button>
+                    <button className="mr-2 btn btn-outline h-8 px-3">Edit</button>
                   </Link>
-                  <button onClick={() => handleDelete(template.templateId!)} className="px-3 py-1 border border-red-500 text-red-500 rounded hover:bg-red-50">Delete</button>
+                  <button onClick={() => handleDelete(template.templateId!)} className="btn btn-ghost h-8 px-3 text-red-500 hover:text-red-600 hover:bg-red-100/10">Delete</button>
                 </td>
               </tr>
             ))}

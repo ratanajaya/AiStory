@@ -113,27 +113,27 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-4">{isEditMode ? 'Edit Template' : 'Create New Template'}</h1>
+      <h1 className="text-2xl font-bold mb-4 text-secondary">{isEditMode ? 'Edit Template' : 'Create New Template'}</h1>
 
       {error && <div className="text-red-500 mb-4">{error}</div>}
 
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className="space-y-4">
         {isEditMode && (
           <div className="mb-4">
-            <label className="block mb-1">
+            <label className="block mb-1 text-muted-foreground">
               Template ID:
             </label>
             <input
               type="text"
               value={formData.templateId || ''}
               disabled
-              className="w-full p-2 bg-gray-100 border rounded"
+              className="w-full p-2 bg-muted border border-input rounded text-muted-foreground"
             />
           </div>
         )}
 
         <div className="mb-4">
-          <label className="block mb-1">
+          <label className="block mb-1 text-foreground">
             Name:
           </label>
           <input
@@ -141,79 +141,79 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
             value={formData.name}
             onChange={(e) => handleInputChange('name', e.target.value)}
             required
-            className="w-full p-2 border rounded"
+            className="w-full p-2 bg-background border border-input rounded focus:ring-2 focus:ring-ring focus:outline-none"
           />
         </div>
 
-        <fieldset className="mb-4 p-4 border rounded">
-          <legend className="font-semibold">Prompts</legend>
+        <fieldset className="mb-4 p-4 border border-border rounded bg-card/50">
+          <legend className="font-semibold text-secondary px-2">Prompts</legend>
 
           <div className="mb-4">
-            <label className="block mb-1">
+            <label className="block mb-1 text-foreground">
               Narrator:
             </label>
             <textarea
               value={formData.prompt.narrator || ''}
               onChange={(e) => handlePromptChange('narrator', e.target.value)}
               rows={4}
-              className="w-full p-2 border rounded"
+              className="w-full p-2 bg-background border border-input rounded focus:ring-2 focus:ring-ring focus:outline-none"
             />
           </div>
 
           <div className="mb-4">
-            <label className="block mb-1">
+            <label className="block mb-1 text-foreground">
               Input Tag:
             </label>
             <input
               type="text"
               value={formData.prompt.inputTag || ''}
               onChange={(e) => handlePromptChange('inputTag', e.target.value)}
-              className="w-full p-2 border rounded"
+              className="w-full p-2 bg-background border border-input rounded focus:ring-2 focus:ring-ring focus:outline-none"
             />
           </div>
 
           <div className="mb-4">
-            <label className="block mb-1">
+            <label className="block mb-1 text-foreground">
               Summarizer:
             </label>
             <textarea
               value={formData.prompt.summarizer || ''}
               onChange={(e) => handlePromptChange('summarizer', e.target.value)}
               rows={4}
-              className="w-full p-2 border rounded"
+              className="w-full p-2 bg-background border border-input rounded focus:ring-2 focus:ring-ring focus:outline-none"
             />
           </div>
 
           <div className="mb-4">
-            <label className="block mb-1">
+            <label className="block mb-1 text-foreground">
               Summarizer End State:
             </label>
             <textarea
               value={formData.prompt.summarizerEndState || ''}
               onChange={(e) => handlePromptChange('summarizerEndState', e.target.value)}
               rows={4}
-              className="w-full p-2 border rounded"
+              className="w-full p-2 bg-background border border-input rounded focus:ring-2 focus:ring-ring focus:outline-none"
             />
           </div>
         </fieldset>
 
         <div className="mb-4">
-          <label className="block mb-1">
+          <label className="block mb-1 text-foreground">
             Story Background:
           </label>
           <textarea
             value={formData.storyBackground}
             onChange={(e) => handleInputChange('storyBackground', e.target.value)}
             rows={6}
-            className="w-full p-2 border rounded"
+            className="w-full p-2 bg-background border border-input rounded focus:ring-2 focus:ring-ring focus:outline-none"
           />
         </div>
 
         <div className="flex gap-4">
-          <button type="submit" disabled={loading} className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50">
+          <button type="submit" disabled={loading} className="btn btn-primary">
             {loading ? 'Saving...' : isEditMode ? 'Update Template' : 'Create Template'}
           </button>
-          <button type="button" onClick={() => router.push('/templates')} className="px-4 py-2 border rounded hover:bg-gray-100">
+          <button type="button" onClick={() => router.push('/templates')} className="btn btn-outline">
             Cancel
           </button>
         </div>
