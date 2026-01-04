@@ -3,7 +3,7 @@ import { Space } from 'antd';
 import React, { useEffect, useState } from 'react';
 import Markdown from 'react-markdown';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import { _constant } from '@/utils/_constant';
+import _constant from '@/utils/_constant';
 import { DebugLog, Book } from '@/types';
 import _util from '@/utils/_util';
 

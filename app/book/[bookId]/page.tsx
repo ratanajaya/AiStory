@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, use } from 'react';
-import { Book, Chapter, SegmentSummary, StorySegment } from '@/types';
+import { Book, Chapter, SegmentSummary, StorySegment, Template } from '@/types';
 import { useFetcher } from '@/components/FetcherProvider';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { Button } from '@/components/Button';
@@ -12,16 +12,19 @@ import ChapterDisplay from '../_components/ChapterDisplay';
 import StatusBar, { StatusBarProps } from '../_components/StatusBar';
 import useDebugPanel from '../_components/useDebugPanel';
 import useInputPanel from '../_components/useInputPanel';
+import EnhancerModal from '../_components/EnhancerModal';
+import SummarizerModal from '../_components/SummarizerModal';
+import ChapterWrapperModal from '../_components/ChapterWrapperModal';
 
 interface PageProps {
   params: Promise<{ bookId: string }>;
 }
 
-interface GameModel extends Book {
+interface BookUIModel extends Book {
   shouldSave: boolean;
 }
 
-const emptyGameModel: GameModel = {
+const emptyBookModel: BookUIModel = {
   bookId: '',
   templateId: '',
   name: null,
@@ -33,7 +36,8 @@ const emptyGameModel: GameModel = {
 
 export default function BookPage({ params }: PageProps) {
   const { bookId } = use(params);
-  const [gameModel, setGameModel] = useState<GameModel>(emptyGameModel);
+  const [bookUiModel, setBookUiModel] = useState<BookUIModel>(emptyBookModel);
+  const [template, setTemplate] = useState<Template | null>(null);
   const [loading, setLoading] = useState(true);
   const { fetcher } = useFetcher();
   const { showAlert } = useAlert();
@@ -65,11 +69,11 @@ export default function BookPage({ params }: PageProps) {
     defaultSize: 20,
     minSize: 15,
     order: 3,
-    book: gameModel,
+    book: bookUiModel,
   });
 
   const { element: inputPanelElement, getUserInput } = useInputPanel({
-    inputTag: 'TODO: get from template',
+    inputTag: template?.prompt.inputTag ?? 'Enter your input here...',
   });
 
   useEffect(() => {
@@ -79,10 +83,14 @@ export default function BookPage({ params }: PageProps) {
         const data = await fetcher<Book>(`/api/books/${bookId}`, {
           errorMessage: 'Failed to fetch book',
         });
-        setGameModel({
+        setBookUiModel({
           ...data,
           shouldSave: false,
         });
+        const templateData = await fetcher<any>(`/api/templates/${data.templateId}`, {
+          errorMessage: 'Failed to fetch template',
+        });
+        setTemplate(templateData);
       } catch {
       } finally {
         setLoading(false);
@@ -100,22 +108,22 @@ export default function BookPage({ params }: PageProps) {
     narration: async () => {
     },
     redoNarration: async (segmentId: string) => {
-      const segmentIndex = gameModel.storySegments.findIndex(seg => seg.id === segmentId);
-      const assistantSegment = gameModel.storySegments[segmentIndex];
+      const segmentIndex = bookUiModel.storySegments.findIndex(seg => seg.id === segmentId);
+      const assistantSegment = bookUiModel.storySegments[segmentIndex];
 
-      if(segmentIndex !== gameModel.storySegments.length -1 || assistantSegment?.role !== 'assistant' ) {
+      if(segmentIndex !== bookUiModel.storySegments.length -1 || assistantSegment?.role !== 'assistant' ) {
         console.error('Can only redo narration for the last assistant segment');
         return;
       }
 
-      const prevUserSegment = gameModel.storySegments[segmentIndex -1];
+      const prevUserSegment = bookUiModel.storySegments[segmentIndex -1];
       if(!prevUserSegment || prevUserSegment.role !== 'user') {
         showAlert('Previous segment is not a user segment');
         return;
       }
       
       // Remove the last assistant segment
-      setGameModel(prev => ({
+      setBookUiModel(prev => ({
         ...prev,
         storySegments: prev.storySegments.filter(seg => seg.id !== segmentId && seg.id !== prevUserSegment.id),
       }));
@@ -130,7 +138,7 @@ export default function BookPage({ params }: PageProps) {
 
   const uiAction = {
     updateStorySegment: (updatedSegment: StorySegment) => {
-      setGameModel(prev => ({
+      setBookUiModel(prev => ({
         ...prev,
         storySegments: prev.storySegments.map(msg =>
           msg.id === updatedSegment.id ? updatedSegment : msg
@@ -139,30 +147,29 @@ export default function BookPage({ params }: PageProps) {
       }));
     },
     deleteStorySegment: (id: string) => {
-      setGameModel(prev => ({
+      setBookUiModel(prev => ({
         ...prev,
         storySegments: prev.storySegments.filter(msg => msg.id !== id),
         shouldSave: true,
       }));
     },
     openChapterWrapper: (segmentId: string) => {
-      const segmentIndex = gameModel.storySegments.findIndex(s => s.id === segmentId);
+      const segmentIndex = bookUiModel.storySegments.findIndex(s => s.id === segmentId);
 
-      const chapterSegments = gameModel.storySegments.filter((s, index) => !s.chapterId && index <= segmentIndex);
+      const chapterSegments = bookUiModel.storySegments.filter((s, index) => !s.chapterId && index <= segmentIndex);
 
       if(chapterSegments.length <= 2) {
         showAlert('At least 3 segments are required to form a chapter.');
         return;
       }
 
-      //TODO
-      // setChapterWrapper({
-      //   visible: true,
-      //   segments: chapterSegments,
-      // });
+      setChapterWrapper({
+        visible: true,
+        segments: chapterSegments,
+      });
     },
     updateChapter: (updatedChapter: Chapter) => {
-      setGameModel(prev => ({
+      setBookUiModel(prev => ({
         ...prev,
         chapters: prev.chapters.map(c => c.id === updatedChapter.id ? updatedChapter : c),
         shouldSave: true,
@@ -174,7 +181,7 @@ export default function BookPage({ params }: PageProps) {
     return <div className="p-8">Loading book...</div>;
   }
 
-  if (_util.isNullOrWhitespace(gameModel.bookId)) {
+  if (_util.isNullOrWhitespace(bookUiModel.bookId)) {
     return <div className="p-8">Book not found</div>;
   }
 
@@ -182,7 +189,7 @@ export default function BookPage({ params }: PageProps) {
 
   return (
     <div className="h-screen p-8">
-      <h1 className="text-2xl font-bold mb-4">Book: {gameModel.bookId}</h1>
+      <h1 className="text-2xl font-bold mb-4">Book: {bookUiModel.bookId}</h1>
       {/* <pre className="bg-muted p-4 rounded overflow-auto max-h-[80vh]">
         {JSON.stringify(book, null, 2)}
       </pre> */}
@@ -200,11 +207,11 @@ export default function BookPage({ params }: PageProps) {
               className= ' flex-1'
             >
               <Panel defaultSize={75} minSize={15} order={1} className="relative">
-                {gameModel.storySegments.some(seg => seg.toSummarize) && (
+                {bookUiModel.storySegments.some(seg => seg.toSummarize) && (
                 <div className='absolute top-2 left-1/2 -translate-x-1/2 z-10'>
                   <Button variant='primary'
                     onClick={() => {
-                      const assistantSegments = gameModel.storySegments.filter(s => s.role === 'assistant');
+                      const assistantSegments = bookUiModel.storySegments.filter(s => s.role === 'assistant');
                       const segmentsToSummarize = assistantSegments.filter(s => s.toSummarize);
 
                       // Validate that segments to summarize are continuous
@@ -218,8 +225,8 @@ export default function BookPage({ params }: PageProps) {
                           return;
                         }
                       }
-                      //TODO
-                      //setSummarizer(prev => ({ ...prev, visible: true }));
+
+                      setSummarizer(prev => ({ ...prev, visible: true }));
                     }}
                   >
                     Summarize
@@ -229,7 +236,7 @@ export default function BookPage({ params }: PageProps) {
                 <div className=' overflow-y-scroll w-full h-full p-2 rounded-md bg-stone-800 border-2 border-zinc-800'>
                   {(() => {
                     // Separate segments by whether they have a chapterId
-                    const { segmentsWithoutChapter, segmentsWithChapter } = _util.splitSegmentsWithChapter(gameModel.storySegments);
+                    const { segmentsWithoutChapter, segmentsWithChapter } = _util.splitSegmentsWithChapter(bookUiModel.storySegments);
                     
                     // Group segments by chapterId
                     const chapterGroups = segmentsWithChapter.reduce((acc, seg) => {
@@ -244,7 +251,7 @@ export default function BookPage({ params }: PageProps) {
                       <>
                         {/* Render chapters */}
                         {Object.entries(chapterGroups).map(([chapterId, segments]) => {
-                          const chapter = gameModel.chapters.find(c => c.id === chapterId);
+                          const chapter = bookUiModel.chapters.find(c => c.id === chapterId);
                           if (!chapter) return null;
                           
                           return (
@@ -260,7 +267,7 @@ export default function BookPage({ params }: PageProps) {
                         {/* Render segments without chapterId */}
                         {segmentsWithoutChapter.map((seg, index) => {
                           const segmentSummary = seg.segmentSummaryId 
-                            ? gameModel.segmentSummaries.find(s => s.id === seg.segmentSummaryId)
+                            ? bookUiModel.segmentSummaries.find(s => s.id === seg.segmentSummaryId)
                             : null;
                           
                           return (
@@ -272,12 +279,11 @@ export default function BookPage({ params }: PageProps) {
                               onUpdateSegment={uiAction.updateStorySegment}
                               onDeleteSegment={uiAction.deleteStorySegment}
                               onEnhanceClick={(chat) => {
-                                //TODO
-                                // setEnhancer({
-                                //   visible: true,
-                                //   segment: chat,
-                                //   prevStory: _util.getStorySegmentAsString(segmentsWithoutChapter, gameModel.segmentSummaries, chat.id),
-                                // });
+                                setEnhancer({
+                                  visible: true,
+                                  segment: chat,
+                                  prevStory: _util.getStorySegmentAsString(segmentsWithoutChapter, bookUiModel.segmentSummaries, chat.id),
+                                });
                               }}
                               onWrapChapter={uiAction.openChapterWrapper}
                               onRedoNarration={gameAction.redoNarration}
@@ -291,7 +297,7 @@ export default function BookPage({ params }: PageProps) {
                   })()}
                 </div>
                 
-                {/* {enhancer.visible && enhancer.segment && (
+                {enhancer.visible && enhancer.segment && (
                   <EnhancerModal
                     segment={enhancer.segment}
                     prevStory={enhancer.prevStory}
@@ -301,26 +307,26 @@ export default function BookPage({ params }: PageProps) {
                       uiAction.updateStorySegment(segment);
                     }}
                   />
-                )} */}
-                {/* {summarizer.visible && (
+                )}
+                {summarizer.visible && (
                   <SummarizerModal 
-                    segments={gameModel.storySegments}
-                    segmentSummaries={gameModel.segmentSummaries}
+                    segments={bookUiModel.storySegments}
+                    segmentSummaries={bookUiModel.segmentSummaries}
                     onClose={() => setSummarizer(prev => ({ ...prev, visible: false }))}
                     onSave={gameAction.summarizeSegments}
                   />
-                )} */}
-                {/* {chapterWrapper.visible && (
+                )}
+                {template && chapterWrapper.visible && (
                   <ChapterWrapperModal
-                    gameSetting={gameSetting}
+                    template={template}
                     segments={chapterWrapper.segments}
                     onClose={() => setChapterWrapper(prev => ({ ...prev, visible: false }))}
                     onSave={gameAction.wrapChapter}
                   />
-                )} */}
+                )}
               </Panel>
               <StatusBar {...sbp} />
-              <PanelResizeHandle className=' h-3 bg-neutral-900' />
+              <PanelResizeHandle className=' mt-1 mb-1 h-1 bg-neutral-600' />
               {inputPanelElement}
             </PanelGroup>
             <div className=' h-2'></div>

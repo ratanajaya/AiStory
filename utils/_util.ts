@@ -1,5 +1,5 @@
 import { SegmentSummary, StorySegment } from "@/types";
-import { _constant } from "./_constant";
+import _constant from "./_constant";
 
 const _util = {
   isNullOrWhitespace: (input: string | null | undefined) => {

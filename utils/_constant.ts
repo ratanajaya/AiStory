@@ -1,4 +1,4 @@
-export const _constant = {
+const _constant = {
   newLine: '\n',
   newLine2: '\n\n',
 
@@ -34,3 +34,5 @@ Maecenas tempus, tellus eget condimentum rhoncus, sem quam semper libero, sit am
     },
   },
 }
+
+export default _constant;
