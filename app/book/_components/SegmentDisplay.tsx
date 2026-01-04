@@ -201,21 +201,6 @@ export default function SegmentDisplay(props: {
                   disabled={props.segment.segmentSummaryId != null}
                 />
               </Tooltip>
-              {/* <Tooltip
-                title="Exclude from previous story summary"
-                placement="top"
-              >
-                <Checkbox
-                  checked={props.segment.excludeFromPrevStory}
-                  onChange={(e) => {
-                    props.onUpdateSegment({
-                      ...props.segment,
-                      excludeFromPrevStory: e.target.checked,
-                    });
-                  }}
-                />
-              </Tooltip> */}
-            {/* </Space> */}
           </div>
           <div className={`relative ${segmentWithSummary ? `border-l-4 pl-3 ${colorClass}` : ''}`}>
             <Markdown

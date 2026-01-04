@@ -1,6 +1,5 @@
 import { Button, Col, Input, message, Modal, Row } from 'antd';
-import { useEffect, useState } from 'react'
-//import { getDynamicAiEndpoint } from 'services/aiEndpointDynamic';
+import { useEffect, useState } from 'react';
 import _constant from '@/utils/_constant';
 import { Chapter, Template, StorySegment } from '@/types';
 import _util from '@/utils/_util';
@@ -34,39 +33,54 @@ export default function ChapterWrapperModal(props: {
     userMessage1 += storySoFar;
     
     // Instructions to the AI on how to respond
-    // let userMessage2 = props.template.prompt.summarizer;
+    let userMessage2 = props.template.prompt.summarizer;
 
-    // try {
-    //   const aiEndpoint = getDynamicAiEndpoint();
-    //   await aiEndpoint.chatStreamFull(null, [
-    //     {
-    //       role: 'user',
-    //       content: userMessage1,
-    //     },
-    //     {
-    //       role: 'user',
-    //       content: userMessage2,
-    //     },
-    //   ], (content) => {
-    //     setValues(prev => ({
-    //       ...prev,
-    //       summary: prev.summary + content,
-    //     }));
-    //   });
+    try {
+      const response = await fetch('/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          systemMessage: null,
+          messages: [
+            { role: 'user', content: userMessage1 },
+            { role: 'user', content: userMessage2 },
+          ],
+          stream: true,
+        }),
+      });
 
-    //   setValues(prev => ({
-    //     ...prev,
-    //     summary: _util.cleanupLlmResponse(prev.summary),
-    //     summaryLoading: false,
-    //   }));
-    // } catch (error) {
-    //   console.error('Error during streaming:', error);
-    //   setValues(prev => ({
-    //     ...prev,
-    //     summaryLoading: false,
-    //     summary: prev.summary + _constant.newLine2 + 'Error: ' + error,
-    //   }));
-    // }
+      if (!response.ok) {
+        throw new Error('Failed to get AI response');
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const content = decoder.decode(value, { stream: true });
+          setValues(prev => ({
+            ...prev,
+            summary: prev.summary + content,
+          }));
+        }
+      }
+
+      setValues(prev => ({
+        ...prev,
+        summary: _util.cleanupLlmResponse(prev.summary),
+        summaryLoading: false,
+      }));
+    } catch (error) {
+      console.error('Error during streaming:', error);
+      setValues(prev => ({
+        ...prev,
+        summaryLoading: false,
+        summary: prev.summary + _constant.newLine2 + 'Error: ' + error,
+      }));
+    }
   }
 
   async function handleEndState() {
@@ -81,41 +95,55 @@ export default function ChapterWrapperModal(props: {
     const storySoFar = _util.getStorySegmentAsString(props.segments, [], null);
     userMessage1 += storySoFar;
     
-    // Instructions to the AI on how to respond
-    // let userMessage2 = props.template.prompt.summarizerEndState;
+    //Instructions to the AI on how to respond
+    let userMessage2 = props.template.prompt.summarizerEndState;
 
-    // try {
-    //   const aiEndpoint = getDynamicAiEndpoint();
+    try {
+      const response = await fetch('/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          systemMessage: null,
+          messages: [
+            { role: 'user', content: userMessage1 },
+            { role: 'user', content: userMessage2 },
+          ],
+          stream: true,
+        }),
+      });
 
-    //   await aiEndpoint.chatStreamFull(null, [
-    //     {
-    //       role: 'user',
-    //       content: userMessage1,
-    //     },
-    //     {
-    //       role: 'user',
-    //       content: userMessage2,
-    //     },
-    //   ], (content) => {
-    //     setValues(prev => ({
-    //       ...prev,
-    //       endStateString: prev.endStateString + content,
-    //     }));
-    //   });
+      if (!response.ok) {
+        throw new Error('Failed to get AI response');
+      }
 
-    //   setValues(prev => ({
-    //     ...prev,
-    //     endStateString: _util.cleanupLlmResponse(prev.endStateString),
-    //     endStateLoading: false,
-    //   }));
-    // } catch (error) {
-    //   console.error('Error during streaming:', error);
-    //   setValues(prev => ({
-    //     ...prev,
-    //     endStateLoading: false,
-    //     endStateString: prev.endStateString + _constant.newLine2 + 'Error: ' + error,
-    //   }));
-    // }
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const content = decoder.decode(value, { stream: true });
+          setValues(prev => ({
+            ...prev,
+            endStateString: prev.endStateString + content,
+          }));
+        }
+      }
+
+      setValues(prev => ({
+        ...prev,
+        endStateString: _util.cleanupLlmResponse(prev.endStateString),
+        endStateLoading: false,
+      }));
+    } catch (error) {
+      console.error('Error during streaming:', error);
+      setValues(prev => ({
+        ...prev,
+        endStateLoading: false,
+        endStateString: prev.endStateString + _constant.newLine2 + 'Error: ' + error,
+      }));
+    }
   }
 
   useEffect(() => {

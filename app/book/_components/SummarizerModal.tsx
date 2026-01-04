@@ -1,6 +1,5 @@
 import { Button, Col, Input, Modal, Row } from 'antd';
 import { useEffect, useState } from 'react'
-//import { getDynamicAiEndpoint } from 'services/aiEndpointDynamic';
 import _constant from '@/utils/_constant';
 import { SegmentSummary, StorySegment } from '@/types';
 
@@ -32,27 +31,48 @@ export default function SummarizerModal(props: {
 
     const contentToSummarize = segmentToSummarize.map(s => s.content).join(_constant.newLine2);
 
-    // try {
-    //   const aiEndpoint = getDynamicAiEndpoint();
-    //   await aiEndpoint.chatStream(systemPrompt, contentToSummarize, (content) => {
-    //     setValues(prev => ({
-    //       ...prev,
-    //       llmResponse: prev.llmResponse + content,
-    //     }));
-    //   });
+    try {
+      const response = await fetch('/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          systemMessage: systemPrompt,
+          messages: [{ role: 'user', content: contentToSummarize }],
+          stream: true,
+        }),
+      });
 
-    //   setValues(prev => ({
-    //     ...prev,
-    //     isLoading: false,
-    //   }));      
-    // } catch (error) {
-    //   console.error('Error during streaming:', error);
-    //   setValues(prev => ({
-    //     ...prev,
-    //     isLoading: false,
-    //     llmResponse: prev.llmResponse + _constant.newLine2 + 'Error: ' + error,
-    //   }));
-    // }
+      if (!response.ok) {
+        throw new Error('Failed to get AI response');
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const content = decoder.decode(value, { stream: true });
+          setValues(prev => ({
+            ...prev,
+            llmResponse: prev.llmResponse + content,
+          }));
+        }
+      }
+
+      setValues(prev => ({
+        ...prev,
+        isLoading: false,
+      }));
+    } catch (error) {
+      console.error('Error during streaming:', error);
+      setValues(prev => ({
+        ...prev,
+        isLoading: false,
+        llmResponse: prev.llmResponse + _constant.newLine2 + 'Error: ' + error,
+      }));
+    }
   }
 
   useEffect(() => {

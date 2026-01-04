@@ -1,6 +1,5 @@
 import { Button, Checkbox, Col, Input, Modal, Row } from 'antd';
 import { useEffect, useState } from 'react'
-//import { getDynamicAiEndpoint } from 'services/aiEndpointDynamic';
 import _constant from '@/utils/_constant';
 import { StorySegment } from '@/types';
 import _util from '@/utils/_util';
@@ -39,29 +38,49 @@ export default function EnhancerModal(props: {
 
     const fullUserPrompt = (values.includePrevStory ? (storyBeforeThisSegment + _constant.newLine2) : '') + values.content + _constant.newLine2 + userInput;
 
-    //TODO
-    // try {
-    //   const aiEndpoint = getDynamicAiEndpoint();
-    //   await aiEndpoint.chatStream('Follow the instruction specified after the PROMPT:', fullUserPrompt, (content) => {
-    //     setValues(prev => ({
-    //       ...prev,
-    //       llmResponse: prev.llmResponse + content,
-    //     }));
-    //   });
+    try {
+      const response = await fetch('/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          systemMessage: 'Follow the instruction specified after the PROMPT:',
+          messages: [{ role: 'user', content: fullUserPrompt }],
+          stream: true,
+        }),
+      });
 
-    //   setValues(prev => ({
-    //     ...prev,
-    //     llmResponse: util.cleanupLlmResponse(prev.llmResponse),
-    //     isLoading: false,
-    //   }));      
-    // } catch (error) {
-    //   console.error('Error during streaming:', error);
-    //   setValues(prev => ({
-    //     ...prev,
-    //     isLoading: false,
-    //     llmResponse: prev.llmResponse + _constant.newLine2 + 'Error: ' + error,
-    //   }));
-    // }
+      if (!response.ok) {
+        throw new Error('Failed to get AI response');
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const content = decoder.decode(value, { stream: true });
+          setValues(prev => ({
+            ...prev,
+            llmResponse: prev.llmResponse + content,
+          }));
+        }
+      }
+
+      setValues(prev => ({
+        ...prev,
+        llmResponse: _util.cleanupLlmResponse(prev.llmResponse),
+        isLoading: false,
+      }));
+    } catch (error) {
+      console.error('Error during streaming:', error);
+      setValues(prev => ({
+        ...prev,
+        isLoading: false,
+        llmResponse: prev.llmResponse + _constant.newLine2 + 'Error: ' + error,
+      }));
+    }
   }
 
   return (
