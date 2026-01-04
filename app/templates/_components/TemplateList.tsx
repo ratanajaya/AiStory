@@ -3,34 +3,31 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Template } from '@/types';
-import { useAlert } from '@/components/AlertBox';
+import { useFetcher } from '@/components/FetcherProvider';
 import { Button } from '@/components/Button';
 
 export default function TemplateList() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
-  const { showAlert } = useAlert();
+  const { fetcher } = useFetcher();
 
   useEffect(() => {
     const fetchTemplates = async () => {
       try {
         setLoading(true);
-        const response = await fetch('/api/templates');
-        if (!response.ok) {
-          throw new Error('Failed to fetch templates');
-        }
-        const data = await response.json();
+        const data = await fetcher<Template[]>('/api/templates', {
+          errorMessage: 'Failed to fetch templates',
+        });
         setTemplates(data);
-      } catch (err) {
-        showAlert(err instanceof Error ? err.message : 'An error occurred');
+      } catch {
       } finally {
         setLoading(false);
       }
     };
 
     fetchTemplates();
-  }, [showAlert, refreshKey]);
+  }, [fetcher, refreshKey]);
 
   const handleDelete = async (templateId: string) => {
     if (!confirm('Are you sure you want to delete this template?')) {
@@ -38,16 +35,13 @@ export default function TemplateList() {
     }
 
     try {
-      const response = await fetch(`/api/templates/${templateId}`, {
+      await fetcher(`/api/templates/${templateId}`, {
         method: 'DELETE',
+        errorMessage: 'Failed to delete template',
       });
-      if (!response.ok) {
-        throw new Error('Failed to delete template');
-      }
       // Refresh the list
       setRefreshKey((prev) => prev + 1);
-    } catch (err) {
-      showAlert(err instanceof Error ? err.message : 'Failed to delete template');
+    } catch {
     }
   };
 

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Template } from '@/types';
-import { useAlert } from '@/components/AlertBox';
+import { useFetcher } from '@/components/FetcherProvider';
 import { Button } from '@/components/Button';
 import { FormField } from '@/components/FormField';
 import { Input } from '@/components/Input';
@@ -27,7 +27,7 @@ const emptyTemplate: Template = {
 
 export default function TemplateForm({ templateId }: TemplateFormProps) {
   const router = useRouter();
-  const { showAlert } = useAlert();
+  const { fetcher } = useFetcher();
   const isEditMode = Boolean(templateId);
 
   const [formData, setFormData] = useState<Template>(emptyTemplate);
@@ -38,11 +38,9 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
     const fetchTemplate = async () => {
       try {
         setFetchLoading(true);
-        const response = await fetch(`/api/templates/${templateId}`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch template');
-        }
-        const data = await response.json();
+        const data = await fetcher<Template>(`/api/templates/${templateId}`, {
+          errorMessage: 'Failed to fetch template',
+        });
         setFormData({
           templateId: data.templateId,
           name: data.name,
@@ -54,8 +52,7 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
           },
           storyBackground: data.storyBackground || '',
         });
-      } catch (err) {
-        showAlert(err instanceof Error ? err.message : 'An error occurred');
+      } catch {
       } finally {
         setFetchLoading(false);
       }
@@ -64,7 +61,7 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
     if (isEditMode && templateId) {
       fetchTemplate();
     }
-  }, [isEditMode, templateId, showAlert]);
+  }, [isEditMode, templateId, fetcher]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,21 +71,17 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
       const url = isEditMode ? `/api/templates/${templateId}` : '/api/templates';
       const method = isEditMode ? 'PUT' : 'POST';
 
-      const response = await fetch(url, {
+      await fetcher(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(formData),
+        errorMessage: `Failed to ${isEditMode ? 'update' : 'create'} template`,
       });
 
-      if (!response.ok) {
-        throw new Error(`Failed to ${isEditMode ? 'update' : 'create'} template`);
-      }
-
       router.push('/templates');
-    } catch (err) {
-      showAlert(err instanceof Error ? err.message : 'An error occurred');
+    } catch {
     } finally {
       setLoading(false);
     }
