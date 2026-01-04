@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Template } from '@/types';
+import { Button } from '@/components/Button';
+import { Input } from '@/components/Input';
+import { Textarea } from '@/components/Textarea';
 
 interface TemplateFormProps {
   templateId?: string; // If provided, we're in edit mode
@@ -123,11 +126,11 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
             <label className="block mb-1 text-muted-foreground">
               Template ID:
             </label>
-            <input
+            <Input
               type="text"
               value={formData.templateId || ''}
               disabled
-              className="w-full p-2 bg-muted border border-input rounded text-muted-foreground"
+              className="bg-muted text-muted-foreground"
             />
           </div>
         )}
@@ -136,12 +139,11 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
           <label className="block mb-1 text-foreground">
             Name:
           </label>
-          <input
+          <Input
             type="text"
             value={formData.name}
             onChange={(e) => handleInputChange('name', e.target.value)}
             required
-            className="w-full p-2 bg-background border border-input rounded focus:ring-2 focus:ring-ring focus:outline-none"
           />
         </div>
 
@@ -152,11 +154,10 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
             <label className="block mb-1 text-foreground">
               Narrator:
             </label>
-            <textarea
+            <Textarea
               value={formData.prompt.narrator || ''}
               onChange={(e) => handlePromptChange('narrator', e.target.value)}
               rows={4}
-              className="w-full p-2 bg-background border border-input rounded focus:ring-2 focus:ring-ring focus:outline-none"
             />
           </div>
 
@@ -164,11 +165,10 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
             <label className="block mb-1 text-foreground">
               Input Tag:
             </label>
-            <input
+            <Input
               type="text"
               value={formData.prompt.inputTag || ''}
               onChange={(e) => handlePromptChange('inputTag', e.target.value)}
-              className="w-full p-2 bg-background border border-input rounded focus:ring-2 focus:ring-ring focus:outline-none"
             />
           </div>
 
@@ -176,11 +176,10 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
             <label className="block mb-1 text-foreground">
               Summarizer:
             </label>
-            <textarea
+            <Textarea
               value={formData.prompt.summarizer || ''}
               onChange={(e) => handlePromptChange('summarizer', e.target.value)}
               rows={4}
-              className="w-full p-2 bg-background border border-input rounded focus:ring-2 focus:ring-ring focus:outline-none"
             />
           </div>
 
@@ -188,11 +187,10 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
             <label className="block mb-1 text-foreground">
               Summarizer End State:
             </label>
-            <textarea
+            <Textarea
               value={formData.prompt.summarizerEndState || ''}
               onChange={(e) => handlePromptChange('summarizerEndState', e.target.value)}
               rows={4}
-              className="w-full p-2 bg-background border border-input rounded focus:ring-2 focus:ring-ring focus:outline-none"
             />
           </div>
         </fieldset>
@@ -201,21 +199,20 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
           <label className="block mb-1 text-foreground">
             Story Background:
           </label>
-          <textarea
+          <Textarea
             value={formData.storyBackground}
             onChange={(e) => handleInputChange('storyBackground', e.target.value)}
             rows={6}
-            className="w-full p-2 bg-background border border-input rounded focus:ring-2 focus:ring-ring focus:outline-none"
           />
         </div>
 
         <div className="flex gap-4">
-          <button type="submit" disabled={loading} className="btn btn-primary">
+          <Button type="submit" disabled={loading} variant="primary">
             {loading ? 'Saving...' : isEditMode ? 'Update Template' : 'Create Template'}
-          </button>
-          <button type="button" onClick={() => router.push('/templates')} className="btn btn-outline">
+          </Button>
+          <Button type="button" onClick={() => router.push('/templates')} variant="outline">
             Cancel
-          </button>
+          </Button>
         </div>
       </form>
     </div>

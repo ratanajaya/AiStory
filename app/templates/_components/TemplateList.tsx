@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Template } from '@/types';
+import { Button } from '@/components/Button';
 
 export default function TemplateList() {
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -61,7 +62,7 @@ export default function TemplateList() {
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold text-secondary">Templates</h1>
         <Link href="/templates/new">
-          <button className="btn btn-primary">Create New Template</button>
+          <Button variant="primary">Create New Template</Button>
         </Link>
       </div>
 
@@ -83,9 +84,15 @@ export default function TemplateList() {
                 <td className="border-b border-border p-2 font-mono text-sm">{template.templateId}</td>
                 <td className="border-b border-border p-2">
                   <Link href={`/templates/${template.templateId}`}>
-                    <button className="mr-2 btn btn-outline h-8 px-3">Edit</button>
+                    <Button variant="outline" className="mr-2 h-8 px-3">Edit</Button>
                   </Link>
-                  <button onClick={() => handleDelete(template.templateId!)} className="btn btn-ghost h-8 px-3 text-red-500 hover:text-red-600 hover:bg-red-100/10">Delete</button>
+                  <Button 
+                    onClick={() => handleDelete(template.templateId!)} 
+                    variant="ghost" 
+                    className="h-8 px-3 text-red-500 hover:text-red-600 hover:bg-red-100/10"
+                  >
+                    Delete
+                  </Button>
                 </td>
               </tr>
             ))}
