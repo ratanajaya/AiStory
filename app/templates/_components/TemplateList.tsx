@@ -58,34 +58,34 @@ export default function TemplateList() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-        <h1>Templates</h1>
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold">Templates</h1>
         <Link href="/templates/new">
-          <button>Create New Template</button>
+          <button className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Create New Template</button>
         </Link>
       </div>
 
       {templates.length === 0 ? (
         <p>No templates found. Create one to get started.</p>
       ) : (
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <table className="w-full border-collapse">
           <thead>
             <tr>
-              <th style={{ textAlign: 'left', borderBottom: '1px solid #ccc', padding: '0.5rem' }}>Name</th>
-              <th style={{ textAlign: 'left', borderBottom: '1px solid #ccc', padding: '0.5rem' }}>Template ID</th>
-              <th style={{ textAlign: 'left', borderBottom: '1px solid #ccc', padding: '0.5rem' }}>Actions</th>
+              <th className="text-left border-b border-gray-300 p-2">Name</th>
+              <th className="text-left border-b border-gray-300 p-2">Template ID</th>
+              <th className="text-left border-b border-gray-300 p-2">Actions</th>
             </tr>
           </thead>
           <tbody>
             {templates.map((template) => (
               <tr key={template.templateId}>
-                <td style={{ borderBottom: '1px solid #eee', padding: '0.5rem' }}>{template.name}</td>
-                <td style={{ borderBottom: '1px solid #eee', padding: '0.5rem' }}>{template.templateId}</td>
-                <td style={{ borderBottom: '1px solid #eee', padding: '0.5rem' }}>
+                <td className="border-b border-gray-100 p-2">{template.name}</td>
+                <td className="border-b border-gray-100 p-2">{template.templateId}</td>
+                <td className="border-b border-gray-100 p-2">
                   <Link href={`/templates/${template.templateId}`}>
-                    <button style={{ marginRight: '0.5rem' }}>Edit</button>
+                    <button className="mr-2 px-3 py-1 border rounded hover:bg-gray-100">Edit</button>
                   </Link>
-                  <button onClick={() => handleDelete(template.templateId)}>Delete</button>
+                  <button onClick={() => handleDelete(template.templateId!)} className="px-3 py-1 border border-red-500 text-red-500 rounded hover:bg-red-50">Delete</button>
                 </td>
               </tr>
             ))}

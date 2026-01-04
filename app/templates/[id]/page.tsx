@@ -8,7 +8,7 @@ export default function TemplateDetailPage() {
   const templateId = params.id as string;
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '800px' }}>
+    <div className="p-8 max-w-3xl">
       <TemplateForm templateId={templateId} />
     </div>
   );

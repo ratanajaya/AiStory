@@ -28,7 +28,7 @@ export interface DebugLog {
 }
 
 export interface Template {
-  templateId: string;
+  templateId: string | null;
   name: string;
   prompt: {
     narrator: string | null;

@@ -8,8 +8,8 @@ interface TemplateFormProps {
   templateId?: string; // If provided, we're in edit mode
 }
 
-const emptyTemplate: Omit<Template, 'templateId'> & { templateId: string } = {
-  templateId: '',
+const emptyTemplate: Template = {
+  templateId: null,
   name: '',
   prompt: {
     narrator: '',
@@ -24,7 +24,7 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
   const router = useRouter();
   const isEditMode = Boolean(templateId);
 
-  const [formData, setFormData] = useState(emptyTemplate);
+  const [formData, setFormData] = useState<Template>(emptyTemplate);
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(isEditMode);
   const [error, setError] = useState<string | null>(null);
@@ -113,27 +113,27 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
 
   return (
     <div>
-      <h1>{isEditMode ? 'Edit Template' : 'Create New Template'}</h1>
+      <h1 className="text-2xl font-bold mb-4">{isEditMode ? 'Edit Template' : 'Create New Template'}</h1>
 
-      {error && <div style={{ color: 'red', marginBottom: '1rem' }}>{error}</div>}
+      {error && <div className="text-red-500 mb-4">{error}</div>}
 
       <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: '1rem' }}>
-          <label style={{ display: 'block', marginBottom: '0.25rem' }}>
-            Template ID:
-          </label>
-          <input
-            type="text"
-            value={formData.templateId}
-            onChange={(e) => handleInputChange('templateId', e.target.value)}
-            disabled={isEditMode}
-            required
-            style={{ width: '100%', padding: '0.5rem' }}
-          />
-        </div>
+        {isEditMode && (
+          <div className="mb-4">
+            <label className="block mb-1">
+              Template ID:
+            </label>
+            <input
+              type="text"
+              value={formData.templateId || ''}
+              disabled
+              className="w-full p-2 bg-gray-100 border rounded"
+            />
+          </div>
+        )}
 
-        <div style={{ marginBottom: '1rem' }}>
-          <label style={{ display: 'block', marginBottom: '0.25rem' }}>
+        <div className="mb-4">
+          <label className="block mb-1">
             Name:
           </label>
           <input
@@ -141,79 +141,79 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
             value={formData.name}
             onChange={(e) => handleInputChange('name', e.target.value)}
             required
-            style={{ width: '100%', padding: '0.5rem' }}
+            className="w-full p-2 border rounded"
           />
         </div>
 
-        <fieldset style={{ marginBottom: '1rem', padding: '1rem' }}>
-          <legend>Prompts</legend>
+        <fieldset className="mb-4 p-4 border rounded">
+          <legend className="font-semibold">Prompts</legend>
 
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.25rem' }}>
+          <div className="mb-4">
+            <label className="block mb-1">
               Narrator:
             </label>
             <textarea
               value={formData.prompt.narrator || ''}
               onChange={(e) => handlePromptChange('narrator', e.target.value)}
               rows={4}
-              style={{ width: '100%', padding: '0.5rem' }}
+              className="w-full p-2 border rounded"
             />
           </div>
 
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.25rem' }}>
+          <div className="mb-4">
+            <label className="block mb-1">
               Input Tag:
             </label>
             <input
               type="text"
               value={formData.prompt.inputTag || ''}
               onChange={(e) => handlePromptChange('inputTag', e.target.value)}
-              style={{ width: '100%', padding: '0.5rem' }}
+              className="w-full p-2 border rounded"
             />
           </div>
 
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.25rem' }}>
+          <div className="mb-4">
+            <label className="block mb-1">
               Summarizer:
             </label>
             <textarea
               value={formData.prompt.summarizer || ''}
               onChange={(e) => handlePromptChange('summarizer', e.target.value)}
               rows={4}
-              style={{ width: '100%', padding: '0.5rem' }}
+              className="w-full p-2 border rounded"
             />
           </div>
 
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.25rem' }}>
+          <div className="mb-4">
+            <label className="block mb-1">
               Summarizer End State:
             </label>
             <textarea
               value={formData.prompt.summarizerEndState || ''}
               onChange={(e) => handlePromptChange('summarizerEndState', e.target.value)}
               rows={4}
-              style={{ width: '100%', padding: '0.5rem' }}
+              className="w-full p-2 border rounded"
             />
           </div>
         </fieldset>
 
-        <div style={{ marginBottom: '1rem' }}>
-          <label style={{ display: 'block', marginBottom: '0.25rem' }}>
+        <div className="mb-4">
+          <label className="block mb-1">
             Story Background:
           </label>
           <textarea
             value={formData.storyBackground}
             onChange={(e) => handleInputChange('storyBackground', e.target.value)}
             rows={6}
-            style={{ width: '100%', padding: '0.5rem' }}
+            className="w-full p-2 border rounded"
           />
         </div>
 
-        <div style={{ display: 'flex', gap: '1rem' }}>
-          <button type="submit" disabled={loading}>
+        <div className="flex gap-4">
+          <button type="submit" disabled={loading} className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50">
             {loading ? 'Saving...' : isEditMode ? 'Update Template' : 'Create Template'}
           </button>
-          <button type="button" onClick={() => router.push('/templates')}>
+          <button type="button" onClick={() => router.push('/templates')} className="px-4 py-2 border rounded hover:bg-gray-100">
             Cancel
           </button>
         </div>
