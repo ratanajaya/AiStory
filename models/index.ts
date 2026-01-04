@@ -44,6 +44,7 @@ const TemplateSchema = new Schema<Template>({
 const BookSchema = new Schema<Book>({
   bookId: { type: String, required: true, unique: true },
   templateId: { type: String, required: true },
+  name: { type: String, default: null },
   storySegments: [StorySegmentSchema],
   segmentSummaries: [SegmentSummarySchema],
   chapters: [ChapterSchema]

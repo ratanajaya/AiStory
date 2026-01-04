@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Template, Book } from '@/types';
 import { useFetcher } from '@/components/FetcherProvider';
 import { Button } from '@/components/Button';
@@ -14,6 +15,7 @@ export default function TemplateList() {
   const [booksLoading, setBooksLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
   const { fetcher } = useFetcher();
+  const router = useRouter();
 
   useEffect(() => {
     const fetchTemplates = async () => {
@@ -32,7 +34,7 @@ export default function TemplateList() {
     const fetchBooks = async () => {
       try {
         setBooksLoading(true);
-        const data = await fetcher<Book[]>('/api/books', {
+        const data = await fetcher<Book[]>('/api/books?select=bookId,name,templateId', {
           errorMessage: 'Failed to fetch books',
         });
         setBooks(data);
@@ -73,7 +75,21 @@ export default function TemplateList() {
     } catch {
     }
   };
-
+  const handleCreateBook = async (templateId: string) => {
+    try {
+      const result = await fetcher<{ bookId: string }>('/api/books', {
+        method: 'POST',
+        body: JSON.stringify({ templateId }),
+        errorMessage: 'Failed to create book',
+      });
+      
+      if (result && result.bookId) {
+        router.push(`/book/${result.bookId}`);
+      }
+    } catch {
+      // Error is handled by fetcher or ignored
+    }
+  };
   if (templatesLoading) {
     return <div>Loading templates...</div>;
   }
@@ -136,7 +152,13 @@ export default function TemplateList() {
                       <div className="pl-10">
                         <div className="flex justify-between items-center mb-2">
                           <h3 className="font-semibold text-sm text-muted-foreground">Books</h3>
-                          <Button variant="outline" className="h-7 px-2 text-xs" onClick={() => {}}>New Book</Button>
+                          <Button 
+                            variant="outline" 
+                            className="h-7 px-2 text-xs" 
+                            onClick={() => handleCreateBook(template.templateId!)}
+                          >
+                            New Book
+                          </Button>
                         </div>
                         {booksLoading ? (
                           <p className="text-sm text-muted-foreground">Loading books...</p>
@@ -146,7 +168,7 @@ export default function TemplateList() {
                               <li key={book.bookId}>
                                 <Link href={`/book/${book.bookId}`} className="text-primary hover:underline flex items-center gap-2 text-sm">
                                   <span className="w-1.5 h-1.5 rounded-full bg-primary/50"></span>
-                                  Book {book.bookId}
+                                  {`${book.bookId} - ${book.name ?? 'Untitled'}`}
                                 </Link>
                               </li>
                             ))}

@@ -41,6 +41,7 @@ export interface Template {
 
 export interface Book {
   bookId: string;
+  name: string | null;
   templateId: string;
   storySegments: StorySegment[];
   segmentSummaries: SegmentSummary[];
