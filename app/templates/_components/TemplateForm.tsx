@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Template } from '@/types';
 import { Button } from '@/components/Button';
+import { FormField } from '@/components/FormField';
 import { Input } from '@/components/Input';
 import { Textarea } from '@/components/Textarea';
 
@@ -122,89 +123,68 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {isEditMode && (
-          <div className="mb-4">
-            <label className="block mb-1 text-muted-foreground">
-              Template ID:
-            </label>
+          <FormField label="Template ID:" labelClassName="text-muted-foreground">
             <Input
               type="text"
               value={formData.templateId || ''}
               disabled
               className="bg-muted text-muted-foreground"
             />
-          </div>
+          </FormField>
         )}
 
-        <div className="mb-4">
-          <label className="block mb-1 text-foreground">
-            Name:
-          </label>
+        <FormField label="Name:">
           <Input
             type="text"
             value={formData.name}
             onChange={(e) => handleInputChange('name', e.target.value)}
             required
           />
-        </div>
+        </FormField>
 
         <fieldset className="mb-4 p-4 border border-border rounded bg-card/50">
           <legend className="font-semibold text-secondary px-2">Prompts</legend>
 
-          <div className="mb-4">
-            <label className="block mb-1 text-foreground">
-              Narrator:
-            </label>
+          <FormField label="Narrator:">
             <Textarea
               value={formData.prompt.narrator || ''}
               onChange={(e) => handlePromptChange('narrator', e.target.value)}
               rows={4}
             />
-          </div>
+          </FormField>
 
-          <div className="mb-4">
-            <label className="block mb-1 text-foreground">
-              Input Tag:
-            </label>
+          <FormField label="Input Tag:">
             <Input
               type="text"
               value={formData.prompt.inputTag || ''}
               onChange={(e) => handlePromptChange('inputTag', e.target.value)}
             />
-          </div>
+          </FormField>
 
-          <div className="mb-4">
-            <label className="block mb-1 text-foreground">
-              Summarizer:
-            </label>
+          <FormField label="Summarizer:">
             <Textarea
               value={formData.prompt.summarizer || ''}
               onChange={(e) => handlePromptChange('summarizer', e.target.value)}
               rows={4}
             />
-          </div>
+          </FormField>
 
-          <div className="mb-4">
-            <label className="block mb-1 text-foreground">
-              Summarizer End State:
-            </label>
+          <FormField label="Summarizer End State:">
             <Textarea
               value={formData.prompt.summarizerEndState || ''}
               onChange={(e) => handlePromptChange('summarizerEndState', e.target.value)}
               rows={4}
             />
-          </div>
+          </FormField>
         </fieldset>
 
-        <div className="mb-4">
-          <label className="block mb-1 text-foreground">
-            Story Background:
-          </label>
+        <FormField label="Story Background:">
           <Textarea
             value={formData.storyBackground}
             onChange={(e) => handleInputChange('storyBackground', e.target.value)}
             rows={6}
           />
-        </div>
+        </FormField>
 
         <div className="flex gap-4">
           <Button type="submit" disabled={loading} variant="primary">
