@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Template } from '@/types';
+import { useAlert } from '@/components/AlertBox';
 import { Button } from '@/components/Button';
 import { FormField } from '@/components/FormField';
 import { Input } from '@/components/Input';
@@ -26,12 +27,12 @@ const emptyTemplate: Template = {
 
 export default function TemplateForm({ templateId }: TemplateFormProps) {
   const router = useRouter();
+  const { showAlert } = useAlert();
   const isEditMode = Boolean(templateId);
 
   const [formData, setFormData] = useState<Template>(emptyTemplate);
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(isEditMode);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchTemplate = async () => {
@@ -54,7 +55,7 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
           storyBackground: data.storyBackground || '',
         });
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred');
+        showAlert(err instanceof Error ? err.message : 'An error occurred');
       } finally {
         setFetchLoading(false);
       }
@@ -63,12 +64,11 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
     if (isEditMode && templateId) {
       fetchTemplate();
     }
-  }, [isEditMode, templateId]);
+  }, [isEditMode, templateId, showAlert]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError(null);
 
     try {
       const url = isEditMode ? `/api/templates/${templateId}` : '/api/templates';
@@ -88,7 +88,7 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
 
       router.push('/templates');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      showAlert(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
     }
@@ -118,8 +118,6 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
   return (
     <div>
       <h1 className="text-2xl font-bold mb-4 text-secondary">{isEditMode ? 'Edit Template' : 'Create New Template'}</h1>
-
-      {error && <div className="text-red-500 mb-4">{error}</div>}
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {isEditMode && (

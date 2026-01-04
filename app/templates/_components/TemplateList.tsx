@@ -3,32 +3,34 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Template } from '@/types';
+import { useAlert } from '@/components/AlertBox';
 import { Button } from '@/components/Button';
 
 export default function TemplateList() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchTemplates = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/templates');
-      if (!response.ok) {
-        throw new Error('Failed to fetch templates');
-      }
-      const data = await response.json();
-      setTemplates(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [refreshKey, setRefreshKey] = useState(0);
+  const { showAlert } = useAlert();
 
   useEffect(() => {
+    const fetchTemplates = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch('/api/templates');
+        if (!response.ok) {
+          throw new Error('Failed to fetch templates');
+        }
+        const data = await response.json();
+        setTemplates(data);
+      } catch (err) {
+        showAlert(err instanceof Error ? err.message : 'An error occurred');
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchTemplates();
-  }, []);
+  }, [showAlert, refreshKey]);
 
   const handleDelete = async (templateId: string) => {
     if (!confirm('Are you sure you want to delete this template?')) {
@@ -43,18 +45,14 @@ export default function TemplateList() {
         throw new Error('Failed to delete template');
       }
       // Refresh the list
-      fetchTemplates();
+      setRefreshKey((prev) => prev + 1);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete template');
+      showAlert(err instanceof Error ? err.message : 'Failed to delete template');
     }
   };
 
   if (loading) {
     return <div>Loading templates...</div>;
-  }
-
-  if (error) {
-    return <div>Error: {error}</div>;
   }
 
   return (
