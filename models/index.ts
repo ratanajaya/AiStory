@@ -1,5 +1,5 @@
 import mongoose, { Schema } from 'mongoose';
-import { StorySegment, SegmentSummary, Chapter, Template, Book } from '@/app/types';
+import { StorySegment, SegmentSummary, Chapter, Template, Book } from '@/types';
 
 // Sub-schemas for Book components
 const StorySegmentSchema = new Schema<StorySegment>({
@@ -44,6 +44,7 @@ const TemplateSchema = new Schema<Template>({
 const BookSchema = new Schema<Book>({
   bookId: { type: String, required: true, unique: true },
   templateId: { type: String, required: true },
+  name: { type: String, default: null },
   storySegments: [StorySegmentSchema],
   segmentSummaries: [SegmentSummarySchema],
   chapters: [ChapterSchema]

@@ -28,7 +28,7 @@ export interface DebugLog {
 }
 
 export interface Template {
-  templateId: string;
+  templateId: string | null;
   name: string;
   prompt: {
     narrator: string | null;
@@ -41,6 +41,7 @@ export interface Template {
 
 export interface Book {
   bookId: string;
+  name: string | null;
   templateId: string;
   storySegments: StorySegment[];
   segmentSummaries: SegmentSummary[];

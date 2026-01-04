@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '@/app/lib/mongodb';
-import { TemplateModel } from '@/app/models';
+import shortid from 'shortid';
+import dbConnect from '@/lib/mongodb';
+import { TemplateModel } from '@/models';
 
 export async function GET() {
   try {
@@ -17,7 +18,8 @@ export async function POST(request: Request) {
   try {
     await dbConnect();
     const body = await request.json();
-    const template = await TemplateModel.create(body);
+    const templateId = shortid.generate();
+    const template = await TemplateModel.create({ ...body, templateId });
     return NextResponse.json(template, { status: 201 });
   } catch (error) {
     console.error(error);
