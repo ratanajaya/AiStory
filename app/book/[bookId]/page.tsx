@@ -107,13 +107,38 @@ export default function BookPage({ params }: PageProps) {
     if(!bookUiModel.shouldSave)
       return;
 
-    console.log('Saving book changes...');
+    const saveBook = async () => {
+      try {
+        setSbp({
+          loading: true,
+          text: 'Saving book changes...',
+        });
 
-    //TODO: save to backend
-    setBookUiModel(prev => ({
-      ...prev,
-      shouldSave: false,
-    }));
+        await fetcher(`/api/books/${bookId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            ...bookUiModel,
+            shouldSave: undefined,
+          }),
+          errorMessage: 'Failed to update book',
+        });
+      }
+      catch {}
+      finally {
+        setBookUiModel(prev => ({
+          ...prev,
+          shouldSave: false,
+        }));
+        setSbp({
+          loading: false,
+          text: 'Book saved to database.',
+        });
+      }
+    };
+    saveBook();
   }, [bookUiModel, fetcher]);
 
   const gameAction = {
