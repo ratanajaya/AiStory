@@ -15,6 +15,7 @@ import useInputPanel from '../_components/useInputPanel';
 import EnhancerModal from '../_components/EnhancerModal';
 import SummarizerModal from '../_components/SummarizerModal';
 import ChapterWrapperModal from '../_components/ChapterWrapperModal';
+import _constant from '@/utils/_constant';
 
 interface PageProps {
   params: Promise<{ bookId: string }>;
@@ -87,7 +88,7 @@ export default function BookPage({ params }: PageProps) {
           ...data,
           shouldSave: false,
         });
-        const templateData = await fetcher<any>(`/api/templates/${data.templateId}`, {
+        const templateData = await fetcher<any>(`/api/templates/${data.templateId}/merged`, {
           errorMessage: 'Failed to fetch template',
         });
         setTemplate(templateData);
@@ -102,10 +103,157 @@ export default function BookPage({ params }: PageProps) {
     }
   }, [bookId, fetcher]);
 
+  useEffect(() => {
+    if(!bookUiModel.shouldSave)
+      return;
+
+    console.log('Saving book changes...');
+
+    //TODO: save to backend
+    setBookUiModel(prev => ({
+      ...prev,
+      shouldSave: false,
+    }));
+  }, [bookUiModel, fetcher]);
+
   const gameAction = {
     _applyNarration: async (userSegmentContent: string, idLimitExclusive: string | null) => {
+      if(!template) {
+        console.error('Template not loaded');
+        return;
+      }
+
+      setSbp({
+        loading: true,
+        text: 'Making call to LLM api...',
+      });
+
+      const { segmentsWithoutChapter } = _util.splitSegmentsWithChapter(bookUiModel.storySegments);
+
+      // Context for the AI
+      let userMessage1 = '';
+      userMessage1 += `STORY BACKGROUND:${_constant.newLine2}`;
+      userMessage1 += `${template.storyBackground}${_constant.newLine2}`;
+
+      let chapterSoFar = '';
+      bookUiModel.chapters.forEach((chapter, i) => {
+        chapterSoFar += chapter.title.toUpperCase() + ':' + _constant.newLine;
+        chapterSoFar += chapter.summary + _constant.newLine2;
+
+        const isLastChapter = (i === bookUiModel.chapters.length - 1);
+
+        if(isLastChapter) {
+          chapterSoFar += `SITUATION AT THE END OF ${chapter.title.toUpperCase()}:${_constant.newLine2}`;
+          chapterSoFar += JSON.stringify(chapter.endState, null, 2) + _constant.newLine2;
+        }
+      });
+      userMessage1 += chapterSoFar;
+      
+      userMessage1 += `STORY SO FAR OF CURRENT CHAPTER:${_constant.newLine2}`;
+
+      const storySoFar = _util.getStorySegmentAsString(segmentsWithoutChapter, bookUiModel.segmentSummaries, idLimitExclusive);
+      userMessage1 += `${_util.altString(storySoFar, '[THIS IS THE START OF A NEW CHAPTER]')}${_constant.newLine2}`;
+
+      // Instructions to the AI on how to respond
+      let userMessage2 = '';
+      userMessage2 += `${template.prompt.narrator}${_constant.newLine2}`;
+      
+      userMessage2 += userSegmentContent;
+  
+      setBookUiModel(prev => ({
+        ...prev,
+        storySegments: [...prev.storySegments, {
+          id: new Date().getTime().toString(),
+          day: 0, // Legacy, not used
+          content: userSegmentContent,
+          role: 'user',
+        }],
+      }));
+      
+      await new Promise(r => setTimeout(r, 50));
+      // Add a placeholder for the streaming response
+      const segmentId = new Date().getTime().toString();
+      setBookUiModel(prev => ({
+        ...prev,
+        storySegments: [...prev.storySegments, {
+          id: segmentId,
+          day: 0, // Legacy, not used
+          content: '',
+          role: 'assistant',
+        }],
+      }));
+    
+      try {
+        const response = await fetch('/api/ai', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            systemMessage: null,
+            messages: [
+              { role: 'user', content: userMessage1 },
+              { role: 'user', content: userMessage2 },
+            ],
+            stream: true,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to get AI response');
+        }
+
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+
+        if (reader) {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const content = decoder.decode(value, { stream: true });
+
+            setBookUiModel(prev => ({
+              ...prev,
+              storySegments: prev.storySegments.map(msg => 
+                msg.id === segmentId 
+                  ? { ...msg, content: msg.content+content }
+                  : msg
+              ),
+            }));
+          }
+        }
+  
+        // Stream complete
+        setSbp({
+          loading: false,
+          text: 'AI response complete',
+        });
+  
+        setBookUiModel(prev => ({
+          ...prev,
+          storySegments: prev.storySegments.map(msg => 
+            msg.id === segmentId 
+              ? { 
+                  ...msg,
+                  content: _util.cleanupLlmResponse(msg.content)
+                }
+              : msg
+          ),
+          shouldSave: true,
+        }));
+        
+      } catch (error) {
+        console.error('Error during streaming:', error);
+        setSbp({
+          loading: false,
+          text: 'Error occurred while streaming response',
+        });
+      }
     },
     narration: async () => {
+      const userInput = getUserInput();
+      
+      const inputSegment = `${_util.conditionalString(userInput.input1, template?.prompt.inputTag + _constant.newLine + userInput.input1)}`;
+
+      await gameAction._applyNarration(inputSegment, null);
     },
     redoNarration: async (segmentId: string) => {
       const segmentIndex = bookUiModel.storySegments.findIndex(seg => seg.id === segmentId);
@@ -131,8 +279,55 @@ export default function BookPage({ params }: PageProps) {
       await gameAction._applyNarration(prevUserSegment.content, segmentId);
     },
     summarizeSegments: (segmentIds: string[], newSummary: SegmentSummary) => {
+      setBookUiModel(prev => {
+        prev.storySegments = prev.storySegments.map(seg =>{
+          if(!segmentIds.includes(seg.id))
+            return seg;
+
+          return {
+            ...seg,
+            segmentSummaryId: newSummary.id,
+            toSummarize: false,
+          }
+        });
+
+        prev.segmentSummaries = [
+          ...prev.segmentSummaries,
+          newSummary,
+        ];
+
+        return {
+          ...prev,
+          shouldSave: true,
+        }
+      });
+
+      setSummarizer(prev => ({ ...prev, visible: false }) );
     },
     wrapChapter: (segmentIds: string[], newChapter: Chapter) => {
+      setBookUiModel(prev => {
+        prev.storySegments = prev.storySegments.map(seg =>{
+          if(!segmentIds.includes(seg.id))
+            return seg;
+
+          return {
+            ...seg,
+            chapterId: newChapter.id,
+          }
+        });
+
+        prev.chapters = [
+          ...prev.chapters,
+          newChapter,
+        ];
+
+        return {
+          ...prev,
+          shouldSave: true,
+        }
+      });
+
+      setChapterWrapper(prev => ({ ...prev, visible: false }) );
     }
   }
 

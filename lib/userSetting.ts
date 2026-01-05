@@ -1,23 +1,6 @@
-import { getuid } from "process";
+import { UserSetting } from "@/types";
 
-export type LLMService = 'mistral' | 'together';
-
-export interface LlmConfig {
-  service: LLMService;
-  model: string;
-}
-
-export interface UserSetting {
-  email: string;
-  selectedLlmConfig: LlmConfig | null;
-  apiKey: {
-    mistral: string | null;
-    together: string | null;
-    openAi: string | null;
-  }
-}
-
-async function getUserSetting() {
+async function getUserSetting(): Promise<UserSetting> {
   // Placeholder: In a real app, fetch from database
   return {
     email: process.env.PLACEHOLDER_EMAIL!,

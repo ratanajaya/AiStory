@@ -1,8 +1,8 @@
+import { UserSetting } from "@/types";
 import { Mistral } from "@mistralai/mistralai";
 import { MistralCore } from "@mistralai/mistralai/core.js";
 import { chatStream } from "@mistralai/mistralai/funcs/chatStream.js";
 import Together from "together-ai";
-import { LlmConfig, UserSetting } from "./userSetting";
 
 export interface AiEndpoint {
   chatCompletion: (systemMsg: string | null, userMsg: string) => Promise<string>;

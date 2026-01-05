@@ -1,3 +1,4 @@
+import { KeyValue } from './../types/index';
 import mongoose, { Schema } from 'mongoose';
 import { StorySegment, SegmentSummary, Chapter, Template, Book } from '@/types';
 
@@ -54,6 +55,16 @@ const BookSchema = new Schema<Book>({
   toObject: { virtuals: false }
 });
 
+const KeyValueSchema = new Schema<KeyValue>({
+  key: { type: String, required: true, unique: true },
+  value: { type: Schema.Types.Mixed }
+}, {
+  timestamps: true,
+  toJSON: { virtuals: false },
+  toObject: { virtuals: false }
+});
+
 // Export models
 export const TemplateModel = mongoose.models.Template || mongoose.model<Template>('Template', TemplateSchema, 'templates');
 export const BookModel = mongoose.models.Book || mongoose.model<Book>('Book', BookSchema, 'books');
+export const KeyValueModel = mongoose.models.KeyValue || mongoose.model<KeyValue>('KeyValue', KeyValueSchema, 'keyvalues');

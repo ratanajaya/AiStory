@@ -27,15 +27,23 @@ export interface DebugLog {
   content: string;
 }
 
+export interface PromptConfig {
+  narrator: string | null;
+  inputTag: string | null;
+  summarizer: string | null;
+  summarizerEndState: string | null;
+}
+
+export interface ApiKeyConfig {
+  mistral: string | null;
+  together: string | null;
+  openAi: string | null;
+}
+
 export interface Template {
   templateId: string | null;
   name: string;
-  prompt: {
-    narrator: string | null;
-    inputTag: string | null;
-    summarizer: string | null;
-    summarizerEndState: string | null;
-  }
+  prompt: PromptConfig;
   storyBackground: string;
 }
 
@@ -46,4 +54,27 @@ export interface Book {
   storySegments: StorySegment[];
   segmentSummaries: SegmentSummary[];
   chapters: Chapter[];
+}
+
+export interface DefaultValue {
+  prompt: PromptConfig;
+  apiKey: ApiKeyConfig;
+}
+
+export type LLMService = 'mistral' | 'together';
+
+export interface LlmConfig {
+  service: LLMService;
+  model: string;
+}
+
+export interface UserSetting {
+  email: string;
+  selectedLlmConfig: LlmConfig | null;
+  apiKey: ApiKeyConfig;
+}
+
+export interface KeyValue {
+  key: string;
+  value: any;
 }
