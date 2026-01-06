@@ -58,6 +58,7 @@ export interface Book {
 
 export interface DefaultValue {
   prompt: PromptConfig;
+  selectedLlm: LlmConfig;
   apiKey: ApiKeyConfig;
 }
 
@@ -68,9 +69,12 @@ export interface LlmConfig {
   model: string;
 }
 
-export interface UserSetting {
+export interface User {
   email: string;
-  selectedLlmConfig: LlmConfig | null;
+  isAdmin: boolean;
+  registeredAt: Date;
+  lastLoginAt: Date;
+  selectedLlm: LlmConfig | null;
   apiKey: ApiKeyConfig;
 }
 

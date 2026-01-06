@@ -14,20 +14,22 @@ Maecenas tempus, tellus eget condimentum rhoncus, sem quam semper libero, sit am
 
   llmServices: {
     mistral: {
-      name: 'MistralAI',
+      label: 'Mistral AI',
+      provider: 'mistral',
       models: [
         'mistral-large-2411',
         'mistral-large-latest',
       ],
     },
     together: {
-      name: 'Together AI',
+      label: 'Together AI',
+      provider: 'together',
       models: [
         'deepseek-ai/DeepSeek-V3',
         'deepseek-ai/DeepSeek-V3.1',
         'meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo',
         'meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8',
-        //'Qwen/Qwen3-235B-A22B-Instruct-2507-tput', //not good
+        'Qwen/Qwen3-235B-A22B-Instruct-2507-tput',
         //'MiniMaxAI/MiniMax-M1-80k', //doesn't exist
         //'zai-org/GLM-4.6', //not good
       ],
