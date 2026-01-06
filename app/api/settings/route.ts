@@ -24,6 +24,10 @@ export async function GET() {
           together: null,
           openAi: null,
         },
+        selectedLlm: {
+          service: 'mistral',
+          model: 'mistral-large-2411',
+        },
       };
       return NextResponse.json(emptyDefaultValue);
     }

@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@mistralai/mistralai": "^1.11.0",
+    "@types/shortid": "^2.2.0",
     "antd": "^5.29.3",
     "mongoose": "^9.1.1",
     "next": "16.1.1",
