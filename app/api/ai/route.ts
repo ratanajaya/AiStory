@@ -12,7 +12,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const aiEndpoint = getDynamicAiEndpoint();
+    const aiEndpoint = await getDynamicAiEndpoint();
 
     if (stream) {
       // Streaming response

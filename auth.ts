@@ -1,8 +1,9 @@
 import NextAuth from "next-auth";
 import authConfig from "./auth.config";
 import dbConnect from "@/lib/mongodb";
-import { UserModel } from "@/models";
-import { User } from "@/types";
+import { KeyValueModel, UserModel } from "@/models";
+import { ApiKeyConfig, DefaultValue, LlmConfig, LLMService, User } from "@/types";
+import _util from "./utils/_util";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   ...authConfig,
@@ -69,4 +70,31 @@ async function getCurrentUser(): Promise<User | null> {
   }
 }
 
-export { getCurrentUser };
+async function getUserSettingWithFallback(): Promise<{
+  selectedLlm: LlmConfig;
+  apiKey: ApiKeyConfig;
+}> {
+  const session = await auth();
+
+  if (!session?.user?.email) {
+    throw new Error("Unauthorized");
+  }
+
+  await dbConnect();
+  const user = await UserModel.findOne({ email: session.user.email })!;
+  const defaultDoc = await KeyValueModel.findOne({ key: 'defaultValue' })!;
+  const defaultValue = defaultDoc.value as DefaultValue;
+  const selectedLlm: LlmConfig = {
+    service: _util.altString(user?.selectedLlm?.service, defaultValue.selectedLlm.service) as LLMService,
+    model: _util.altString(user?.selectedLlm?.model, defaultValue.selectedLlm.model)!,
+  };
+  const apiKey: ApiKeyConfig = {
+    mistral: _util.altString(user?.apiKey?.mistral, defaultValue.apiKey.mistral)!,
+    together: _util.altString(user?.apiKey?.together, defaultValue.apiKey.together)!,
+    openAi: _util.altString(user?.apiKey?.openAi, defaultValue.apiKey.openAi)!,
+  };
+
+  return { selectedLlm, apiKey };
+}
+
+export { getCurrentUser, getUserSettingWithFallback };
