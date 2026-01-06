@@ -5,7 +5,7 @@ const _util = {
   isNullOrWhitespace: (input: string | null | undefined) => {
     return !input || !input.trim();
   },
-  altString: (input: string | null | undefined, alt: string) => {
+  altString: (input: string | null | undefined, alt: string | null) => {
     if(_util.isNullOrWhitespace(input)){
       return alt;
     }

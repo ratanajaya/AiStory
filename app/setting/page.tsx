@@ -7,6 +7,8 @@ import { Button } from '@/components/Button';
 import { FormField } from '@/components/FormField';
 import { Input } from '@/components/Input';
 import { Textarea } from '@/components/Textarea';
+import { Select } from '@/components/Select';
+import _constant from '@/utils/_constant';
 
 const emptyDefaultValue: DefaultValue = {
   prompt: {
@@ -19,6 +21,10 @@ const emptyDefaultValue: DefaultValue = {
     mistral: '',
     together: '',
     openAi: '',
+  },
+  selectedLlm: {
+    service: 'mistral',
+    model: 'mistral-large-2411',
   },
 };
 
@@ -48,6 +54,10 @@ export default function SettingPage() {
             mistral: data.apiKey?.mistral || '',
             together: data.apiKey?.together || '',
             openAi: data.apiKey?.openAi || '',
+          },
+          selectedLlm: {
+            service: data.selectedLlm?.service || 'mistral',
+            model: data.selectedLlm?.model || 'mistral-large-2411',
           },
         });
       } catch {
@@ -91,6 +101,16 @@ export default function SettingPage() {
     }));
   };
 
+  const handleSelectedLlmChange = (field: string, value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      selectedLlm: {
+        ...prev.selectedLlm,
+        [field]: value,
+      },
+    }));
+  };
+
   const handleApiKeyChange = (field: string, value: string) => {
     setFormData((prev) => ({
       ...prev,
@@ -101,10 +121,26 @@ export default function SettingPage() {
     }));
   };
 
+  // Get available models for selected service
+  const availableModels = formData.selectedLlm.service
+    ? _constant.llmServices[formData.selectedLlm.service]?.models || []
+    : [];
+
+  // Build options for dropdowns
+  const serviceOptions = Object.entries(_constant.llmServices).map(([key, service]) => ({
+    value: key,
+    label: service.label,
+  }));
+
+  const modelOptions = availableModels.map((model) => ({
+    value: model,
+    label: model,
+  }));
+
   if (fetchLoading) {
     return (
       <div className="p-8 max-w-3xl">
-        <h1 className="text-2xl font-bold mb-4 text-secondary">Settings</h1>
+        <h1 className="text-2xl font-bold mb-4 text-secondary">Default Settings</h1>
         <div>Loading settings...</div>
       </div>
     );
@@ -147,6 +183,29 @@ export default function SettingPage() {
               value={formData.prompt.summarizerEndState || ''}
               onChange={(e) => handlePromptChange('summarizerEndState', e.target.value)}
               rows={4}
+            />
+          </FormField>
+        </fieldset>
+
+        <fieldset className="mb-4 p-4 border border-border rounded bg-card/50">
+          <legend className="font-semibold text-secondary px-2">LLM Configuration</legend>
+
+          <FormField label="LLM Provider:">
+            <Select
+              value={formData.selectedLlm.service}
+              onChange={(e) => handleSelectedLlmChange('service', e.target.value)}
+              options={serviceOptions}
+              placeholder="Select a provider"
+            />
+          </FormField>
+
+          <FormField label="Model:">
+            <Select
+              value={formData.selectedLlm.model}
+              onChange={(e) => handleSelectedLlmChange('model', e.target.value)}
+              options={modelOptions}
+              placeholder="Select a model"
+              disabled={!formData.selectedLlm.service}
             />
           </FormField>
         </fieldset>

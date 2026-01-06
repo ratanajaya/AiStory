@@ -1,8 +1,8 @@
-import { UserSetting } from "@/types";
 import { Mistral } from "@mistralai/mistralai";
 import { MistralCore } from "@mistralai/mistralai/core.js";
 import { chatStream } from "@mistralai/mistralai/funcs/chatStream.js";
 import Together from "together-ai";
+import { getUserSettingWithFallback } from "@/auth";
 
 export interface AiEndpoint {
   chatCompletion: (systemMsg: string | null, userMsg: string) => Promise<string>;
@@ -11,26 +11,11 @@ export interface AiEndpoint {
   chatStreamFull: (systemMsg: string | null, messages: any[], onReceiveChunk: (content: string) => void) => Promise<void>;
 }
 
-const placeholderUserSetting: UserSetting = {
-  email: process.env.PLACEHOLDER_EMAIL!,
-  selectedLlmConfig: {
-    service: 'mistral',
-    model: 'mistral-large-2411',
-  },
-  apiKey: {
-    mistral: process.env.MISTRAL_API_KEY ?? null,
-    together: process.env.TOGETHER_API_KEY ?? null,
-    openAi: process.env.OPENAI_API_KEY ?? null,
-  }
-};
-
-console.log('Using LLM config:', placeholderUserSetting.selectedLlmConfig);
-// Create Mistral endpoint with specific model
-const createMistralEndpoint = (model: string): AiEndpoint => ({
+const createMistralEndpoint = (model: string, apiKey: string): AiEndpoint => ({
   chatCompletionFull: async (systemMsg: string | null, messages: any[]) => {
     try {
       const mistral = new Mistral({
-        apiKey: placeholderUserSetting.apiKey.mistral!,
+        apiKey,
       });
       
       const systemPropmt = systemMsg ?
@@ -57,7 +42,7 @@ const createMistralEndpoint = (model: string): AiEndpoint => ({
     }
   },
   chatCompletion: async (systemMsg: string | null, userMsg: string) => {
-    return createMistralEndpoint(model).chatCompletionFull(systemMsg, [
+    return createMistralEndpoint(model, apiKey).chatCompletionFull(systemMsg, [
       {
         role: 'user',
         content: userMsg,
@@ -71,7 +56,7 @@ const createMistralEndpoint = (model: string): AiEndpoint => ({
   ) {
     try {
       const mistral = new MistralCore({
-        apiKey: placeholderUserSetting.apiKey.mistral!,
+        apiKey,
       });
       
       const systemPropmt = systemMsg ?
@@ -123,12 +108,12 @@ const createMistralEndpoint = (model: string): AiEndpoint => ({
   },
 });
 
-// Create Together endpoint with specific model
-const createTogetherEndpoint = (model: string): AiEndpoint => ({
+
+const createTogetherEndpoint = (model: string, apiKey: string): AiEndpoint => ({
   chatCompletionFull: async (systemMsg: string | null, messages: any[]) => {
     try {
       const together = new Together({
-        apiKey: placeholderUserSetting.apiKey.together!,
+        apiKey,
       });
       
       const systemPropmt = systemMsg ?
@@ -155,7 +140,7 @@ const createTogetherEndpoint = (model: string): AiEndpoint => ({
     }
   },
   chatCompletion: async (systemMsg: string | null, userMsg: string) => {
-    return createTogetherEndpoint(model).chatCompletionFull(systemMsg, [
+    return createTogetherEndpoint(model, apiKey).chatCompletionFull(systemMsg, [
       {
         role: 'user',
         content: userMsg,
@@ -169,7 +154,7 @@ const createTogetherEndpoint = (model: string): AiEndpoint => ({
   ) {
     try {
       const together = new Together({
-        apiKey: placeholderUserSetting.apiKey.together!,
+        apiKey,
       });
       
       const systemPropmt = systemMsg ?
@@ -215,19 +200,21 @@ const createTogetherEndpoint = (model: string): AiEndpoint => ({
   }
 });
 
-// Get the endpoint based on current configuration
-export const getDynamicAiEndpoint = (): AiEndpoint => {    
-  if (placeholderUserSetting.selectedLlmConfig?.service === 'mistral') {
-    return createMistralEndpoint(placeholderUserSetting.selectedLlmConfig.model);
-  } else if (placeholderUserSetting.selectedLlmConfig?.service === 'together') {
-    return createTogetherEndpoint(placeholderUserSetting.selectedLlmConfig.model);
-  }
+// Get the endpoint based on current user configuration
+export const getDynamicAiEndpoint = async (): Promise<AiEndpoint> => {
+  const { selectedLlm, apiKey } = await getUserSettingWithFallback();
   
-  // Fallback to default
-  console.warn('Unknown service, falling back to default Mistral');
-  return createMistralEndpoint('mistral-large-latest');
+  if (selectedLlm.service === 'mistral') {
+    if (!apiKey.mistral) {
+      throw new Error('Mistral API key is not configured');
+    }
+    return createMistralEndpoint(selectedLlm.model, apiKey.mistral);
+  } else if (selectedLlm.service === 'together') {
+    if (!apiKey.together) {
+      throw new Error('Together API key is not configured');
+    }
+    return createTogetherEndpoint(selectedLlm.model, apiKey.together);
+  }
+
+  throw new Error('Unsupported LLM service configured');
 };
-
-const aiEndpointDynamic = getDynamicAiEndpoint();
-
-export default aiEndpointDynamic;
