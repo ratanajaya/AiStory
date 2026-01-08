@@ -7,6 +7,7 @@ const { auth } = NextAuth(authConfig);
 export default auth((req) => {
   const { nextUrl } = req;
   const isLoggedIn = !!req.auth;
+  const isApiRoute = nextUrl.pathname.startsWith("/api");
 
   // Public routes that don't require authentication
   const publicRoutes = ["/login", "/api/auth"];
@@ -22,8 +23,13 @@ export default auth((req) => {
     return NextResponse.next();
   }
 
-  // Redirect to login if not authenticated
+  // Handle unauthenticated requests
   if (!isLoggedIn) {
+    // For API routes, return JSON 401 response
+    if (isApiRoute) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    // For pages, redirect to login
     const loginUrl = new URL("/login", nextUrl);
     loginUrl.searchParams.set("callbackUrl", nextUrl.pathname);
     return NextResponse.redirect(loginUrl);

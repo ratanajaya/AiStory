@@ -1,15 +1,22 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import { TemplateModel } from '@/models';
+import { auth } from '@/auth';
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await auth();
+    const ownerEmail = session!.user!.email!;
+
     await dbConnect();
     const { id } = await params;
-    const template = await TemplateModel.findOne({ templateId: id });
+    const template = await TemplateModel.findOne({ 
+      templateId: id, 
+      ownerEmail 
+    });
     if (!template) {
       return NextResponse.json({ error: 'Template not found' }, { status: 404 });
     }
@@ -25,11 +32,14 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await auth();
+    const ownerEmail = session!.user!.email!;
+
     await dbConnect();
     const { id } = await params;
     const body = await request.json();
     const template = await TemplateModel.findOneAndUpdate(
-      { templateId: id },
+      { templateId: id, ownerEmail },
       body,
       { new: true, runValidators: true }
     );
@@ -48,9 +58,15 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await auth();
+    const ownerEmail = session!.user!.email!;
+
     await dbConnect();
     const { id } = await params;
-    const template = await TemplateModel.findOneAndDelete({ templateId: id });
+    const template = await TemplateModel.findOneAndDelete({ 
+      templateId: id, 
+      ownerEmail 
+    });
     if (!template) {
       return NextResponse.json({ error: 'Template not found' }, { status: 404 });
     }

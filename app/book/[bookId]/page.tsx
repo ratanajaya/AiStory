@@ -16,13 +16,10 @@ import EnhancerModal from '../_components/EnhancerModal';
 import SummarizerModal from '../_components/SummarizerModal';
 import ChapterWrapperModal from '../_components/ChapterWrapperModal';
 import _constant from '@/utils/_constant';
+import { BookUIModel } from '@/types/extendedTypes';
 
 interface PageProps {
   params: Promise<{ bookId: string }>;
-}
-
-interface BookUIModel extends Book {
-  shouldSave: boolean;
 }
 
 const emptyBookModel: BookUIModel = {

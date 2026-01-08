@@ -4,8 +4,9 @@ import React, { useEffect, useState } from 'react';
 import Markdown from 'react-markdown';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import _constant from '@/utils/_constant';
-import { DebugLog, Book } from '@/types';
+import { DebugLog } from '@/types';
 import _util from '@/utils/_util';
+import { BookUIModel } from '@/types/extendedTypes';
 
 type PanelProps = React.ComponentProps<typeof Panel>;
 
@@ -16,7 +17,7 @@ type StoryDownload = {
 };
 
 type DebugPanelProps = {
-  book: Book;
+  book: BookUIModel;
 } & PanelProps;
 
 export default function useDebugPanel(panelProps: DebugPanelProps) {
