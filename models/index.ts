@@ -35,7 +35,8 @@ const TemplateSchema = new Schema<Template>({
     summarizer: { type: String, default: null },
     summarizerEndState: { type: String, default: null }
   },
-  storyBackground: { type: String, required: true }
+  storyBackground: { type: String, required: true },
+  ownerEmail: { type: String, required: true }
 }, {
   timestamps: true,
   toJSON: { virtuals: false },
@@ -48,7 +49,8 @@ const BookSchema = new Schema<Book>({
   name: { type: String, default: null },
   storySegments: [StorySegmentSchema],
   segmentSummaries: [SegmentSummarySchema],
-  chapters: [ChapterSchema]
+  chapters: [ChapterSchema],
+  ownerEmail: { type: String, required: true }
 }, {
   timestamps: true,
   toJSON: { virtuals: false },

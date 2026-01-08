@@ -45,6 +45,7 @@ export interface Template {
   name: string;
   prompt: PromptConfig;
   storyBackground: string;
+  ownerEmail: string;
 }
 
 export interface Book {
@@ -54,6 +55,7 @@ export interface Book {
   storySegments: StorySegment[];
   segmentSummaries: SegmentSummary[];
   chapters: Chapter[];
+  ownerEmail: string;
 }
 
 export interface DefaultValue {
