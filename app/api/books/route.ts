@@ -2,14 +2,18 @@ import { NextResponse } from 'next/server';
 import shortid from 'shortid';
 import dbConnect from '@/lib/mongodb';
 import { BookModel } from '@/models';
+import { auth } from '@/auth';
 
 export async function GET(request: Request) {
   try {
+    const session = await auth();
+    const ownerEmail = session!.user!.email!;
+
     await dbConnect();
     const { searchParams } = new URL(request.url);
     const select = searchParams.get('select');
     
-    let query = BookModel.find({});
+    let query = BookModel.find({ ownerEmail });
     
     if (select) {
       // Convert comma-separated string to space-separated string for Mongoose select
@@ -27,6 +31,9 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const session = await auth();
+    const ownerEmail = session!.user!.email!;
+
     await dbConnect();
     const body = await request.json();
     const { templateId } = body;
@@ -41,7 +48,8 @@ export async function POST(request: Request) {
       name: null,
       storySegments: [],
       segmentSummaries: [],
-      chapters: []
+      chapters: [],
+      ownerEmail
     };
 
     const book = await BookModel.create(newBook);

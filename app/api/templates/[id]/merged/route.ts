@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import { TemplateModel, KeyValueModel } from '@/models';
 import { DefaultValue, KeyValue, PromptConfig, Template } from '@/types';
+import { auth } from '@/auth';
 
 function mergePromptWithDefaults(prompt: PromptConfig, defaultPrompt: PromptConfig): PromptConfig {
   return {
@@ -17,9 +18,15 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await auth();
+    const ownerEmail = session!.user!.email!;
+
     await dbConnect();
     const { id } = await params;
-    const template = await TemplateModel.findOne({ templateId: id });
+    const template = await TemplateModel.findOne({ 
+      templateId: id, 
+      ownerEmail 
+    });
     if (!template) {
       return NextResponse.json({ error: 'Template not found' }, { status: 404 });
     }

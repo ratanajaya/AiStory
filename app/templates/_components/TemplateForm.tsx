@@ -8,12 +8,13 @@ import { Button } from '@/components/Button';
 import { FormField } from '@/components/FormField';
 import { Input } from '@/components/Input';
 import { Textarea } from '@/components/Textarea';
+import { TemplateSafeModel } from '@/types/extendedTypes';
 
 interface TemplateFormProps {
   templateId?: string; // If provided, we're in edit mode
 }
 
-const emptyTemplate: Template = {
+const emptyTemplate: TemplateSafeModel = {
   templateId: null,
   name: '',
   prompt: {
@@ -30,7 +31,7 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
   const { fetcher } = useFetcher();
   const isEditMode = Boolean(templateId);
 
-  const [formData, setFormData] = useState<Template>(emptyTemplate);
+  const [formData, setFormData] = useState<TemplateSafeModel>(emptyTemplate);
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(isEditMode);
 

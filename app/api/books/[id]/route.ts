@@ -1,15 +1,22 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import { BookModel } from '@/models';
+import { auth } from '@/auth';
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await auth();
+    const ownerEmail = session!.user!.email!;
+
     await dbConnect();
     const { id } = await params;
-    const book = await BookModel.findOne({ bookId: id });
+    const book = await BookModel.findOne({ 
+      bookId: id, 
+      ownerEmail 
+    });
     if (!book) {
       return NextResponse.json({ error: 'Book not found' }, { status: 404 });
     }
@@ -25,11 +32,14 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await auth();
+    const ownerEmail = session!.user!.email!;
+
     await dbConnect();
     const { id } = await params;
     const body = await request.json();
     const book = await BookModel.findOneAndUpdate(
-      { bookId: id },
+      { bookId: id, ownerEmail },
       body,
       { new: true, runValidators: true }
     );
@@ -48,9 +58,15 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await auth();
+    const ownerEmail = session!.user!.email!;
+
     await dbConnect();
     const { id } = await params;
-    const book = await BookModel.findOneAndDelete({ bookId: id });
+    const book = await BookModel.findOneAndDelete({ 
+      bookId: id, 
+      ownerEmail 
+    });
     if (!book) {
       return NextResponse.json({ error: 'Book not found' }, { status: 404 });
     }
