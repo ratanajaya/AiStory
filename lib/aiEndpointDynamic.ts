@@ -1,7 +1,7 @@
-import { Mistral } from "@mistralai/mistralai";
-import { MistralCore } from "@mistralai/mistralai/core.js";
-import { chatStream } from "@mistralai/mistralai/funcs/chatStream.js";
-import Together from "together-ai";
+import { createMistral } from '@ai-sdk/mistral';
+import { createOpenAI } from '@ai-sdk/openai';
+import { createTogetherAI } from '@ai-sdk/togetherai';
+import { generateText, streamText, ModelMessage, LanguageModel } from 'ai';
 import { getUserSettingWithFallback } from "@/auth";
 
 export interface AiEndpoint {
@@ -11,192 +11,55 @@ export interface AiEndpoint {
   chatStreamFull: (systemMsg: string | null, messages: any[], onReceiveChunk: (content: string) => void) => Promise<void>;
 }
 
-const createMistralEndpoint = (model: string, apiKey: string): AiEndpoint => ({
+const createAiSdkEndpoint = (model: LanguageModel): AiEndpoint => ({
   chatCompletionFull: async (systemMsg: string | null, messages: any[]) => {
     try {
-      const mistral = new Mistral({
-        apiKey,
-      });
+      const systemPrompt: ModelMessage[] = systemMsg ? [{ role: 'system', content: systemMsg }] : [];
       
-      const systemPropmt = systemMsg ?
-      [
-        {
-          role: "system",
-          content: systemMsg,
-        }
-      ] : [];
-
-      const result = await mistral.chat.complete({
+      const { text } = await generateText({
         model,
-        stream: false,
         messages: [
-          ...systemPropmt,
+          ...systemPrompt,
           ...messages,
-        ],
+        ] as ModelMessage[],
       });
 
-      return result?.choices?.[0]?.message?.content as string;
+      return text;
     } catch (error) {
-      console.error('Error getting chat completion from Mistral API:', error);
-      return 'Error: Failed to get response from Mistral AI service.';
+       console.error('Error getting chat completion:', error);
+       return 'Error: Failed to get response from AI service.';
     }
   },
   chatCompletion: async (systemMsg: string | null, userMsg: string) => {
-    return createMistralEndpoint(model, apiKey).chatCompletionFull(systemMsg, [
-      {
-        role: 'user',
-        content: userMsg,
-      },
+    return createAiSdkEndpoint(model).chatCompletionFull(systemMsg, [
+      { role: 'user', content: userMsg }
     ]);
   },
-  chatStreamFull: async function(
-    systemMsg: string | null, 
-    messages: any[], 
-    onReceiveChunk: (content: string) => void,
-  ) {
+  chatStreamFull: async (systemMsg: string | null, messages: any[], onReceiveChunk: (content: string) => void) => {
     try {
-      const mistral = new MistralCore({
-        apiKey,
-      });
-      
-      const systemPropmt = systemMsg ?
-        [
-          {
-            role: "system",
-            content: systemMsg,
-          }
-        ] : [];
-  
-      const res = await chatStream(mistral, {
-        model,
-        stream: true,
-        messages: [
-          ...systemPropmt,
-          ...messages,
-        ],
-      });
+        const systemPrompt: ModelMessage[] = systemMsg ? [{ role: 'system', content: systemMsg }] : [];
+        const result = streamText({
+            model,
+            messages: [
+                ...systemPrompt,
+                ...messages,
+            ] as ModelMessage[],
+        });
 
-      if (!res.ok) {
-        throw res.error;
-      }
-    
-      const { value: result } = res;
-    
-      for await (const event of result) {
-        onReceiveChunk(event?.data?.choices?.[0]?.delta?.content as string ?? '[NO CONTENT]');
-      }
+        for await (const textPart of result.textStream) {
+            onReceiveChunk(textPart);
+        }
     } catch (error) {
-      onReceiveChunk('Error: Failed to get response from Mistral AI service.');
-      console.error('Error streaming chat from Mistral API:', error);
+        onReceiveChunk('Error: Failed to get response from AI service.');
+        console.error('Error streaming chat:', error);
     }
   },
-  chatStream: async function(
-    systemMsg: string | null, 
-    userMsg: string, 
-    onReceiveChunk: (content: string) => void,
-  ) {
-    return this.chatStreamFull(
-      systemMsg,
-      [
-        {
-          content: userMsg,
-          role: "user",
-        }
-      ],
-      onReceiveChunk
-    );
-  },
-});
-
-
-const createTogetherEndpoint = (model: string, apiKey: string): AiEndpoint => ({
-  chatCompletionFull: async (systemMsg: string | null, messages: any[]) => {
-    try {
-      const together = new Together({
-        apiKey,
-      });
-      
-      const systemPropmt = systemMsg ?
-      [
-        {
-          role: "system",
-          content: systemMsg,
-        }
-      ] : [];
-
-      const result = await together.chat.completions.create({
-        model,
-        stream: false,
-        messages: [
-          ...systemPropmt,
-          ...messages,
-        ],
-      });
-
-      return result?.choices?.[0]?.message?.content as string;
-    } catch (error) {
-      console.error('Error getting chat completion from Together API:', error);
-      return 'Error: Failed to get response from Together AI service.';
-    }
-  },
-  chatCompletion: async (systemMsg: string | null, userMsg: string) => {
-    return createTogetherEndpoint(model, apiKey).chatCompletionFull(systemMsg, [
-      {
-        role: 'user',
-        content: userMsg,
-      },
-    ]);
-  },
-  chatStreamFull: async function(
-    systemMsg: string | null, 
-    messages: any[], 
-    onReceiveChunk: (content: string) => void,
-  ) {
-    try {
-      const together = new Together({
-        apiKey,
-      });
-      
-      const systemPropmt = systemMsg ?
-      [
-        {
-          role: "system",
-          content: systemMsg,
-        }
-      ] : [];
-  
-      const stream = await together.chat.completions.create({
-        stream: true,
-        model,
-        messages: [
-          ...systemPropmt,
-          ...messages,
-        ],
-      });
-
-      for await (const chunk of stream) {
-        onReceiveChunk(chunk.choices[0]?.delta?.content ?? '[NO CONTENT]');
-      }
-    } catch (error) {
-      onReceiveChunk('Error: Failed to get response from Together AI service.');
-      console.error('Error streaming chat from Together API:', error);
-    }
-  },
-  chatStream: async function(
-    systemMsg: string | null, 
-    userMsg: string, 
-    onReceiveChunk: (content: string) => void,
-  ) {
-    return this.chatStreamFull(
-      systemMsg,
-      [
-        {
-          content: userMsg,
-          role: "user",
-        }
-      ],
-      onReceiveChunk
-    );
+  chatStream: async (systemMsg: string | null, userMsg: string, onReceiveChunk: (content: string) => void) => {
+      return createAiSdkEndpoint(model).chatStreamFull(
+          systemMsg,
+          [{ role: 'user', content: userMsg }],
+          onReceiveChunk
+      );
   }
 });
 
@@ -208,12 +71,20 @@ export const getDynamicAiEndpoint = async (): Promise<AiEndpoint> => {
     if (!apiKey.mistral) {
       throw new Error('Mistral API key is not configured');
     }
-    return createMistralEndpoint(selectedLlm.model, apiKey.mistral);
+    const mistral = createMistral({ apiKey: apiKey.mistral });
+    return createAiSdkEndpoint(mistral(selectedLlm.model));
   } else if (selectedLlm.service === 'together') {
     if (!apiKey.together) {
       throw new Error('Together API key is not configured');
     }
-    return createTogetherEndpoint(selectedLlm.model, apiKey.together);
+    const together = createTogetherAI({ apiKey: apiKey.together });
+    return createAiSdkEndpoint(together(selectedLlm.model));
+  } else if (selectedLlm.service === 'openAi') {
+    if (!apiKey.openAi) {
+      throw new Error('OpenAI API key is not configured');
+    }
+    const openai = createOpenAI({ apiKey: apiKey.openAi });
+    return createAiSdkEndpoint(openai(selectedLlm.model));
   }
 
   throw new Error('Unsupported LLM service configured');

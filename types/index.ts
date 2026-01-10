@@ -64,7 +64,7 @@ export interface DefaultValue {
   apiKey: ApiKeyConfig;
 }
 
-export type LLMService = 'mistral' | 'together';
+export type LLMService = 'mistral' | 'together' | 'openAi';
 
 export interface LlmConfig {
   service: LLMService;
