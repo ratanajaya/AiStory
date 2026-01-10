@@ -17,8 +17,10 @@ Maecenas tempus, tellus eget condimentum rhoncus, sem quam semper libero, sit am
       label: 'Mistral AI',
       provider: 'mistral',
       models: [
+        'mistral-large-2512',
         'mistral-large-2411',
-        'mistral-large-latest',
+        'mistral-medium-2508',
+        'mistral-small-2506',
       ],
     },
     together: {
@@ -30,8 +32,14 @@ Maecenas tempus, tellus eget condimentum rhoncus, sem quam semper libero, sit am
         'meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo',
         'meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8',
         'Qwen/Qwen3-235B-A22B-Instruct-2507-tput',
-        //'MiniMaxAI/MiniMax-M1-80k', //doesn't exist
-        //'zai-org/GLM-4.6', //not good
+      ],
+    },
+    openAi: {
+      label: 'OpenAI',
+      provider: 'openAi',
+      models: [
+        'gpt-5-nano',
+        'gpt-4.1',
       ],
     },
   },
