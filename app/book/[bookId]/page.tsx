@@ -30,6 +30,7 @@ const emptyBookModel: BookUIModel = {
   segmentSummaries: [],
   chapters: [],
   shouldSave: false,
+  version: 0,
 }
 
 export default function BookPage({ params }: PageProps) {
@@ -111,7 +112,7 @@ export default function BookPage({ params }: PageProps) {
           text: 'Saving book changes...',
         });
 
-        await fetcher(`/api/books/${bookId}`, {
+        const updatedBook = await fetcher<Book>(`/api/books/${bookId}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -120,19 +121,32 @@ export default function BookPage({ params }: PageProps) {
             ...bookUiModel,
             shouldSave: undefined,
           }),
-          errorMessage: 'Failed to update book',
         });
-      }
-      catch {}
-      finally {
-        setBookUiModel(prev => ({
-          ...prev,
-          shouldSave: false,
-        }));
+        
         setSbp({
           loading: false,
           text: 'Book saved to database.',
         });
+        
+        setBookUiModel(prev => ({
+          ...prev,
+          version: updatedBook.version,
+          shouldSave: false,
+        }));
+      }
+      catch (error: any) {
+        showAlert(error?.message);
+        
+        setSbp({
+          loading: false,
+          text: `Failed to save book`,
+        });
+        
+        // Reset shouldSave to allow retry
+        setBookUiModel(prev => ({
+          ...prev,
+          shouldSave: false,
+        }));
       }
     };
     saveBook();

@@ -50,7 +50,8 @@ const BookSchema = new Schema<Book>({
   storySegments: [StorySegmentSchema],
   segmentSummaries: [SegmentSummarySchema],
   chapters: [ChapterSchema],
-  ownerEmail: { type: String, required: true }
+  ownerEmail: { type: String, required: true },
+  version: { type: Number, required: true }
 }, {
   timestamps: true,
   toJSON: { virtuals: false },
