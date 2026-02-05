@@ -56,6 +56,7 @@ export interface Book {
   segmentSummaries: SegmentSummary[];
   chapters: Chapter[];
   ownerEmail: string;
+  version: number;
 }
 
 export interface DefaultValue {
