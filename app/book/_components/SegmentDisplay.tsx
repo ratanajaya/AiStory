@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Button } from "@/components/Button";
 import { Textarea } from "@/components/Textarea";
 import Markdown from "react-markdown";
-import { Chapter, SegmentSummary, StorySegment } from "@/types";
+import { SegmentSummary, StorySegment } from "@/types";
 
 // Generate consistent colors for summary IDs
 const getColorForSummaryId = (summaryId: string): string => {
@@ -139,7 +139,7 @@ export default function SegmentDisplay(props: {
             className="w-full bg-gray-700 text-white p-2 rounded-md mb-2"
             value={editor.content}
             onChange={(e) => setEditor(prev => ({ ...prev, content: e.target.value }))}
-            rows={2}
+            autoSize={{ minRows: 2 }}
           />
           <div className=" w-full flex space-x-2 justify-center">
             <Button
