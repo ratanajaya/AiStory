@@ -1,7 +1,8 @@
-import { Checkbox, Col, Modal, Row } from 'antd';
+import { Col, Modal, Row } from 'antd';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/Button';
 import { Textarea } from '@/components/Textarea';
+import { Checkbox } from '@/components/Checkbox';
 import _constant from '@/utils/_constant';
 import { StorySegment } from '@/types';
 import _util from '@/utils/_util';

@@ -1,6 +1,7 @@
-import { Checkbox, Popconfirm, Space, Tooltip } from "antd";
+import { Popconfirm, Space, Tooltip } from "antd";
 import { useState } from "react";
 import { Button } from "@/components/Button";
+import { Checkbox } from "@/components/Checkbox";
 import { Textarea } from "@/components/Textarea";
 import Markdown from "react-markdown";
 import { SegmentSummary, StorySegment } from "@/types";
