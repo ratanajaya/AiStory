@@ -1,7 +1,10 @@
-import { Button, Checkbox, Input, Popconfirm, Space, Tooltip } from "antd";
+import { Popconfirm, Space, Tooltip } from "antd";
 import { useState } from "react";
+import { Button } from "@/components/Button";
+import { Checkbox } from "@/components/Checkbox";
+import { Textarea } from "@/components/Textarea";
 import Markdown from "react-markdown";
-import { Chapter, SegmentSummary, StorySegment } from "@/types";
+import { SegmentSummary, StorySegment } from "@/types";
 
 // Generate consistent colors for summary IDs
 const getColorForSummaryId = (summaryId: string): string => {
@@ -132,7 +135,7 @@ export default function SegmentDisplay(props: {
 
       {editor.isEditing ? (
         <div className="w-full">
-          <Input.TextArea
+          <Textarea
             style={{ fontSize: 'inherit' }}
             className="w-full bg-gray-700 text-white p-2 rounded-md mb-2"
             value={editor.content}
@@ -141,15 +144,15 @@ export default function SegmentDisplay(props: {
           />
           <div className=" w-full flex space-x-2 justify-center">
             <Button
-              danger
+              variant="danger"
               size='small'
               className=' w-24'
               onClick={handleWrapChapter}
             >
-              Wrap Chapter
+              Wrap Ch
             </Button>
             <Button
-              type="primary"
+              variant="primary"
               size='small'
               className=' w-24'
               onClick={handleSave}
@@ -157,6 +160,7 @@ export default function SegmentDisplay(props: {
               Save
             </Button>
             <Button
+              variant="outline"
               size='small'
               className=' w-24'
               onClick={handleCancel}

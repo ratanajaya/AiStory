@@ -1,5 +1,7 @@
-import { Button, Col, Input, Modal, Row } from 'antd';
-import { useEffect, useState } from 'react'
+import { Col, Modal, Row } from 'antd';
+import { useEffect, useState } from 'react';
+import { Button } from '@/components/Button';
+import { Textarea } from '@/components/Textarea';
 import _constant from '@/utils/_constant';
 import { SegmentSummary, StorySegment } from '@/types';
 
@@ -99,7 +101,7 @@ export default function SummarizerModal(props: {
     >
       <Row gutter={8}>
         <Col md={12} sm={24} xs={24}>
-          <Input.TextArea
+          <Textarea
             className="w-full bg-gray-700 text-white p-2 rounded-md mb-2"
             value={values.content}
             //onChange={(e) => setValues(prev => ({ ...prev, content: e.target.value }))}
@@ -107,7 +109,7 @@ export default function SummarizerModal(props: {
           />
         </Col>
         <Col md={12} sm={24} xs={24}>
-          <Input.TextArea
+          <Textarea
             disabled={values.isLoading}
             className="w-full bg-gray-700 text-white p-2 rounded-md mb-2"
             value={values.llmResponse}
@@ -125,12 +127,12 @@ export default function SummarizerModal(props: {
               autoSize={{ minRows: 6 }}
             /> */}
             <Button
-              loading={values.isLoading}
+              disabled={values.isLoading}
               onClick={handleSubmit}
               className='w-24'
-              type="primary"
+              variant="primary"
             >
-              SEND
+              {values.isLoading ? 'Loading...' : 'SEND'}
             </Button>
           </div>
         </Col>

@@ -1,6 +1,9 @@
-import { Button, Col, Input, message, Modal, Row } from 'antd';
+import { Col, message, Modal, Row } from 'antd';
 import { useEffect, useState } from 'react';
 import _constant from '@/utils/_constant';
+import { Button } from '@/components/Button';
+import { Input } from '@/components/Input';
+import { Textarea } from '@/components/Textarea';
 import { Chapter, Template, StorySegment } from '@/types';
 import _util from '@/utils/_util';
 
@@ -200,14 +203,14 @@ export default function ChapterWrapperModal(props: {
       </div>
       <Row gutter={8}>
         <Col md={9} sm={24} xs={24}>
-          <Input.TextArea
+          <Textarea
             className="w-full bg-gray-700 text-white p-2 rounded-md mb-2"
             value={values.content}
             rows={20}
           />
         </Col>
         <Col md={9} sm={24} xs={24}>
-          <Input.TextArea
+          <Textarea
             disabled={values.summaryLoading}
             className="w-full bg-gray-700 text-white p-2 rounded-md mb-2"
             value={values.summary}
@@ -216,7 +219,7 @@ export default function ChapterWrapperModal(props: {
           />
         </Col>
         <Col md={6} sm={24} xs={24}>
-          <Input.TextArea
+          <Textarea
             disabled={values.endStateLoading}
             className="w-full bg-gray-700 text-white p-2 rounded-md mb-2"
             value={values.endStateString}
@@ -227,20 +230,20 @@ export default function ChapterWrapperModal(props: {
         <Col span={24}>
           <div className='w-full flex space-x-2'>
             <Button
-              loading={values.summaryLoading}
+              disabled={values.summaryLoading}
               onClick={handleGenerateSummary}
               className='w-36'
-              type="primary"
+              variant="primary"
             >
-              Generate Summary
+              {values.summaryLoading ? 'Loading...' : 'Generate Summary'}
             </Button>
             <Button
-              loading={values.endStateLoading}
+              disabled={values.endStateLoading}
               onClick={handleEndState}
               className='w-36'
-              type="primary"
+              variant="primary"
             >
-              Generate End State
+              {values.endStateLoading ? 'Loading...' : 'Generate End State'}
             </Button>
           </div>
         </Col>

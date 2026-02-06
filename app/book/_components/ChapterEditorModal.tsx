@@ -1,8 +1,8 @@
-import { Modal, Input, Form } from 'antd';
+import { Modal, Form } from 'antd';
 import { Chapter } from '@/types';
 import { useEffect } from 'react';
-
-const { TextArea } = Input;
+import { Input } from '@/components/Input';
+import { Textarea } from '@/components/Textarea';
 
 interface ChapterEditorModalProps {
   isOpen: boolean;
@@ -71,13 +71,13 @@ export default function ChapterEditorModal({ isOpen, onClose, onSave, chapter }:
           name="summary"
           label="Summary"
         >
-          <TextArea rows={10} />
+          <Textarea rows={10} />
         </Form.Item>
         <Form.Item
           name="endState"
           label="End State"
         >
-          <TextArea rows={8} />
+          <Textarea rows={8} />
         </Form.Item>
       </Form>
     </Modal>

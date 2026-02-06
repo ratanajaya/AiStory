@@ -1,5 +1,4 @@
 import { LeftOutlined, RightOutlined } from '@ant-design/icons';
-import { Space } from 'antd';
 import React, { useEffect, useState } from 'react';
 import Markdown from 'react-markdown';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
