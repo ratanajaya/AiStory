@@ -1,8 +1,7 @@
+import { Textarea } from "@/components/Textarea";
 import { DownOutlined, UpOutlined } from "@ant-design/icons";
-import { Input } from "antd";
-import { TextAreaRef } from "antd/es/input/TextArea";
 import { useRef, useState } from "react";
-import { Panel, PanelResizeHandle } from "react-resizable-panels";
+import { Panel } from "react-resizable-panels";
 
 export default function useInputPanel(props:{
   inputTag: string;
@@ -10,11 +9,11 @@ export default function useInputPanel(props:{
   const [collapseInput1, setCollapseInput1] = useState(false);
 
   // Use refs instead of state to avoid re-renders
-  const input2Ref = useRef<TextAreaRef>(null);
+  const input2Ref = useRef<HTMLTextAreaElement>(null);
 
   // Function to get current values from refs
   const getUserInput = () => ({
-    input1: input2Ref.current?.resizableTextArea?.textArea.value || '',
+    input1: input2Ref.current?.value || '',
   });
   
   const element = (
@@ -28,7 +27,7 @@ export default function useInputPanel(props:{
         </div>
       </div>
       <Panel defaultSize={10} minSize={5} order={3}>
-        <Input.TextArea
+        <Textarea
           className=' h-full'
           placeholder={props.inputTag}
           ref={input2Ref}

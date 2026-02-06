@@ -1,5 +1,7 @@
-import { Button, Checkbox, Col, Input, Modal, Row } from 'antd';
-import { useEffect, useState } from 'react'
+import { Checkbox, Col, Modal, Row } from 'antd';
+import { useEffect, useState } from 'react';
+import { Button } from '@/components/Button';
+import { Textarea } from '@/components/Textarea';
 import _constant from '@/utils/_constant';
 import { StorySegment } from '@/types';
 import _util from '@/utils/_util';
@@ -104,17 +106,17 @@ export default function EnhancerModal(props: {
       </Checkbox>
       <Row gutter={8}>
         <Col md={12} sm={24} xs={24}>
-          <Input.TextArea
-            className="w-full bg-gray-700 text-white p-2 rounded-md mb-2"
+          <Textarea
+            className="w-full text-white p-2 rounded-md mb-2"
             value={values.content}
             onChange={(e) => setValues(prev => ({ ...prev, content: e.target.value }))}
             rows={20}
           />
         </Col>
         <Col md={12} sm={24} xs={24}>
-          <Input.TextArea
+          <Textarea
             disabled={values.isLoading}
-            className="w-full bg-gray-700 text-white p-2 rounded-md mb-2"
+            className="w-full text-white p-2 rounded-md mb-2"
             value={values.llmResponse}
             onChange={(e) => setValues(prev => ({ ...prev, llmResponse: e.target.value }))}
             rows={20}
@@ -122,20 +124,20 @@ export default function EnhancerModal(props: {
         </Col>
         <Col span={24}>
           <div className='w-full flex space-x-2'>
-            <Input.TextArea
+            <Textarea
               style={{ fontSize: 'inherit' }}
-              className=" flex-1 bg-gray-700 text-white p-2 rounded-md mb-2"
+              className="flex-1 text-white p-2 rounded-md mb-2"
               value={values.userInput}
               onChange={(e) => setValues(prev => ({ ...prev, userInput: e.target.value }))}
-              autoSize={{ minRows: 6 }}
+              rows={6}
             />
             <Button
-              loading={values.isLoading}
+              disabled={values.isLoading}
               onClick={handleSubmit}
               className='w-24'
-              type="primary"
+              variant="primary"
             >
-              SEND
+              {values.isLoading ? 'Loading...' : 'SEND'}
             </Button>
           </div>
         </Col>

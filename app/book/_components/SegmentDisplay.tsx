@@ -1,5 +1,7 @@
-import { Button, Checkbox, Input, Popconfirm, Space, Tooltip } from "antd";
+import { Checkbox, Popconfirm, Space, Tooltip } from "antd";
 import { useState } from "react";
+import { Button } from "@/components/Button";
+import { Textarea } from "@/components/Textarea";
 import Markdown from "react-markdown";
 import { Chapter, SegmentSummary, StorySegment } from "@/types";
 
@@ -132,24 +134,24 @@ export default function SegmentDisplay(props: {
 
       {editor.isEditing ? (
         <div className="w-full">
-          <Input.TextArea
+          <Textarea
             style={{ fontSize: 'inherit' }}
             className="w-full bg-gray-700 text-white p-2 rounded-md mb-2"
             value={editor.content}
             onChange={(e) => setEditor(prev => ({ ...prev, content: e.target.value }))}
-            autoSize={{ minRows: 2 }}
+            rows={2}
           />
           <div className=" w-full flex space-x-2 justify-center">
             <Button
-              danger
+              variant="danger"
               size='small'
               className=' w-24'
               onClick={handleWrapChapter}
             >
-              Wrap Chapter
+              Wrap Ch
             </Button>
             <Button
-              type="primary"
+              variant="primary"
               size='small'
               className=' w-24'
               onClick={handleSave}
@@ -157,6 +159,7 @@ export default function SegmentDisplay(props: {
               Save
             </Button>
             <Button
+              variant="outline"
               size='small'
               className=' w-24'
               onClick={handleCancel}
