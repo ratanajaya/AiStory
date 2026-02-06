@@ -505,8 +505,10 @@ export default function BookPage({ params }: PageProps) {
 
                         {/* Render segments without chapterId */}
                         {segmentsWithoutChapter.map((seg, index) => {
-                          const segmentSummary = seg.segmentSummaryId 
-                            ? bookUiModel.segmentSummaries.find(s => s.id === seg.segmentSummaryId)
+                          const segmentSummaryIndex = bookUiModel.segmentSummaries.findIndex(s => s.id === seg.segmentSummaryId);
+
+                          const segmentSummary = segmentSummaryIndex >= 0
+                            ? bookUiModel.segmentSummaries[segmentSummaryIndex]
                             : null;
                           
                           return (
@@ -515,6 +517,7 @@ export default function BookPage({ params }: PageProps) {
                               index={index}
                               segment={seg}
                               segmentSummary={segmentSummary}
+                              segmentSummaryIndex={segmentSummaryIndex >= 0 ? segmentSummaryIndex : undefined}
                               onUpdateSegment={uiAction.updateStorySegment}
                               onDeleteSegment={uiAction.deleteStorySegment}
                               onEnhanceClick={(chat) => {

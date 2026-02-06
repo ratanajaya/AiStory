@@ -6,26 +6,16 @@ import { Textarea } from "@/components/Textarea";
 import Markdown from "react-markdown";
 import { SegmentSummary, StorySegment } from "@/types";
 
-// Generate consistent colors for summary IDs
-const getColorForSummaryId = (summaryId: string): string => {
-  const colors = [
-    'border-blue-500',
-    'border-green-500',
-    'border-purple-500',
-    'border-yellow-500',
-    'border-pink-500',
-    'border-cyan-500',
-    'border-orange-500',
-    'border-red-500',
-  ];
-  
-  // Simple hash function to get consistent color for same ID
-  let hash = 0;
-  for (let i = 0; i < summaryId.length; i++) {
-    hash = summaryId.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return colors[Math.abs(hash) % colors.length];
-};
+const colors = [
+  'border-blue-500',
+  'border-green-500',
+  'border-purple-500',
+  'border-yellow-500',
+  'border-pink-500',
+  'border-cyan-500',
+  'border-orange-500',
+  'border-red-500',
+];
 
 export default function SegmentDisplay(props: {
   index: number;
@@ -38,6 +28,7 @@ export default function SegmentDisplay(props: {
   isLastMessage?: boolean;
   disabled?: boolean;
   segmentSummary?: SegmentSummary | null;
+  segmentSummaryIndex?: number;
 }) {
   const [editor, setEditor] = useState({
     isEditing: false,
@@ -69,9 +60,9 @@ export default function SegmentDisplay(props: {
     }));
     props.onWrapChapter(props.segment.id);
   };
-
-  const colorClass = props.segment.segmentSummaryId 
-    ? getColorForSummaryId(props.segment.segmentSummaryId)
+  
+  const colorClass = (props.segmentSummaryIndex !== undefined)
+    ? colors[props.segmentSummaryIndex % colors.length]
     : '';
 
   const segmentWithSummary = props.segment.role === 'assistant' && props.segmentSummary;
@@ -189,22 +180,21 @@ export default function SegmentDisplay(props: {
       ) : (
         <>
           <div className=' w-full text-right'>
-            {/* <Space> */}
-              <Tooltip
-                title="To be summarized"
-                placement="top"
-              >
-                <Checkbox
-                  checked={props.segment.toSummarize}
-                  onChange={(e) => {
-                    props.onUpdateSegment({
-                      ...props.segment,
-                      toSummarize: e.target.checked,
-                    });
-                  }}
-                  disabled={props.segment.segmentSummaryId != null}
-                />
-              </Tooltip>
+            <Tooltip
+              title="To be summarized"
+              placement="top"
+            >
+              <Checkbox
+                checked={props.segment.toSummarize}
+                onChange={(e) => {
+                  props.onUpdateSegment({
+                    ...props.segment,
+                    toSummarize: e.target.checked,
+                  });
+                }}
+                disabled={props.segment.segmentSummaryId != null}
+              />
+            </Tooltip>
           </div>
           <div className={`relative ${segmentWithSummary ? `border-l-4 pl-3 ${colorClass}` : ''}`}>
             <Markdown
