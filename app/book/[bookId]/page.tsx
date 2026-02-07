@@ -15,7 +15,7 @@ import useInputPanel from '../_components/useInputPanel';
 import EnhancerModal from '../_components/EnhancerModal';
 import SummarizerModal from '../_components/SummarizerModal';
 import ChapterWrapperModal from '../_components/ChapterWrapperModal';
-import BookNameEditor from './BookNameEditor';
+import BookNameEditor from '../_components/BookNameEditor';
 import _constant from '@/utils/_constant';
 import { BookUIModel } from '@/types/extendedTypes';
 
