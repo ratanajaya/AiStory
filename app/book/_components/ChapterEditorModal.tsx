@@ -1,8 +1,9 @@
-import { Modal, Form } from 'antd';
+import { Form } from 'antd';
 import { Chapter } from '@/types';
 import { useEffect } from 'react';
 import { Input } from '@/components/Input';
 import { Textarea } from '@/components/Textarea';
+import Modal from '@/components/Modal';
 
 interface ChapterEditorModalProps {
   isOpen: boolean;

@@ -1,4 +1,4 @@
-import { Col, message, Modal, Row } from 'antd';
+import { Col, Row } from 'antd';
 import { useEffect, useState } from 'react';
 import _constant from '@/utils/_constant';
 import { Button } from '@/components/Button';
@@ -6,6 +6,8 @@ import { Input } from '@/components/Input';
 import { Textarea } from '@/components/Textarea';
 import { Chapter, Template, StorySegment } from '@/types';
 import _util from '@/utils/_util';
+import Modal from '@/components/Modal';
+import { useAlert } from '@/components/AlertBox';
 
 export default function ChapterWrapperModal(props: {
   template: Template;
@@ -22,6 +24,8 @@ export default function ChapterWrapperModal(props: {
     summaryLoading: false,
     endStateLoading: false,
   });
+  
+  const { showAlert } = useAlert();
 
   async function handleGenerateSummary() {
     setValues(prev => ({
@@ -163,7 +167,7 @@ export default function ChapterWrapperModal(props: {
       open={true}
       onOk={() => {
         if(_util.isNullOrWhitespace(values.chapterName) || _util.isNullOrWhitespace(values.summary) || _util.isNullOrWhitespace(values.endStateString)) {
-          message.error('Chapter Name, Chapter Summary, and End State cannot be empty.');
+          showAlert('Chapter Name, Chapter Summary, and End State cannot be empty.');
           return;
         }
 
@@ -171,7 +175,7 @@ export default function ChapterWrapperModal(props: {
         try{
           endStateObj = JSON.parse(values.endStateString);
         } catch (e) {
-          message.error('End State is not a valid JSON object. '+ JSON.stringify(e));
+          showAlert('End State is not a valid JSON object. '+ JSON.stringify(e));
           return;
         }
 

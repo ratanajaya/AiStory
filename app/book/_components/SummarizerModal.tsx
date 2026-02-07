@@ -1,9 +1,10 @@
-import { Col, Modal, Row } from 'antd';
+import { Col, Row } from 'antd';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/Button';
 import { Textarea } from '@/components/Textarea';
 import _constant from '@/utils/_constant';
 import { SegmentSummary, StorySegment } from '@/types';
+import Modal from '@/components/Modal';
 
 export default function SummarizerModal(props: {
   segments: StorySegment[];
