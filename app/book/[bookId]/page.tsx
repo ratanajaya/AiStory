@@ -369,13 +369,13 @@ export default function BookPage({ params }: PageProps) {
   }
 
   const uiAction = {
-    updateStorySegment: (updatedSegment: StorySegment) => {
+    updateStorySegment: (updatedSegment: StorySegment, shouldSave: boolean) => {
       setBookUiModel(prev => ({
         ...prev,
         storySegments: prev.storySegments.map(msg =>
           msg.id === updatedSegment.id ? updatedSegment : msg
         ),
-        shouldSave: true,
+        shouldSave: shouldSave,
       }));
     },
     deleteStorySegment: (id: string) => {
@@ -546,7 +546,7 @@ export default function BookPage({ params }: PageProps) {
                     onClose={() => setEnhancer(prev => ({ ...prev, visible: false }))}
                     onSave={(segment) => {
                       setEnhancer(prev => ({ ...prev, visible: false }));
-                      uiAction.updateStorySegment(segment);
+                      uiAction.updateStorySegment(segment, true);
                     }}
                   />
                 )}

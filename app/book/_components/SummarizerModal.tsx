@@ -1,6 +1,8 @@
 import { Col, Row } from 'antd';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/Button';
+import { FormField } from '@/components/FormField';
+import { InputNumber } from '@/components/InputNumber';
 import { Textarea } from '@/components/Textarea';
 import _constant from '@/utils/_constant';
 import { SegmentSummary, StorySegment } from '@/types';
@@ -17,6 +19,7 @@ export default function SummarizerModal(props: {
     llmResponse: '',
     userInput: '',
     isLoading: false,
+    paragraphCount: 0,
   });
 
   async function handleSubmit() {
@@ -27,10 +30,8 @@ export default function SummarizerModal(props: {
     }));
 
     const segmentToSummarize = props.segments.filter(s => s.toSummarize);
-    
-    const segmentToSummarizeCount = props.segments.filter(s => s.toSummarize).length;
 
-    const systemPrompt = `Your task is to write a short version of the story that captures the key points and essence of the content. The short version should maintain the same POV. The short version should be ${segmentToSummarizeCount} paragraphs long.`;
+    const systemPrompt = `Your task is to write a short version of the story that captures the key points and essence of the content. The short version should maintain the same narration POV, wether it's first person, third person, or second person. The short version should be ${values.paragraphCount} paragraphs long.`;
 
     const contentToSummarize = segmentToSummarize.map(s => s.content).join(_constant.newLine2);
 
@@ -79,9 +80,11 @@ export default function SummarizerModal(props: {
   }
 
   useEffect(() => {
+    const segmentToSummarizeCount = props.segments.filter(s => s.toSummarize).length;
     setValues(prev => ({
       ...prev,
       content: props.segments.filter(s => s.toSummarize).map(s => s.content).join(_constant.newLine2),
+      paragraphCount: segmentToSummarizeCount,
     }));
   }, [props.segments]);
     
@@ -101,11 +104,25 @@ export default function SummarizerModal(props: {
       width={800}
     >
       <Row gutter={8}>
+        <Col span={24}>
+          <FormField label="Paragraph Count">
+            <InputNumber
+              min={1}
+              value={values.paragraphCount}
+              onChange={(value) => {
+                setValues(prev => ({
+                  ...prev,
+                  paragraphCount: value,
+                }));
+              }}
+              className="bg-gray-700 text-white"
+            />
+          </FormField>
+        </Col>
         <Col md={12} sm={24} xs={24}>
           <Textarea
             className="w-full bg-gray-700 text-white p-2 rounded-md mb-2"
             value={values.content}
-            //onChange={(e) => setValues(prev => ({ ...prev, content: e.target.value }))}
             rows={20}
           />
         </Col>
@@ -120,13 +137,6 @@ export default function SummarizerModal(props: {
         </Col>
         <Col span={24}>
           <div className='w-full flex space-x-2'>
-            {/* <Input.TextArea
-              style={{ fontSize: 'inherit' }}
-              className=" flex-1 bg-gray-700 text-white p-2 rounded-md mb-2"
-              value={values.userInput}
-              onChange={(e) => setValues(prev => ({ ...prev, userInput: e.target.value }))}
-              autoSize={{ minRows: 6 }}
-            /> */}
             <Button
               disabled={values.isLoading}
               onClick={handleSubmit}

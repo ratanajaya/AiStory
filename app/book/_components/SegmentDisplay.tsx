@@ -20,7 +20,7 @@ const colors = [
 export default function SegmentDisplay(props: {
   index: number;
   segment: StorySegment;
-  onUpdateSegment: (updatedSegment: StorySegment) => void;
+  onUpdateSegment: (updatedSegment: StorySegment, shouldSave: boolean) => void;
   onDeleteSegment: (id: string) => void;
   onEnhanceClick: (chat: StorySegment) => void;
   onWrapChapter: (segmentId: string) => void;
@@ -39,7 +39,7 @@ export default function SegmentDisplay(props: {
     props.onUpdateSegment({
       ...props.segment,
       content: editor.content,
-    });
+    }, true);
     setEditor(prev => ({
       ...prev,
       isEditing: false,
@@ -190,7 +190,7 @@ export default function SegmentDisplay(props: {
                   props.onUpdateSegment({
                     ...props.segment,
                     toSummarize: e.target.checked,
-                  });
+                  }, false);
                 }}
                 disabled={props.segment.segmentSummaryId != null}
               />
