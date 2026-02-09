@@ -31,7 +31,7 @@ export default function SummarizerModal(props: {
 
     const segmentToSummarize = props.segments.filter(s => s.toSummarize);
 
-    const systemPrompt = `Your task is to write a short version of the story that captures the key points and essence of the content. The short version should maintain the same narration POV, wether it's first person, third person, or second person. The short version should be ${values.paragraphCount} paragraphs long.`;
+    const systemPrompt = `Write a short version of the story that captures the key points and essence of the content. The short version should be ${values.paragraphCount} paragraphs long. Maintain the same point of view of the original content.`;
 
     const contentToSummarize = segmentToSummarize.map(s => s.content).join(_constant.newLine2);
 

@@ -27,7 +27,7 @@ const _util = {
   },
 
   //#region Story Segment Utils
-  getStorySegmentAsString: (storySegments: StorySegment[], segmentSummaries: SegmentSummary[], idLimitExclusive: string | null, divider?: string, forceAllSegment?: boolean) => {
+  getStorySegmentAsString: (storySegments: StorySegment[], segmentSummaries: SegmentSummary[] | null, idLimitExclusive: string | null, divider?: string, forceAllSegment?: boolean) => {
     const limitIndex = idLimitExclusive ? storySegments.findIndex(a => a.id === idLimitExclusive) : storySegments.length;
 
     const storySegmentToConsider = storySegments
@@ -38,7 +38,7 @@ const _util = {
 
     for (let i = 0; i < storySegmentToConsider.length; i++) {
       const seg = storySegmentToConsider[i];
-      if (seg.segmentSummaryId) {
+      if (segmentSummaries && seg.segmentSummaryId) {
         if (!alreadyAddedSummaryIds.includes(seg.segmentSummaryId)) {
           const summary = segmentSummaries.find(s => s.id === seg.segmentSummaryId);
           alreadyAddedSummaryIds.push(seg.segmentSummaryId);

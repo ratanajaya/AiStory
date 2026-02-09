@@ -36,7 +36,7 @@ export default function ChapterWrapperModal(props: {
 
     let userMessage1 = '';
     userMessage1 += `STORY TO SUMMARIZE:${_constant.newLine}`;
-    const storySoFar = _util.getStorySegmentAsString(props.segments, [], null);
+    const storySoFar = _util.getStorySegmentAsString(props.segments, null, null);
     userMessage1 += storySoFar;
     
     // Instructions to the AI on how to respond
@@ -99,7 +99,7 @@ export default function ChapterWrapperModal(props: {
 
     let userMessage1 = '';
     userMessage1 += `STORY TO SUMMARIZE:${_constant.newLine}`;
-    const storySoFar = _util.getStorySegmentAsString(props.segments, [], null);
+    const storySoFar = _util.getStorySegmentAsString(props.segments, null, null);
     userMessage1 += storySoFar;
     
     //Instructions to the AI on how to respond
