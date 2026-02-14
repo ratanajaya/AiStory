@@ -36,6 +36,7 @@ const TemplateSchema = new Schema<Template>({
     summarizerEndState: { type: String, default: null }
   },
   storyBackground: { type: String, required: true },
+  imageUrl: { type: String, default: null },
   ownerEmail: { type: String, required: true }
 }, {
   timestamps: true,

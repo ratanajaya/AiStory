@@ -45,6 +45,7 @@ export interface Template {
   name: string;
   prompt: PromptConfig;
   storyBackground: string;
+  imageUrl: string | null;
   ownerEmail: string;
 }
 
