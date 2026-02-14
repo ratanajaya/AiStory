@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { usePathname } from "next/navigation";
-import { HamburgerButton, Sidebar } from "@/components/Sidebar";
+import { HamburgerButton, Sidebar } from "@/app/_components/Sidebar";
 
 export function MainLayoutShell({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);

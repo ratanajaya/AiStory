@@ -49,7 +49,7 @@ export function AlertProvider({ children }: AlertProviderProps) {
   return (
     <AlertContext.Provider value={{ showAlert, clearAlert }}>
       {alert.message && (
-        <div className={`fixed top-0 left-0 right-0 z-50 p-4 border-b ${alertStyles[alert.type]}`}>
+        <div className={`fixed top-0 left-0 right-0 z-20 p-4 border-b ${alertStyles[alert.type]}`}>
           <div className="max-w-4xl mx-auto flex justify-between items-center">
             <span>{alert.message}</span>
             <button
