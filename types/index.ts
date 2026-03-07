@@ -34,6 +34,12 @@ export interface PromptConfig {
   summarizerEndState: string | null;
 }
 
+export interface PromptBuilderConfig {
+  narration1: string | null;
+  narration2: string | null;
+  enhancer: string | null;
+}
+
 export interface ApiKeyConfig {
   mistral: string | null;
   together: string | null;
@@ -44,6 +50,7 @@ export interface Template {
   templateId: string | null;
   name: string;
   prompt: PromptConfig;
+  promptBuilder: PromptBuilderConfig;
   storyBackground: string;
   imageUrl: string | null;
   ownerEmail: string;
@@ -62,6 +69,7 @@ export interface Book {
 
 export interface DefaultValue {
   prompt: PromptConfig;
+  promptBuilder: PromptBuilderConfig;
   selectedLlm: LlmConfig;
   apiKey: ApiKeyConfig;
 }

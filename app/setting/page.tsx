@@ -17,6 +17,11 @@ const emptyDefaultValue: DefaultValue = {
     summarizer: '',
     summarizerEndState: '',
   },
+  promptBuilder: {
+    narration1: '',
+    narration2: '',
+    enhancer: '',
+  },
   apiKey: {
     mistral: '',
     together: '',
@@ -49,6 +54,11 @@ export default function SettingPage() {
             inputTag: data.prompt?.inputTag || '',
             summarizer: data.prompt?.summarizer || '',
             summarizerEndState: data.prompt?.summarizerEndState || '',
+          },
+          promptBuilder: {
+            narration1: data.promptBuilder?.narration1 || '',
+            narration2: data.promptBuilder?.narration2 || '',
+            enhancer: data.promptBuilder?.enhancer || '',
           },
           apiKey: {
             mistral: data.apiKey?.mistral || '',
@@ -107,6 +117,16 @@ export default function SettingPage() {
       selectedLlm: {
         ...prev.selectedLlm,
         [field]: value,
+      },
+    }));
+  };
+
+  const handlePromptBuilderChange = (field: string, value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      promptBuilder: {
+        ...prev.promptBuilder,
+        [field]: value || null,
       },
     }));
   };
@@ -206,6 +226,34 @@ export default function SettingPage() {
               options={modelOptions}
               placeholder="Select a model"
               disabled={!formData.selectedLlm.service}
+            />
+          </FormField>
+        </fieldset>
+
+        <fieldset className="mb-4 p-4 border border-border rounded bg-card/50">
+          <legend className="font-semibold text-secondary px-2">Default Prompt Builder</legend>
+
+          <FormField label="Narration 1:">
+            <Textarea
+              value={formData.promptBuilder.narration1 || ''}
+              onChange={(e) => handlePromptBuilderChange('narration1', e.target.value)}
+              rows={4}
+            />
+          </FormField>
+
+          <FormField label="Narration 2:">
+            <Textarea
+              value={formData.promptBuilder.narration2 || ''}
+              onChange={(e) => handlePromptBuilderChange('narration2', e.target.value)}
+              rows={4}
+            />
+          </FormField>
+
+          <FormField label="Enhancer:">
+            <Textarea
+              value={formData.promptBuilder.enhancer || ''}
+              onChange={(e) => handlePromptBuilderChange('enhancer', e.target.value)}
+              rows={4}
             />
           </FormField>
         </fieldset>
