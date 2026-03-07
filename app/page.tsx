@@ -1,11 +1,10 @@
-import Image from "next/image";
+import TemplateCardGrid from './_components/TemplateCardGrid';
 
 export default function Home() {
   return (
-    <div>
-      WORK IN PROGRESS
-      <div className=" w-full h-[20px] bg-red-500 hover:bg-amber-200">
-      </div>
+    <div className="p-8">
+      <h1 className="text-3xl font-bold text-secondary mb-6">Your Library</h1>
+      <TemplateCardGrid />
     </div>
   );
 }

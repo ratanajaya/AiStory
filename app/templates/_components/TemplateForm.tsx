@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { Template } from '@/types';
 import { useFetcher } from '@/components/FetcherProvider';
 import { Button } from '@/components/Button';
@@ -24,6 +25,7 @@ const emptyTemplate: TemplateSafeModel = {
     summarizerEndState: '',
   },
   storyBackground: '',
+  imageUrl: null,
 };
 
 export default function TemplateForm({ templateId }: TemplateFormProps) {
@@ -34,6 +36,35 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
   const [formData, setFormData] = useState<TemplateSafeModel>(emptyTemplate);
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(isEditMode);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const uploadData = new FormData();
+      uploadData.append('file', file);
+
+      const res = await fetcher<{ imageUrl: string }>('/api/templates/upload', {
+        method: 'POST',
+        body: uploadData,
+        errorMessage: 'Failed to upload image',
+      });
+
+      setFormData((prev) => ({ ...prev, imageUrl: res.imageUrl }));
+    } catch {
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setFormData((prev) => ({ ...prev, imageUrl: null }));
+  };
 
   useEffect(() => {
     const fetchTemplate = async () => {
@@ -52,6 +83,7 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
             summarizerEndState: data.prompt?.summarizerEndState || '',
           },
           storyBackground: data.storyBackground || '',
+          imageUrl: data.imageUrl ?? null,
         });
       } catch {
       } finally {
@@ -176,6 +208,41 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
             onChange={(e) => handleInputChange('storyBackground', e.target.value)}
             rows={6}
           />
+        </FormField>
+
+        <FormField label="Image:">
+          <div className="space-y-3">
+            {formData.imageUrl && (
+              <div className="relative inline-block">
+                <Image
+                  src={formData.imageUrl}
+                  alt="Template"
+                  width={320}
+                  height={192}
+                  className="max-w-xs max-h-48 rounded border border-border object-cover"
+                  unoptimized
+                />
+                <button
+                  type="button"
+                  onClick={handleRemoveImage}
+                  className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full w-6 h-6 flex items-center justify-center text-sm hover:opacity-80"
+                >
+                  ×
+                </button>
+              </div>
+            )}
+            <div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                onChange={handleImageUpload}
+                disabled={uploading}
+                className="text-sm text-foreground file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:opacity-80 file:cursor-pointer"
+              />
+              {uploading && <span className="text-sm text-muted-foreground ml-2">Uploading...</span>}
+            </div>
+          </div>
         </FormField>
 
         <div className="flex gap-4">
