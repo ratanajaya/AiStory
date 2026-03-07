@@ -24,6 +24,11 @@ const emptyTemplate: TemplateSafeModel = {
     summarizer: '',
     summarizerEndState: '',
   },
+  promptBuilder: {
+    narration1: '',
+    narration2: '',
+    enhancer: '',
+  },
   storyBackground: '',
   imageUrl: null,
 };
@@ -82,6 +87,11 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
             summarizer: data.prompt?.summarizer || '',
             summarizerEndState: data.prompt?.summarizerEndState || '',
           },
+          promptBuilder: {
+            narration1: data.promptBuilder?.narration1 || '',
+            narration2: data.promptBuilder?.narration2 || '',
+            enhancer: data.promptBuilder?.enhancer || '',
+          },
           storyBackground: data.storyBackground || '',
           imageUrl: data.imageUrl ?? null,
         });
@@ -132,6 +142,16 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
       ...prev,
       prompt: {
         ...prev.prompt,
+        [field]: value,
+      },
+    }));
+  };
+
+  const handlePromptBuilderChange = (field: string, value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      promptBuilder: {
+        ...prev.promptBuilder,
         [field]: value,
       },
     }));
@@ -197,6 +217,34 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
             <Textarea
               value={formData.prompt.summarizerEndState || ''}
               onChange={(e) => handlePromptChange('summarizerEndState', e.target.value)}
+              rows={4}
+            />
+          </FormField>
+        </fieldset>
+
+        <fieldset className="mb-4 p-4 border border-border rounded bg-card/50">
+          <legend className="font-semibold text-secondary px-2">Prompt Builder</legend>
+
+          <FormField label="Narration 1:">
+            <Textarea
+              value={formData.promptBuilder.narration1 || ''}
+              onChange={(e) => handlePromptBuilderChange('narration1', e.target.value)}
+              rows={4}
+            />
+          </FormField>
+
+          <FormField label="Narration 2:">
+            <Textarea
+              value={formData.promptBuilder.narration2 || ''}
+              onChange={(e) => handlePromptBuilderChange('narration2', e.target.value)}
+              rows={4}
+            />
+          </FormField>
+
+          <FormField label="Enhancer:">
+            <Textarea
+              value={formData.promptBuilder.enhancer || ''}
+              onChange={(e) => handlePromptBuilderChange('enhancer', e.target.value)}
               rows={4}
             />
           </FormField>

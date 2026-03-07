@@ -1,0 +1,9 @@
+STORY BACKGROUND:
+
+{Background}
+
+{PreviousChapters}
+
+STORY SO FAR OF CURRENT CHAPTER:
+
+{CurrentChapter}

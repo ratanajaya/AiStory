@@ -35,6 +35,11 @@ const TemplateSchema = new Schema<Template>({
     summarizer: { type: String, default: null },
     summarizerEndState: { type: String, default: null }
   },
+  promptBuilder: {
+    narration1: { type: String, default: null },
+    narration2: { type: String, default: null },
+    enhancer: { type: String, default: null }
+  },
   storyBackground: { type: String, required: true },
   imageUrl: { type: String, default: null },
   ownerEmail: { type: String, required: true }

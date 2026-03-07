@@ -19,6 +19,11 @@ export async function GET() {
           summarizer: null,
           summarizerEndState: null,
         },
+        promptBuilder: {
+          narration1: null,
+          narration2: null,
+          enhancer: null,
+        },
         apiKey: {
           mistral: null,
           together: null,
