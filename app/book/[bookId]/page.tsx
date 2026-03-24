@@ -77,13 +77,17 @@ export default function BookPage({ params }: PageProps) {
     inputTag: template?.prompt.inputTag ?? 'Enter your input here...',
   });
 
-  const deleteSegment = (segmentId: string) => {
-    fetcher(`/api/books/${bookId}/segments`, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ segmentId }),
-      errorMessage: 'Failed to delete segment',
-    });
+  const deleteSegment = async (segmentId: string) => {
+    try {
+      await fetcher(`/api/books/${bookId}/segments`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ segmentId }),
+        errorMessage: 'Failed to delete segment',
+      });
+    } catch (error) {
+      showAlert('Failed to delete segment');
+    }
   };
 
   useEffect(() => {
@@ -132,8 +136,17 @@ export default function BookPage({ params }: PageProps) {
         errorMessage: 'Failed to save segment',
       });
     };
-    
-    segmentsToSave.forEach(segment => saveSegment(segment));
+
+    const saveAllSegments = async () => {
+      try {
+        await Promise.all(segmentsToSave.map(segment => saveSegment(segment)));
+      } catch (error) {
+        // Avoid unhandled promise rejections; consider surfacing this to the user if needed.
+        console.error('Failed to save one or more segments', error);
+      }
+    };
+
+    saveAllSegments();
   }, [bookUiModel.segmentIdsToSave, bookUiModel.storySegments, fetcher, bookId]);
 
   useEffect(() => {
