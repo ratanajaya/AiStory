@@ -7,6 +7,7 @@ type AlertType = 'error' | 'success' | 'warning' | 'info';
 interface AlertState {
   message: string | null;
   type: AlertType;
+  visible: boolean;
 }
 
 interface AlertContextType {
@@ -28,33 +29,57 @@ interface AlertProviderProps {
   children: ReactNode;
 }
 
+const icons: Record<AlertType, string> = {
+  error: '✕',
+  success: '✓',
+  warning: '⚠',
+  info: 'ℹ',
+};
+
 export function AlertProvider({ children }: AlertProviderProps) {
-  const [alert, setAlert] = useState<AlertState>({ message: null, type: 'error' });
+  const [alert, setAlert] = useState<AlertState>({ message: null, type: 'error', visible: false });
 
   const showAlert = useCallback((message: string, type: AlertType = 'error') => {
-    setAlert({ message, type });
+    setAlert({ message, type, visible: true });
   }, []);
 
   const clearAlert = useCallback(() => {
-    setAlert({ message: null, type: 'error' });
+    setAlert(prev => ({ ...prev, visible: false }));
+    setTimeout(() => setAlert({ message: null, type: 'error', visible: false }), 300);
   }, []);
 
-  const alertStyles: Record<AlertType, string> = {
-    error: 'bg-red-900/80 border-red-700 text-red-100',
-    success: 'bg-green-900/80 border-green-700 text-green-100',
-    warning: 'bg-yellow-900/80 border-yellow-700 text-yellow-100',
-    info: 'bg-blue-900/80 border-blue-700 text-blue-100',
+  const accentColors: Record<AlertType, string> = {
+    error: 'border-l-red-500',
+    success: 'border-l-emerald-500',
+    warning: 'border-l-amber-500',
+    info: 'border-l-sky-500',
+  };
+
+  const iconColors: Record<AlertType, string> = {
+    error: 'text-red-400',
+    success: 'text-emerald-400',
+    warning: 'text-amber-400',
+    info: 'text-sky-400',
   };
 
   return (
     <AlertContext.Provider value={{ showAlert, clearAlert }}>
       {alert.message && (
-        <div className={`fixed top-0 left-0 right-0 z-20 p-4 border-b ${alertStyles[alert.type]}`}>
-          <div className="max-w-4xl mx-auto flex justify-between items-center">
-            <span>{alert.message}</span>
+        <div
+          className={`fixed top-4 right-4 z-50 max-w-sm w-full transition-all duration-300 ease-out ${
+            alert.visible
+              ? 'translate-x-0 opacity-100'
+              : 'translate-x-4 opacity-0'
+          }`}
+        >
+          <div
+            className={`flex items-start gap-2.5 rounded-md border border-border border-l-[3px] ${accentColors[alert.type]} bg-card px-3.5 py-3 shadow-lg`}
+          >
+            <span className={`text-sm mt-0.5 shrink-0 ${iconColors[alert.type]}`}>{icons[alert.type]}</span>
+            <p className="flex-1 text-sm text-foreground leading-snug">{alert.message}</p>
             <button
               onClick={clearAlert}
-              className="ml-4 px-2 py-1 hover:opacity-80 transition-opacity"
+              className="shrink-0 text-muted-foreground hover:text-foreground transition-colors text-xs mt-0.5"
               aria-label="Close alert"
             >
               ✕
