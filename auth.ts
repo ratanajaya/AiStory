@@ -1,11 +1,13 @@
 import NextAuth from "next-auth";
+import type { Session } from "next-auth";
 import authConfig from "./auth.config";
 import dbConnect from "@/lib/mongodb";
+import { getAuthSessionOverrideUser } from "@/lib/authSessionOverride";
 import { KeyValueModel, UserModel } from "@/models";
 import { ApiKeyConfig, DefaultValue, LlmConfig, LLMService, User } from "@/types";
 import _util from "./utils/_util";
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
+const { handlers, signIn, signOut, auth: baseAuth } = NextAuth({
   ...authConfig,
   callbacks: {
     async signIn({ user }) {
@@ -40,6 +42,19 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
   },
 });
+
+const authOverrideUser = getAuthSessionOverrideUser();
+
+async function auth(): Promise<Session | null> {
+  if (authOverrideUser) {
+    return {
+      user: authOverrideUser,
+      expires: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+    };
+  }
+
+  return baseAuth();
+}
 
 async function getCurrentUser(): Promise<User | null> {
   const session = await auth();
@@ -97,4 +112,4 @@ async function getUserSettingWithFallback(): Promise<{
   return { selectedLlm, apiKey };
 }
 
-export { getCurrentUser, getUserSettingWithFallback };
+export { handlers, signIn, signOut, auth, getCurrentUser, getUserSettingWithFallback };

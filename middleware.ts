@@ -1,12 +1,14 @@
 import NextAuth from "next-auth";
 import authConfig from "./auth.config";
+import { getAuthSessionOverrideUser } from "@/lib/authSessionOverride";
 import { NextResponse } from "next/server";
 
 const { auth } = NextAuth(authConfig);
+const authOverrideUser = getAuthSessionOverrideUser();
 
 export default auth((req) => {
   const { nextUrl } = req;
-  const isLoggedIn = !!req.auth;
+  const isLoggedIn = !!req.auth || !!authOverrideUser;
   const isApiRoute = nextUrl.pathname.startsWith("/api");
 
   // Public routes that don't require authentication

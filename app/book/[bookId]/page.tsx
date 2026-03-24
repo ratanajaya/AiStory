@@ -12,7 +12,7 @@ import ChapterDisplay from '../_components/ChapterDisplay';
 import StatusBar, { StatusBarProps } from '../_components/StatusBar';
 import useDebugPanel from '../_components/useDebugPanel';
 import useInputPanel from '../_components/useInputPanel';
-import EnhancerModal from '../_components/EnhancerModal';
+import SegmentEnhancerModal from '../_components/SegmentEnhancerModal';
 import SummarizerModal from '../_components/SummarizerModal';
 import ChapterWrapperModal from '../_components/ChapterWrapperModal';
 import BookNameEditor from '../_components/BookNameEditor';
@@ -31,6 +31,7 @@ const emptyBookModel: BookUIModel = {
   segmentSummaries: [],
   chapters: [],
   shouldSave: false,
+  segmentIdsToSave: [],
   version: 0,
 }
 
@@ -76,6 +77,19 @@ export default function BookPage({ params }: PageProps) {
     inputTag: template?.prompt.inputTag ?? 'Enter your input here...',
   });
 
+  const deleteSegment = async (segmentId: string) => {
+    try {
+      await fetcher(`/api/books/${bookId}/segments`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ segmentId }),
+        errorMessage: 'Failed to delete segment',
+      });
+    } catch (error) {
+      showAlert('Failed to delete segment');
+    }
+  };
+
   useEffect(() => {
     const fetchBook = async () => {
       try {
@@ -86,6 +100,7 @@ export default function BookPage({ params }: PageProps) {
         setBookUiModel({
           ...data,
           shouldSave: false,
+          segmentIdsToSave: [],
         });
         const templateData = await fetcher<any>(`/api/templates/${data.templateId}/merged`, {
           errorMessage: 'Failed to fetch template',
@@ -101,6 +116,38 @@ export default function BookPage({ params }: PageProps) {
       fetchBook();
     }
   }, [bookId, fetcher]);
+
+  useEffect(() => {
+    if(bookUiModel.segmentIdsToSave.length === 0)
+      return;
+
+    const segmentsToSave = bookUiModel.storySegments.filter(s => bookUiModel.segmentIdsToSave.includes(s.id));
+    
+    setBookUiModel(prev => ({
+      ...prev,
+      segmentIdsToSave: [],
+    }));
+
+    const saveSegment = async (segment: StorySegment) => {
+      await fetcher(`/api/books/${bookId}/segments`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ segment }),
+        errorMessage: 'Failed to save segment',
+      });
+    };
+
+    const saveAllSegments = async () => {
+      try {
+        await Promise.all(segmentsToSave.map(segment => saveSegment(segment)));
+      } catch (error) {
+        // Avoid unhandled promise rejections; consider surfacing this to the user if needed.
+        console.error('Failed to save one or more segments', error);
+      }
+    };
+
+    saveAllSegments();
+  }, [bookUiModel.segmentIdsToSave, bookUiModel.storySegments, fetcher, bookId]);
 
   useEffect(() => {
     if(!bookUiModel.shouldSave)
@@ -197,14 +244,16 @@ export default function BookPage({ params }: PageProps) {
       
       userMessage2 += userSegmentContent;
   
+      const userSegment: StorySegment = {
+        id: new Date().getTime().toString(),
+        day: 0, // Legacy, not used
+        content: userSegmentContent,
+        role: 'user',
+      };
       setBookUiModel(prev => ({
         ...prev,
-        storySegments: [...prev.storySegments, {
-          id: new Date().getTime().toString(),
-          day: 0, // Legacy, not used
-          content: userSegmentContent,
-          role: 'user',
-        }],
+        storySegments: [...prev.storySegments, userSegment],
+        segmentIdsToSave: [...prev.segmentIdsToSave, userSegment.id],
       }));
       
       await new Promise(r => setTimeout(r, 50));
@@ -240,12 +289,14 @@ export default function BookPage({ params }: PageProps) {
 
         const reader = response.body?.getReader();
         const decoder = new TextDecoder();
+        let accumulatedContent = '';
 
         if (reader) {
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
             const content = decoder.decode(value, { stream: true });
+            accumulatedContent += content;
 
             setBookUiModel(prev => ({
               ...prev,
@@ -259,6 +310,7 @@ export default function BookPage({ params }: PageProps) {
         }
   
         // Stream complete
+        const finalContent = _util.cleanupLlmResponse(accumulatedContent);
         setSbp({
           loading: false,
           text: 'AI response complete',
@@ -270,11 +322,11 @@ export default function BookPage({ params }: PageProps) {
             msg.id === segmentId 
               ? { 
                   ...msg,
-                  content: _util.cleanupLlmResponse(msg.content)
+                  content: finalContent
                 }
               : msg
           ),
-          shouldSave: true,
+          segmentIdsToSave: [...prev.segmentIdsToSave, segmentId],
         }));
         
       } catch (error) {
@@ -307,11 +359,15 @@ export default function BookPage({ params }: PageProps) {
         return;
       }
       
-      // Remove the last assistant segment
+      // Remove the last assistant segment and previous user segment
       setBookUiModel(prev => ({
         ...prev,
         storySegments: prev.storySegments.filter(seg => seg.id !== segmentId && seg.id !== prevUserSegment.id),
       }));
+
+      // Delete both segments from the database
+      deleteSegment(segmentId);
+      deleteSegment(prevUserSegment.id);
 
       await gameAction._applyNarration(prevUserSegment.content, segmentId);
     },
@@ -375,15 +431,15 @@ export default function BookPage({ params }: PageProps) {
         storySegments: prev.storySegments.map(msg =>
           msg.id === updatedSegment.id ? updatedSegment : msg
         ),
-        shouldSave: shouldSave,
+        segmentIdsToSave: shouldSave ? [...prev.segmentIdsToSave, updatedSegment.id] : prev.segmentIdsToSave,
       }));
     },
     deleteStorySegment: (id: string) => {
       setBookUiModel(prev => ({
         ...prev,
         storySegments: prev.storySegments.filter(msg => msg.id !== id),
-        shouldSave: true,
       }));
+      deleteSegment(id);
     },
     openChapterWrapper: (segmentId: string) => {
       const segmentIndex = bookUiModel.storySegments.findIndex(s => s.id === segmentId);
@@ -472,7 +528,7 @@ export default function BookPage({ params }: PageProps) {
                   </Button>
                 </div>
                 )}
-                <div className=' overflow-y-scroll w-full h-full p-2 rounded-md bg-stone-800 border-2 border-zinc-800'>
+                <div className=' overflow-y-scroll w-full h-full p-2 rounded-md bg-card border border-border'>
                   {(() => {
                     // Separate segments by whether they have a chapterId
                     const { segmentsWithoutChapter, segmentsWithChapter } = _util.splitSegmentsWithChapter(bookUiModel.storySegments);
@@ -540,7 +596,7 @@ export default function BookPage({ params }: PageProps) {
                 </div>
                 
                 {enhancer.visible && enhancer.segment && (
-                  <EnhancerModal
+                  <SegmentEnhancerModal
                     segment={enhancer.segment}
                     prevStory={enhancer.prevStory}
                     onClose={() => setEnhancer(prev => ({ ...prev, visible: false }))}
@@ -568,7 +624,7 @@ export default function BookPage({ params }: PageProps) {
                 )}
               </Panel>
               <StatusBar {...sbp} />
-              <PanelResizeHandle className=' mt-1 mb-1 h-1 bg-neutral-600' />
+              <PanelResizeHandle className=' mt-1 mb-1 h-1 bg-border' />
               {inputPanelElement}
             </PanelGroup>
             <div className=' h-2'></div>
@@ -581,7 +637,7 @@ export default function BookPage({ params }: PageProps) {
             </Button>
           </div>
         </Panel>
-        <PanelResizeHandle className=' w-1 bg-neutral-600' />
+        <PanelResizeHandle className=' w-1 bg-border' />
         {debugPanel.element}
       </PanelGroup>
     </div>

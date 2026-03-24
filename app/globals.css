@@ -22,41 +22,41 @@
 }
 
 :root {
-  /* Wooden Library Theme - Dark, Brown-ish */
-  
-  /* Background: Deep Dark Wood */
-  --background: hsl(30 40% 12%);
-  /* Foreground: Parchment / Old Paper */
-  --foreground: hsl(35 30% 85%);
+  /* Graphite Gray Theme — Modern & Sleek */
 
-  /* Primary: Rich Mahogany */
-  --primary: hsl(25 60% 35%);
-  --primary-foreground: hsl(35 30% 90%);
+  /* Background: Deep charcoal */
+  --background: hsl(220 10% 7%);
+  /* Foreground: Crisp near-white */
+  --foreground: hsl(0 0% 93%);
 
-  /* Secondary: Antique Brass / Gold */
-  --secondary: hsl(45 60% 45%);
-  --secondary-foreground: hsl(30 40% 10%);
+  /* Primary: Graphite Gray */
+  --primary: hsl(220 6% 38%);
+  --primary-foreground: hsl(0 0% 98%);
 
-  /* Accent: Deep Green (Library Lamp) */
-  --accent: hsl(140 50% 25%);
-  --accent-foreground: hsl(35 30% 85%);
+  /* Secondary: Soft silver */
+  --secondary: hsl(220 5% 62%);
+  --secondary-foreground: hsl(220 10% 7%);
 
-  /* Highlight: Warm Amber */
-  --highlight: hsl(35 70% 50%);
-  --highlight-foreground: hsl(30 40% 10%);
+  /* Accent: Clean white */
+  --accent: hsl(0 0% 100%);
+  --accent-foreground: hsl(220 10% 10%);
 
-  /* Muted: Faded Wood */
-  --muted: hsl(30 30% 20%);
-  --muted-foreground: hsl(35 20% 60%);
+  /* Highlight: Mid graphite */
+  --highlight: hsl(220 6% 48%);
+  --highlight-foreground: hsl(0 0% 98%);
 
-  /* Card: Dark Wood Panel */
-  --card: hsl(30 35% 16%);
-  --card-foreground: hsl(35 30% 85%);
+  /* Muted: Dark graphite */
+  --muted: hsl(220 8% 14%);
+  --muted-foreground: hsl(220 5% 55%);
 
-  /* Border: Wood Grain */
-  --border: hsl(30 30% 25%);
-  --input: hsl(30 30% 25%);
-  --ring: hsl(25 60% 35%);
+  /* Card: Slightly lifted surface */
+  --card: hsl(220 8% 11%);
+  --card-foreground: hsl(0 0% 93%);
+
+  /* Border & Input */
+  --border: hsl(220 6% 20%);
+  --input: hsl(220 6% 20%);
+  --ring: hsl(220 6% 45%);
 }
 
 body {

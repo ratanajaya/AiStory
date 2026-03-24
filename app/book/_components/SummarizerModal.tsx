@@ -115,13 +115,13 @@ export default function SummarizerModal(props: {
                   paragraphCount: value,
                 }));
               }}
-              className="bg-gray-700 text-white"
+              className="bg-muted text-foreground"
             />
           </FormField>
         </Col>
         <Col md={12} sm={24} xs={24}>
           <Textarea
-            className="w-full bg-gray-700 text-white p-2 rounded-md mb-2"
+            className="w-full bg-muted text-foreground p-2 rounded-md mb-2"
             value={values.content}
             rows={20}
           />
@@ -129,7 +129,7 @@ export default function SummarizerModal(props: {
         <Col md={12} sm={24} xs={24}>
           <Textarea
             disabled={values.isLoading}
-            className="w-full bg-gray-700 text-white p-2 rounded-md mb-2"
+            className="w-full bg-muted text-foreground p-2 rounded-md mb-2"
             value={values.llmResponse}
             onChange={(e) => setValues(prev => ({ ...prev, llmResponse: e.target.value }))}
             rows={20}
