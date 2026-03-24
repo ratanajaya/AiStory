@@ -12,7 +12,7 @@ import ChapterDisplay from '../_components/ChapterDisplay';
 import StatusBar, { StatusBarProps } from '../_components/StatusBar';
 import useDebugPanel from '../_components/useDebugPanel';
 import useInputPanel from '../_components/useInputPanel';
-import EnhancerModal from '../_components/EnhancerModal';
+import SegmentEnhancerModal from '../_components/SegmentEnhancerModal';
 import SummarizerModal from '../_components/SummarizerModal';
 import ChapterWrapperModal from '../_components/ChapterWrapperModal';
 import BookNameEditor from '../_components/BookNameEditor';
@@ -540,7 +540,7 @@ export default function BookPage({ params }: PageProps) {
                 </div>
                 
                 {enhancer.visible && enhancer.segment && (
-                  <EnhancerModal
+                  <SegmentEnhancerModal
                     segment={enhancer.segment}
                     prevStory={enhancer.prevStory}
                     onClose={() => setEnhancer(prev => ({ ...prev, visible: false }))}
