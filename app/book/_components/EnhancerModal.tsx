@@ -109,7 +109,7 @@ export default function EnhancerModal(props: {
       <Row gutter={8}>
         <Col md={12} sm={24} xs={24}>
           <Textarea
-            className="w-full text-white p-2 rounded-md mb-2"
+            className="w-full text-foreground p-2 rounded-md mb-2"
             value={values.content}
             onChange={(e) => setValues(prev => ({ ...prev, content: e.target.value }))}
             rows={20}
@@ -118,7 +118,7 @@ export default function EnhancerModal(props: {
         <Col md={12} sm={24} xs={24}>
           <Textarea
             disabled={values.isLoading}
-            className="w-full text-white p-2 rounded-md mb-2"
+            className="w-full text-foreground p-2 rounded-md mb-2"
             value={values.llmResponse}
             onChange={(e) => setValues(prev => ({ ...prev, llmResponse: e.target.value }))}
             rows={20}
@@ -128,7 +128,7 @@ export default function EnhancerModal(props: {
           <div className='w-full flex space-x-2'>
             <Textarea
               style={{ fontSize: 'inherit' }}
-              className="flex-1 text-white p-2 rounded-md mb-2"
+              className="flex-1 text-foreground p-2 rounded-md mb-2"
               value={values.userInput}
               onChange={(e) => setValues(prev => ({ ...prev, userInput: e.target.value }))}
               rows={6}

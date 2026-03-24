@@ -11,11 +11,15 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <SessionProvider>
       <ConfigProvider
         theme={{
-          // 1. Use dark algorithm
           algorithm: theme.darkAlgorithm,
-
-          // 2. Combine dark algorithm and compact algorithm
-          // algorithm: [theme.darkAlgorithm, theme.compactAlgorithm],
+          token: {
+            colorPrimary: '#585e68',
+            colorBgBase: '#101318',
+            colorTextBase: '#ededed',
+            colorBorder: '#2e3238',
+            colorBgContainer: '#16191e',
+            colorBgElevated: '#1c2026',
+          },
         }}
       >
         <AlertProvider>

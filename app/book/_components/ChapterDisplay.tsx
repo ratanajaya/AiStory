@@ -17,10 +17,10 @@ export default function ChapterDisplay(props: {
   const assistantSegments = props.segments.filter(seg => seg.role === 'assistant');
 
   return (
-    <div className="mb-4 border border-gray-600 rounded-md bg-stone-900">
+    <div className="mb-4 border border-border rounded-md bg-background">
       {/* Chapter Header - Collapsible */}
       <div
-        className="p-1 pl-2 cursor-pointer hover:bg-stone-800 transition-colors flex items-start gap-2"
+        className="p-1 pl-2 cursor-pointer hover:bg-muted transition-colors flex items-start gap-2"
         onMouseEnter={() => setIsHovering(true)}
         onMouseLeave={() => setIsHovering(false)}
       >
@@ -28,14 +28,14 @@ export default function ChapterDisplay(props: {
           {isExpanded ? <DownOutlined /> : <RightOutlined />}
         </div>
         <div className="flex-1" onClick={() => setIsExpanded(!isExpanded)}>
-          <h3 className="text-md text-white">
+          <h3 className="text-md text-foreground">
             {props.chapter.title}
           </h3>
         </div>
         {isHovering && (
           <div className="pr-2">
             <EditOutlined
-              className="text-gray-400 hover:text-white"
+              className="text-muted-foreground hover:text-foreground"
               onClick={() => setIsEditing(true)}
             />
           </div>
@@ -44,10 +44,10 @@ export default function ChapterDisplay(props: {
 
       {/* Chapter Content - Expandable */}
       {isExpanded && (
-        <div className="border-t border-gray-600 p-3 bg-stone-800">
+        <div className="border-t border-border p-3 bg-card">
           {assistantSegments.map((segment, index) => (
             <div key={segment.id} className="mb-3 last:mb-0">
-              <div className="text-gray-300">
+              <div className="text-foreground">
                 <Markdown
                   components={{
                     p: ({ node, ...props }) => <p {...props} className="mb-2 text-justify" />,
@@ -57,7 +57,7 @@ export default function ChapterDisplay(props: {
                 </Markdown>
               </div>
               {index < assistantSegments.length - 1 && (
-                <div className="my-3 border-t border-gray-700"></div>
+                <div className="my-3 border-t border-border"></div>
               )}
             </div>
           ))}

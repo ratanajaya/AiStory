@@ -472,7 +472,7 @@ export default function BookPage({ params }: PageProps) {
                   </Button>
                 </div>
                 )}
-                <div className=' overflow-y-scroll w-full h-full p-2 rounded-md bg-stone-800 border-2 border-zinc-800'>
+                <div className=' overflow-y-scroll w-full h-full p-2 rounded-md bg-card border border-border'>
                   {(() => {
                     // Separate segments by whether they have a chapterId
                     const { segmentsWithoutChapter, segmentsWithChapter } = _util.splitSegmentsWithChapter(bookUiModel.storySegments);
@@ -568,7 +568,7 @@ export default function BookPage({ params }: PageProps) {
                 )}
               </Panel>
               <StatusBar {...sbp} />
-              <PanelResizeHandle className=' mt-1 mb-1 h-1 bg-neutral-600' />
+              <PanelResizeHandle className=' mt-1 mb-1 h-1 bg-border' />
               {inputPanelElement}
             </PanelGroup>
             <div className=' h-2'></div>
@@ -581,7 +581,7 @@ export default function BookPage({ params }: PageProps) {
             </Button>
           </div>
         </Panel>
-        <PanelResizeHandle className=' w-1 bg-neutral-600' />
+        <PanelResizeHandle className=' w-1 bg-border' />
         {debugPanel.element}
       </PanelGroup>
     </div>

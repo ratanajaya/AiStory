@@ -208,7 +208,7 @@ export default function ChapterWrapperModal(props: {
       <Row gutter={8}>
         <Col md={9} sm={24} xs={24}>
           <Textarea
-            className="w-full bg-gray-700 text-white p-2 rounded-md mb-2"
+            className="w-full bg-muted text-foreground p-2 rounded-md mb-2"
             value={values.content}
             rows={20}
           />
@@ -216,7 +216,7 @@ export default function ChapterWrapperModal(props: {
         <Col md={9} sm={24} xs={24}>
           <Textarea
             disabled={values.summaryLoading}
-            className="w-full bg-gray-700 text-white p-2 rounded-md mb-2"
+            className="w-full bg-muted text-foreground p-2 rounded-md mb-2"
             value={values.summary}
             onChange={(e) => setValues(prev => ({ ...prev, summary: e.target.value }))}
             rows={20}
@@ -225,7 +225,7 @@ export default function ChapterWrapperModal(props: {
         <Col md={6} sm={24} xs={24}>
           <Textarea
             disabled={values.endStateLoading}
-            className="w-full bg-gray-700 text-white p-2 rounded-md mb-2"
+            className="w-full bg-muted text-foreground p-2 rounded-md mb-2"
             value={values.endStateString}
             onChange={(e) => setValues(prev => ({ ...prev, endStateString: e.target.value }))}
             rows={20}

@@ -68,10 +68,10 @@ export default function useDebugPanel(panelProps: DebugPanelProps) {
       {/* Thin vertical collapse button */}
       <div className="flex items-center h-full">
         <div 
-          className='ml-2 mr-1 w-3 h-32 bg-neutral-700 hover:bg-neutral-600 flex items-center justify-center cursor-pointer rounded-sm'
+          className='ml-2 mr-1 w-3 h-32 bg-muted hover:bg-border flex items-center justify-center cursor-pointer rounded-sm'
           onClick={() => setCollapseDebugPanel(!collapseDebugPanel)}
         >
-          {collapseDebugPanel ? <LeftOutlined className='text-gray-300' /> : <RightOutlined className='text-gray-300' />}
+          {collapseDebugPanel ? <LeftOutlined className='text-muted-foreground' /> : <RightOutlined className='text-muted-foreground' />}
         </div>
       </div>
       {!collapseDebugPanel && (
@@ -80,9 +80,9 @@ export default function useDebugPanel(panelProps: DebugPanelProps) {
           className=' p-3 pl-0 flex flex-col h-full'
           defaultSize={panelProps.defaultSize} minSize={panelProps.minSize} order={panelProps.order}
         >
-          <div className=" w-full rounded-md bg-stone-800 border-2 border-zinc-800 mb-2 p-2">
+          <div className=" w-full rounded-md bg-card border border-border mb-2 p-2">
             <button 
-              className="text-blue-400 hover:text-blue-300 w-full text-left"
+              className="text-secondary hover:text-foreground w-full text-left"
               onClick={handleExportClick}
             >
               Export Story
@@ -93,7 +93,7 @@ export default function useDebugPanel(panelProps: DebugPanelProps) {
                   key={index}
                   href={story.url}
                   download={story.filename}
-                  className="bg-neutral-700 hover:bg-neutral-600 text-gray-200 text-xs px-2 py-1 rounded block w-full text-left"
+                  className="bg-muted hover:brightness-125 text-foreground text-xs px-2 py-1 rounded block w-full text-left"
                 >
                   {story.filename}
                 </a>
@@ -101,7 +101,7 @@ export default function useDebugPanel(panelProps: DebugPanelProps) {
             </div>
           </div>
 
-          <div className="flex flex-col w-full flex-1 rounded-md bg-stone-800 border-2 border-zinc-800">
+          <div className="flex flex-col w-full flex-1 rounded-md bg-card border border-border">
             <div className="w-full font-semibold text-center">
               DEBUG
             </div>
@@ -112,7 +112,7 @@ export default function useDebugPanel(panelProps: DebugPanelProps) {
               <Panel defaultSize={50} minSize={15} order={1}>
 
               </Panel>
-              <PanelResizeHandle className=' w-full h-1 bg-neutral-600' />
+              <PanelResizeHandle className=' w-full h-1 bg-border' />
               <Panel defaultSize={50} minSize={15} order={1}>
                 <div className=' w-full h-full overflow-y-auto'>
                   {debugLogs.map((log, index) => (
@@ -132,7 +132,7 @@ export default function useDebugPanel(panelProps: DebugPanelProps) {
 
 function DebugLogDisplay({ log }: { log: DebugLog }) {
   return (
-    <div className=' p-1 mb-3 border-b border-neutral-500'>
+    <div className=' p-1 mb-3 border-b border-border'>
       <Markdown>
         {log.content}
       </Markdown>

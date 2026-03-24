@@ -50,19 +50,19 @@ export default function Modal({
         className={`absolute left-1/2 w-full px-4 ${centered ? 'top-1/2 -translate-y-1/2' : 'top-16'} -translate-x-1/2`}
       >
         <div
-          className="mx-auto w-full rounded-lg border border-zinc-700 bg-zinc-900 shadow-xl"
+          className="mx-auto w-full rounded-lg border border-border bg-card shadow-xl"
           style={{ maxWidth: contentWidth }}
           role="dialog"
           aria-modal="true"
         >
           {title && (
-            <div className="border-b border-zinc-800 px-5 py-4 text-lg font-semibold text-white">
+            <div className="border-b border-border px-5 py-4 text-lg font-semibold text-foreground">
               {title}
             </div>
           )}
           <div className="px-5 py-4">{children}</div>
           {(onOk || onCancel) && (
-            <div className="flex justify-end gap-2 border-t border-zinc-800 px-5 py-4">
+            <div className="flex justify-end gap-2 border-t border-border px-5 py-4">
               {onCancel && (
                 <Button variant="secondary" onClick={onCancel}>
                   {cancelText}

@@ -14,11 +14,11 @@ function LoginContent() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-900">
-      <div className="max-w-md w-full space-y-8 p-8 bg-gray-800 rounded-xl shadow-lg">
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="max-w-md w-full space-y-8 p-8 bg-card rounded-xl shadow-lg border border-border">
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-white mb-2">AI Story</h1>
-          <p className="text-gray-400">Sign in to continue</p>
+          <h1 className="text-3xl font-bold text-foreground mb-2">AI Story</h1>
+          <p className="text-muted-foreground">Sign in to continue</p>
         </div>
 
         {error && (
@@ -33,7 +33,7 @@ function LoginContent() {
 
         <button
           onClick={handleGoogleSignIn}
-          className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-gray-600 rounded-lg text-white bg-gray-700 hover:bg-gray-600 transition-colors cursor-pointer"
+          className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-border rounded-lg text-foreground bg-muted hover:brightness-125 transition-all cursor-pointer"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path
@@ -56,7 +56,7 @@ function LoginContent() {
           Sign in with Google
         </button>
 
-        <p className="text-center text-sm text-gray-500">
+        <p className="text-center text-sm text-muted-foreground">
           Only registered users can sign in
         </p>
       </div>
@@ -68,8 +68,8 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center bg-gray-900">
-          <div className="text-white">Loading...</div>
+        <div className="min-h-screen flex items-center justify-center bg-background">
+          <div className="text-foreground">Loading...</div>
         </div>
       }
     >
