@@ -146,7 +146,10 @@ export const getSegmentAudio = async (segmentId: string): Promise<SegmentAudioRe
   });
 };
 
-export const isSegmentAudioRecordCurrent = (record: SegmentAudioRecord | null, content: string) => {
+export const isSegmentAudioRecordCurrent = (
+  record: SegmentAudioRecord | null,
+  content: string,
+): record is SegmentAudioRecord => {
   return !!record
     && record.content === content
     && record.configId === TTS_CACHE_CONFIG_ID;
