@@ -1,18 +1,24 @@
+import { TTS_CACHE_CONFIG_ID } from "@/lib/ttsConfig";
+
 const DB_NAME = 'ai-story-tts';
 const DB_VERSION = 1;
 const STORE_NAME = 'segment-audio';
 
-export type AudioPlaybackState = 'idle' | 'playing' | 'paused';
+export type AudioPlaybackState = 'idle' | 'loading' | 'waiting' | 'playing' | 'paused' | 'error';
 
 export interface AudioPlaybackStatus {
   activeSegmentId: string | null;
   state: AudioPlaybackState;
+  currentTime: number;
+  duration: number;
+  errorMessage: string | null;
 }
 
 export interface SegmentAudioRecord {
   segmentId: string;
   content: string;
   mimeType: string;
+  configId: string;
   audioBlob: Blob;
   updatedAt: number;
 }
@@ -24,6 +30,9 @@ let isAudioInitialized = false;
 let playbackStatus: AudioPlaybackStatus = {
   activeSegmentId: null,
   state: 'idle',
+  currentTime: 0,
+  duration: 0,
+  errorMessage: null,
 };
 
 const playbackListeners = new Set<(status: AudioPlaybackStatus) => void>();
@@ -62,6 +71,40 @@ const notifyPlaybackListeners = () => {
   playbackListeners.forEach(listener => {
     listener(snapshot);
   });
+};
+
+const getSafeTimeValue = (value: number) => Number.isFinite(value) ? value : 0;
+
+const getAudioTiming = (audio: HTMLAudioElement) => ({
+  currentTime: getSafeTimeValue(audio.currentTime),
+  duration: getSafeTimeValue(audio.duration),
+});
+
+const getAudioErrorMessage = (audio: HTMLAudioElement) => {
+  if (!audio.error) {
+    return 'Audio playback failed.';
+  }
+
+  switch (audio.error.code) {
+    case MediaError.MEDIA_ERR_ABORTED:
+      return 'Audio playback was aborted.';
+    case MediaError.MEDIA_ERR_NETWORK:
+      return 'A network error interrupted audio playback.';
+    case MediaError.MEDIA_ERR_DECODE:
+      return 'The audio could not be decoded.';
+    case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+      return 'The audio format is not supported.';
+    default:
+      return 'Audio playback failed.';
+  }
+};
+
+const updatePlaybackStatus = (updates: Partial<AudioPlaybackStatus>) => {
+  playbackStatus = {
+    ...playbackStatus,
+    ...updates,
+  };
+  notifyPlaybackListeners();
 };
 
 const clearCurrentAudioUrl = () => {
@@ -103,6 +146,12 @@ export const getSegmentAudio = async (segmentId: string): Promise<SegmentAudioRe
   });
 };
 
+export const isSegmentAudioRecordCurrent = (record: SegmentAudioRecord | null, content: string) => {
+  return !!record
+    && record.content === content
+    && record.configId === TTS_CACHE_CONFIG_ID;
+};
+
 export const saveSegmentAudio = async (record: SegmentAudioRecord): Promise<void> => {
   return runTransaction<void>('readwrite', (store, resolve, reject) => {
     const request = store.put(record);
@@ -128,36 +177,88 @@ const getSharedAudio = () => {
     sharedAudio = new Audio();
   }
 
+  const audio = sharedAudio;
+
   if (!isAudioInitialized) {
-    sharedAudio.addEventListener('play', () => {
-      playbackStatus = {
-        ...playbackStatus,
+    audio.addEventListener('loadedmetadata', () => {
+      updatePlaybackStatus({
+        ...getAudioTiming(audio),
+        errorMessage: null,
+      });
+    });
+
+    audio.addEventListener('durationchange', () => {
+      updatePlaybackStatus(getAudioTiming(audio));
+    });
+
+    audio.addEventListener('timeupdate', () => {
+      updatePlaybackStatus(getAudioTiming(audio));
+    });
+
+    audio.addEventListener('waiting', () => {
+      if (!playbackStatus.activeSegmentId) {
+        return;
+      }
+
+      updatePlaybackStatus({
+        ...getAudioTiming(audio),
+        state: 'waiting',
+        errorMessage: null,
+      });
+    });
+
+    audio.addEventListener('playing', () => {
+      if (!playbackStatus.activeSegmentId) {
+        return;
+      }
+
+      updatePlaybackStatus({
+        ...getAudioTiming(audio),
         state: 'playing',
-      };
-      notifyPlaybackListeners();
+        errorMessage: null,
+      });
     });
 
-    sharedAudio.addEventListener('pause', () => {
-      playbackStatus = playbackStatus.activeSegmentId
-        ? { ...playbackStatus, state: 'paused' }
-        : { activeSegmentId: null, state: 'idle' };
-      notifyPlaybackListeners();
+    audio.addEventListener('pause', () => {
+      if (!playbackStatus.activeSegmentId || audio.ended) {
+        return;
+      }
+
+      updatePlaybackStatus({
+        ...getAudioTiming(audio),
+        state: 'paused',
+      });
     });
 
-    sharedAudio.addEventListener('ended', () => {
+    audio.addEventListener('error', () => {
+      if (!playbackStatus.activeSegmentId) {
+        return;
+      }
+
+      updatePlaybackStatus({
+        ...getAudioTiming(audio),
+        state: 'error',
+        errorMessage: getAudioErrorMessage(audio),
+      });
+    });
+
+    audio.addEventListener('ended', () => {
       clearCurrentAudioUrl();
       playbackStatus = {
         activeSegmentId: null,
         state: 'idle',
+        currentTime: 0,
+        duration: 0,
+        errorMessage: null,
       };
-      resetAudioElement(sharedAudio!);
+      resetAudioElement(audio);
       notifyPlaybackListeners();
     });
 
     isAudioInitialized = true;
   }
 
-  return sharedAudio;
+  return audio;
 };
 
 export const subscribeToAudioPlayback = (listener: (status: AudioPlaybackStatus) => void) => {
@@ -177,14 +278,25 @@ export const playAudioBlob = async (segmentId: string, audioBlob: Blob): Promise
 
   playbackStatus = {
     activeSegmentId: segmentId,
-    state: 'paused',
+    state: 'loading',
+    currentTime: 0,
+    duration: 0,
+    errorMessage: null,
   };
   notifyPlaybackListeners();
   currentAudioUrl = URL.createObjectURL(audioBlob);
   audio.src = currentAudioUrl;
   audio.currentTime = 0;
 
-  await audio.play();
+  try {
+    await audio.play();
+  } catch (error) {
+    updatePlaybackStatus({
+      state: 'error',
+      errorMessage: error instanceof Error ? error.message : 'Audio playback failed.',
+    });
+    throw error;
+  }
 };
 
 export const pauseAudioPlayback = (segmentId?: string): boolean => {
@@ -221,7 +333,22 @@ export const resumeAudioPlayback = async (segmentId?: string): Promise<boolean> 
     return false;
   }
 
-  await audio.play();
+  updatePlaybackStatus({
+    ...getAudioTiming(audio),
+    state: 'loading',
+    errorMessage: null,
+  });
+
+  try {
+    await audio.play();
+  } catch (error) {
+    updatePlaybackStatus({
+      state: 'error',
+      errorMessage: error instanceof Error ? error.message : 'Audio playback failed.',
+    });
+    throw error;
+  }
+
   return true;
 };
 
@@ -239,6 +366,9 @@ export const stopAudioPlayback = (segmentId?: string): boolean => {
   playbackStatus = {
     activeSegmentId: null,
     state: 'idle',
+    currentTime: 0,
+    duration: 0,
+    errorMessage: null,
   };
 
   audio.pause();

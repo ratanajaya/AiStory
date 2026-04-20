@@ -1,4 +1,5 @@
 import { getUserSettingWithFallback } from "@/auth";
+import { TTS_SYNTHESIS_CONFIG } from "@/lib/ttsConfig";
 
 const TOGETHER_TTS_URL = 'https://api.together.xyz/v1/audio/speech';
 
@@ -18,12 +19,12 @@ const createTogetherTtsEndpoint = (apiKey: string): TtsEndpoint => ({
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'hexgrad/Kokoro-82M',
+        model: TTS_SYNTHESIS_CONFIG.model,
         input,
-        voice: 'af_heart',
-        response_format: 'mp3',
-        sample_rate: 48000,
-        stream: false,
+        voice: TTS_SYNTHESIS_CONFIG.voice,
+        response_format: TTS_SYNTHESIS_CONFIG.responseFormat,
+        sample_rate: TTS_SYNTHESIS_CONFIG.sampleRate,
+        stream: TTS_SYNTHESIS_CONFIG.stream,
       }),
     });
 
