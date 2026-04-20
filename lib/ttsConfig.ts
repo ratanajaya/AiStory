@@ -1,6 +1,7 @@
 export const TTS_SYNTHESIS_CONFIG = {
   model: 'hexgrad/Kokoro-82M',
-  voice: 'af_heart',
+  voice: 'af_nicole',
+  //voice: 'af_heart',
   responseFormat: 'mp3',
   sampleRate: 48000,
   stream: false,

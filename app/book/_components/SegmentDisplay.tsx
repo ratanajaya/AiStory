@@ -1,22 +1,10 @@
 import { Popconfirm, Space, Tooltip } from "antd";
-import { useEffect, useState } from "react";
-import { useAlert } from "@/components/AlertBox";
+import { useState } from "react";
+import SegmentAudioControl from "../../_components/SegmentAudioControl";
 import { Button } from "@/components/Button";
 import { Checkbox } from "@/components/Checkbox";
 import { Textarea } from "@/components/Textarea";
-import { TTS_CACHE_CONFIG_ID } from "@/lib/ttsConfig";
-import {
-  AudioPlaybackStatus,
-  deleteSegmentAudio,
-  getSegmentAudio,
-  isSegmentAudioRecordCurrent,
-  pauseAudioPlayback,
-  playAudioBlob,
-  resumeAudioPlayback,
-  saveSegmentAudio,
-  stopAudioPlayback,
-  subscribeToAudioPlayback,
-} from "@/lib/ttsIndexedDb";
+import { deleteSegmentAudio } from "@/lib/ttsIndexedDb";
 import Markdown from "react-markdown";
 import { SegmentSummary, StorySegment } from "@/types";
 
@@ -31,14 +19,6 @@ const colors = [
   'border-red-500',
 ];
 
-const formatAudioTime = (seconds: number) => {
-  const totalSeconds = Math.max(0, Math.floor(seconds));
-  const minutes = Math.floor(totalSeconds / 60);
-  const remainingSeconds = totalSeconds % 60;
-
-  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-};
-
 export default function SegmentDisplay(props: {
   index: number;
   segment: StorySegment;
@@ -52,23 +32,10 @@ export default function SegmentDisplay(props: {
   segmentSummary?: SegmentSummary | null;
   segmentSummaryIndex?: number;
 }) {
-  const { showAlert } = useAlert();
   const [editor, setEditor] = useState({
     isEditing: false,
     content: '',
   });
-  const [isGeneratingTts, setIsGeneratingTts] = useState(false);
-  const [playbackStatus, setPlaybackStatus] = useState<AudioPlaybackStatus>({
-    activeSegmentId: null,
-    state: 'idle',
-    currentTime: 0,
-    duration: 0,
-    errorMessage: null,
-  });
-
-  useEffect(() => {
-    return subscribeToAudioPlayback(setPlaybackStatus);
-  }, []);
 
   const handleSave = async () => {
     if (editor.content !== props.segment.content) {
@@ -109,112 +76,6 @@ export default function SegmentDisplay(props: {
     : '';
 
   const segmentWithSummary = props.segment.role === 'assistant' && props.segmentSummary;
-  const isActiveTtsSegment = playbackStatus.activeSegmentId === props.segment.id;
-  const isTtsLoading = isActiveTtsSegment && playbackStatus.state === 'loading';
-  const isTtsWaiting = isActiveTtsSegment && playbackStatus.state === 'waiting';
-  const isTtsPaused = isActiveTtsSegment && playbackStatus.state === 'paused';
-  const isTtsPlaying = isActiveTtsSegment && (playbackStatus.state === 'playing' || playbackStatus.state === 'waiting');
-  const canStopTts = isActiveTtsSegment && playbackStatus.state !== 'idle' && !props.disabled;
-  const audioTimeLabel = isActiveTtsSegment
-    ? `${formatAudioTime(playbackStatus.currentTime)} / ${formatAudioTime(playbackStatus.duration)}`
-    : null;
-
-  const fetchAndPlayTts = async () => {
-    if (props.disabled || isGeneratingTts) {
-      return;
-    }
-
-    if (!props.segment.content.trim()) {
-      showAlert('This segment has no content to convert.', 'warning');
-      return;
-    }
-
-    setIsGeneratingTts(true);
-
-    try {
-      const cachedAudio = await getSegmentAudio(props.segment.id);
-
-      if (isSegmentAudioRecordCurrent(cachedAudio, props.segment.content)) {
-        await playAudioBlob(props.segment.id, cachedAudio!.audioBlob);
-        return;
-      }
-
-      if (cachedAudio) {
-        await deleteSegmentAudio(props.segment.id);
-      }
-
-      const response = await fetch('/api/ai/tts', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          input: props.segment.content,
-        }),
-      });
-
-      if (!response.ok) {
-        const contentType = response.headers.get('content-type') ?? '';
-        let errorMessage = 'Failed to generate speech.';
-
-        if (contentType.includes('application/json')) {
-          const errorBody = await response.json().catch(() => null) as { error?: string } | null;
-          errorMessage = errorBody?.error || errorMessage;
-        } else {
-          const errorText = await response.text().catch(() => '');
-          errorMessage = errorText || errorMessage;
-        }
-
-        throw new Error(errorMessage);
-      }
-
-      const mimeType = response.headers.get('content-type') || 'audio/mpeg';
-      const audioBlob = await response.blob();
-
-      await saveSegmentAudio({
-        segmentId: props.segment.id,
-        content: props.segment.content,
-        mimeType,
-        configId: TTS_CACHE_CONFIG_ID,
-        audioBlob,
-        updatedAt: Date.now(),
-      });
-
-      await playAudioBlob(props.segment.id, audioBlob);
-    } catch (error) {
-      console.error('Failed to play TTS audio:', error);
-      showAlert(error instanceof Error ? error.message : 'Failed to generate speech.');
-    } finally {
-      setIsGeneratingTts(false);
-    }
-  };
-
-  const handleMainTtsAction = async () => {
-    if (props.disabled || isGeneratingTts || isTtsLoading) {
-      return;
-    }
-
-    try {
-      if (isTtsPlaying) {
-        pauseAudioPlayback(props.segment.id);
-        return;
-      }
-
-      if (isTtsPaused) {
-        await resumeAudioPlayback(props.segment.id);
-        return;
-      }
-
-      await fetchAndPlayTts();
-    } catch (error) {
-      console.error('Failed to control TTS playback:', error);
-      showAlert(error instanceof Error ? error.message : 'Failed to control audio playback.');
-    }
-  };
-
-  const handleStopTts = () => {
-    stopAudioPlayback(props.segment.id);
-  };
 
   return (
     <div className={` pb-2 relative group`}>
@@ -325,65 +186,11 @@ export default function SegmentDisplay(props: {
       ) : (
         <>
           <div className='w-full flex items-center justify-between mb-1'>
-            <div className='flex items-center gap-1'>
-              <Tooltip
-                title={
-                  isGeneratingTts ? 'Generating speech'
-                    : isTtsLoading ? 'Loading audio'
-                    : isTtsWaiting ? 'Pause audio while buffering'
-                    : isTtsPlaying ? 'Pause audio'
-                    : isTtsPaused ? 'Resume audio'
-                    : playbackStatus.state === 'error' && isActiveTtsSegment
-                      ? (playbackStatus.errorMessage || 'Replay audio')
-                      : 'Play audio'
-                }
-                placement="top"
-              >
-                <button
-                  type="button"
-                  onClick={handleMainTtsAction}
-                  className="bg-muted/70 hover:bg-muted p-1 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={props.disabled || isGeneratingTts || isTtsLoading}
-                  aria-label={isTtsPlaying ? 'Pause audio' : isTtsPaused ? 'Resume audio' : 'Play audio'}
-                >
-                  {isGeneratingTts || isTtsLoading ? (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-muted-foreground animate-spin" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-13a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                    </svg>
-                  ) : isTtsPlaying ? (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-muted-foreground" viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M6 4a1 1 0 00-1 1v10a1 1 0 102 0V5A1 1 0 006 4z" />
-                      <path d="M14 4a1 1 0 00-1 1v10a1 1 0 102 0V5a1 1 0 00-1-1z" />
-                    </svg>
-                  ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-muted-foreground" viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M6.5 4.5a1 1 0 011.537-.843l6 4A1 1 0 0114 9.343l-6 4A1 1 0 016.5 12.5v-8z" />
-                    </svg>
-                  )}
-                </button>
-              </Tooltip>
-              <Tooltip
-                title="Stop audio"
-                placement="top"
-              >
-                <button
-                  type="button"
-                  onClick={handleStopTts}
-                  className="bg-muted/70 hover:bg-muted p-1 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={!canStopTts}
-                  aria-label="Stop audio"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-muted-foreground" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M6 6a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H7a1 1 0 01-1-1V6z" />
-                  </svg>
-                </button>
-              </Tooltip>
-              {audioTimeLabel && (
-                <span className="ml-2 min-w-20 text-xs tabular-nums text-muted-foreground">
-                  {audioTimeLabel}
-                </span>
-              )}
-            </div>
+            <SegmentAudioControl
+              segmentId={props.segment.id}
+              content={props.segment.content}
+              disabled={props.disabled}
+            />
             <Tooltip
               title="To be summarized"
               placement="top"

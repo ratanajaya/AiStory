@@ -1,4 +1,5 @@
 import { useState } from "react";
+import SegmentAudioControl from "../../_components/SegmentAudioControl";
 import Markdown from "react-markdown";
 import { Chapter, StorySegment } from "@/types";
 import { DownOutlined, RightOutlined, EditOutlined } from '@ant-design/icons';
@@ -47,10 +48,15 @@ export default function ChapterDisplay(props: {
         <div className="border-t border-border p-3 bg-card">
           {assistantSegments.map((segment, index) => (
             <div key={segment.id} className="mb-3 last:mb-0">
+              <SegmentAudioControl
+                segmentId={segment.id}
+                content={segment.content}
+                className="mb-2 flex items-center gap-1"
+              />
               <div className="text-foreground">
                 <Markdown
                   components={{
-                    p: ({ node, ...props }) => <p {...props} className="mb-2 text-justify" />,
+                    p: (markdownProps) => <p {...markdownProps} className="mb-2 text-justify" />,
                   }}
                 >
                   {segment.content}

@@ -7,6 +7,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { Button } from '@/components/Button';
 import { useAlert } from '@/components/AlertBox';
 import _util from '@/utils/_util';
+import BookAudioControl from '../../_components/BookAudioControl';
 import SegmentDisplay from '../_components/SegmentDisplay';
 import ChapterDisplay from '../_components/ChapterDisplay';
 import StatusBar, { StatusBarProps } from '../_components/StatusBar';
@@ -85,7 +86,7 @@ export default function BookPage({ params }: PageProps) {
         body: JSON.stringify({ segmentId }),
         errorMessage: 'Failed to delete segment',
       });
-    } catch (error) {
+    } catch {
       showAlert('Failed to delete segment');
     }
   };
@@ -640,6 +641,10 @@ export default function BookPage({ params }: PageProps) {
         <PanelResizeHandle className=' w-1 bg-border' />
         {debugPanel.element}
       </PanelGroup>
+      <BookAudioControl
+        segments={bookUiModel.storySegments}
+        disabled={disableAction}
+      />
     </div>
   );
 }

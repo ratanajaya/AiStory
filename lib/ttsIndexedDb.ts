@@ -270,7 +270,11 @@ export const subscribeToAudioPlayback = (listener: (status: AudioPlaybackStatus)
   };
 };
 
-export const playAudioBlob = async (segmentId: string, audioBlob: Blob): Promise<void> => {
+export const playAudioBlob = async (segmentId: string, audioBlob: Blob | undefined): Promise<void> => {
+  if(!audioBlob) {
+    throw new Error('No audio data available to play.');
+  }
+
   const audio = getSharedAudio();
 
   audio.pause();
