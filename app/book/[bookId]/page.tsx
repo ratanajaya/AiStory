@@ -643,6 +643,7 @@ export default function BookPage({ params }: PageProps) {
       </PanelGroup>
       <BookAudioControl
         segments={bookUiModel.storySegments}
+        chapters={bookUiModel.chapters}
         disabled={disableAction}
       />
     </div>

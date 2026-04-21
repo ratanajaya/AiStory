@@ -11,7 +11,7 @@ import {
   stopAudioPlayback,
   subscribeToAudioPlayback,
 } from "@/lib/ttsIndexedDb";
-import { StorySegment } from "@/types";
+import { Chapter, StorySegment } from "@/types";
 
 type QueuePlaybackResult = 'completed' | 'stopped' | 'interrupted';
 type PrefetchedAudioResult = {
@@ -21,6 +21,7 @@ type PrefetchedAudioResult = {
 
 export default function BookAudioControl(props: {
   segments: StorySegment[];
+  chapters: Chapter[];
   disabled?: boolean;
 }) {
   const { showAlert } = useAlert();
@@ -42,6 +43,11 @@ export default function BookAudioControl(props: {
   const playableSegments = useMemo(
     () => props.segments.filter(segment => segment.role === 'assistant' && segment.content.trim()),
     [props.segments],
+  );
+
+  const chapterTitleById = useMemo(
+    () => new Map(props.chapters.map((chapter) => [chapter.id, chapter.title])),
+    [props.chapters],
   );
 
   useEffect(() => {
@@ -67,6 +73,26 @@ export default function BookAudioControl(props: {
   const audioTimeLabel = isCurrentQueueSegment
     ? `${formatAudioTime(playbackStatus.currentTime)} / ${formatAudioTime(playbackStatus.duration)}`
     : null;
+
+  const playableSegmentEntries = useMemo(() => {
+    let previousBarrierLabel: string | null = null;
+
+    return playableSegments.map((segment, index) => {
+      const barrierLabel = segment.chapterId
+        ? chapterTitleById.get(segment.chapterId) ?? 'No Chapter'
+        : 'No Chapter';
+      const showBarrier = barrierLabel !== previousBarrierLabel;
+
+      previousBarrierLabel = barrierLabel;
+
+      return {
+        segment,
+        index,
+        barrierLabel,
+        showBarrier,
+      };
+    });
+  }, [chapterTitleById, playableSegments]);
 
   const createPrefetchTask = (segment: StorySegment): Promise<PrefetchedAudioResult> => {
     return ensureSegmentAudioBlob(segment.id, segment.content)
@@ -291,30 +317,33 @@ export default function BookAudioControl(props: {
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto rounded-md border border-border/60 bg-background/60 p-1.5">
-            <div className="mb-1 px-1 text-[11px] uppercase tracking-wide text-muted-foreground">
-              Assistant Segments
-            </div>
             <div className="flex flex-col gap-1">
-              {playableSegments.map((segment, index) => {
+              {playableSegmentEntries.map(({ segment, index, barrierLabel, showBarrier }) => {
                 const isCurrent = segment.id === currentQueueSegmentId;
 
                 return (
-                  <button
-                    key={segment.id}
-                    type="button"
-                    onClick={() => jumpToSegment(index)}
-                    disabled={props.disabled}
-                    className={`w-full rounded-md px-2 py-1.5 text-left text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${isCurrent ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground'}`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span>{`Segment ${index + 1}`}</span>
-                      {isCurrent && (
-                        <span className="text-[11px] uppercase tracking-wide">
-                          {isQueuePlaying ? 'Playing' : isQueuePaused ? 'Paused' : isQueueLoading ? 'Loading' : 'Queued'}
-                        </span>
-                      )}
-                    </div>
-                  </button>
+                  <div key={segment.id}>
+                    {showBarrier && (
+                      <div className="px-2 pt-2 pb-1 text-[11px] uppercase tracking-wide text-muted-foreground first:pt-0 border-b">
+                        {barrierLabel}
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => jumpToSegment(index)}
+                      disabled={props.disabled}
+                      className={`w-full rounded-md px-2 py-1.5 text-left text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${isCurrent ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground'}`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span>{`Segment ${index + 1}`}</span>
+                        {isCurrent && (
+                          <span className="text-[11px] uppercase tracking-wide">
+                            {isQueuePlaying ? 'Playing' : isQueuePaused ? 'Paused' : isQueueLoading ? 'Loading' : 'Queued'}
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  </div>
                 );
               })}
             </div>
