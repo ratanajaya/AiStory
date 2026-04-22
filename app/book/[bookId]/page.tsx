@@ -7,7 +7,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { Button } from '@/components/Button';
 import { useAlert } from '@/components/AlertBox';
 import _util from '@/utils/_util';
-import BookAudioControl from '../../_components/BookAudioControl';
+import BookAudioControl from '../_components/BookAudioControl';
 import SegmentDisplay from '../_components/SegmentDisplay';
 import ChapterDisplay from '../_components/ChapterDisplay';
 import StatusBar, { StatusBarProps } from '../_components/StatusBar';
@@ -68,9 +68,6 @@ export default function BookPage({ params }: PageProps) {
   //#endregion
   
   const debugPanel = useDebugPanel({
-    defaultSize: 20,
-    minSize: 15,
-    order: 3,
     book: bookUiModel,
   });
 
@@ -477,175 +474,170 @@ export default function BookPage({ params }: PageProps) {
   const disableAction = loading; 
 
   return (
-    <div className="h-screen p-8">
-      <BookNameEditor
-        bookId={bookId}
-        bookName={bookUiModel.name}
-        onNameUpdate={(newName) => {
-          setBookUiModel(prev => ({
-            ...prev,
-            name: newName,
-          }));
-        }}
-        onStatusChange={setSbp}
-      />
-      <PanelGroup
-        direction="horizontal"
-        className=' flex-1'
-      >
-        {/* STORY PANEL */}
-        <Panel id='story' defaultSize={55} minSize={20} order={2}
-          className=' p-3'
-        >
-          <div className=' flex flex-col w-full h-full'>
-            <PanelGroup 
-              direction="vertical"
-              className= ' flex-1'
-            >
-              <Panel defaultSize={75} minSize={15} order={1} className="relative">
-                {bookUiModel.storySegments.some(seg => seg.toSummarize) && (
-                <div className='absolute top-2 left-1/2 -translate-x-1/2 z-10'>
-                  <Button variant='primary'
-                    onClick={() => {
-                      const assistantSegments = bookUiModel.storySegments.filter(s => s.role === 'assistant');
-                      const segmentsToSummarize = assistantSegments.filter(s => s.toSummarize);
+    <div className="h-screen bg-background">
+      <div className="mx-auto flex h-full w-full max-w-5xl flex-col px-3 py-4 sm:px-4 sm:py-6">
+        <div className='flex-1 min-h-0 pt-1'>
+          <div className='h-full px-0 py-2 sm:p-3'>
+            <div className='flex h-full w-full flex-col'>
+              <BookNameEditor
+                bookId={bookId}
+                bookName={bookUiModel.name}
+                onNameUpdate={(newName) => {
+                  setBookUiModel(prev => ({
+                    ...prev,
+                    name: newName,
+                  }));
+                }}
+                onStatusChange={setSbp}
+              />
+              <PanelGroup 
+                direction="vertical"
+                className='flex-1'
+              >
+                <Panel defaultSize={75} minSize={15} order={1} className="relative">
+                  {bookUiModel.storySegments.some(seg => seg.toSummarize) && (
+                  <div className='absolute top-2 left-1/2 z-10 -translate-x-1/2'>
+                    <Button variant='primary'
+                      onClick={() => {
+                        const assistantSegments = bookUiModel.storySegments.filter(s => s.role === 'assistant');
+                        const segmentsToSummarize = assistantSegments.filter(s => s.toSummarize);
 
-                      // Validate that segments to summarize are continuous
-                      if (segmentsToSummarize.length > 0) {
-                        const firstIndex = assistantSegments.findIndex(s => s.toSummarize);
-                        const lastIndex = assistantSegments.map(s => s.toSummarize).lastIndexOf(true);
-                        const expectedCount = lastIndex - firstIndex + 1;
-                        
-                        if (segmentsToSummarize.length !== expectedCount) {
-                          showAlert('Segments to summarize must be continuous.');
-                          return;
+                        // Validate that segments to summarize are continuous
+                        if (segmentsToSummarize.length > 0) {
+                          const firstIndex = assistantSegments.findIndex(s => s.toSummarize);
+                          const lastIndex = assistantSegments.map(s => s.toSummarize).lastIndexOf(true);
+                          const expectedCount = lastIndex - firstIndex + 1;
+                          
+                          if (segmentsToSummarize.length !== expectedCount) {
+                            showAlert('Segments to summarize must be continuous.');
+                            return;
+                          }
                         }
-                      }
 
-                      setSummarizer(prev => ({ ...prev, visible: true }));
-                    }}
-                  >
-                    Summarize
-                  </Button>
-                </div>
-                )}
-                <div className=' overflow-y-scroll w-full h-full p-2 rounded-md bg-card border border-border'>
-                  {(() => {
-                    // Separate segments by whether they have a chapterId
-                    const { segmentsWithoutChapter, segmentsWithChapter } = _util.splitSegmentsWithChapter(bookUiModel.storySegments);
-                    
-                    // Group segments by chapterId
-                    const chapterGroups = segmentsWithChapter.reduce((acc, seg) => {
-                      if (!acc[seg.chapterId!]) {
-                        acc[seg.chapterId!] = [];
-                      }
-                      acc[seg.chapterId!].push(seg);
-                      return acc;
-                    }, {} as Record<string, StorySegment[]>);
+                        setSummarizer(prev => ({ ...prev, visible: true }));
+                      }}
+                    >
+                      Summarize
+                    </Button>
+                  </div>
+                  )}
+                  <div className='h-full w-full overflow-y-scroll rounded-md border border-border bg-card p-2'>
+                    {(() => {
+                      // Separate segments by whether they have a chapterId
+                      const { segmentsWithoutChapter, segmentsWithChapter } = _util.splitSegmentsWithChapter(bookUiModel.storySegments);
+                      
+                      // Group segments by chapterId
+                      const chapterGroups = segmentsWithChapter.reduce((acc, seg) => {
+                        if (!acc[seg.chapterId!]) {
+                          acc[seg.chapterId!] = [];
+                        }
+                        acc[seg.chapterId!].push(seg);
+                        return acc;
+                      }, {} as Record<string, StorySegment[]>);
 
-                    return (
-                      <>
-                        {/* Render chapters */}
-                        {Object.entries(chapterGroups).map(([chapterId, segments]) => {
-                          const chapter = bookUiModel.chapters.find(c => c.id === chapterId);
-                          if (!chapter) return null;
-                          
-                          return (
-                            <ChapterDisplay
-                              key={chapterId}
-                              chapter={chapter}
-                              segments={segments}
-                              onChapterUpdate={uiAction.updateChapter}
-                            />
-                          );
-                        })}
+                      return (
+                        <>
+                          {/* Render chapters */}
+                          {Object.entries(chapterGroups).map(([chapterId, segments]) => {
+                            const chapter = bookUiModel.chapters.find(c => c.id === chapterId);
+                            if (!chapter) return null;
+                            
+                            return (
+                              <ChapterDisplay
+                                key={chapterId}
+                                chapter={chapter}
+                                segments={segments}
+                                onChapterUpdate={uiAction.updateChapter}
+                              />
+                            );
+                          })}
 
-                        {/* Render segments without chapterId */}
-                        {segmentsWithoutChapter.map((seg, index) => {
-                          const segmentSummaryIndex = bookUiModel.segmentSummaries.findIndex(s => s.id === seg.segmentSummaryId);
+                          {/* Render segments without chapterId */}
+                          {segmentsWithoutChapter.map((seg, index) => {
+                            const segmentSummaryIndex = bookUiModel.segmentSummaries.findIndex(s => s.id === seg.segmentSummaryId);
 
-                          const segmentSummary = segmentSummaryIndex >= 0
-                            ? bookUiModel.segmentSummaries[segmentSummaryIndex]
-                            : null;
-                          
-                          return (
-                            <SegmentDisplay 
-                              key={seg.id}
-                              index={index}
-                              segment={seg}
-                              segmentSummary={segmentSummary}
-                              segmentSummaryIndex={segmentSummaryIndex >= 0 ? segmentSummaryIndex : undefined}
-                              onUpdateSegment={uiAction.updateStorySegment}
-                              onDeleteSegment={uiAction.deleteStorySegment}
-                              onEnhanceClick={(chat) => {
-                                setEnhancer({
-                                  visible: true,
-                                  segment: chat,
-                                  prevStory: _util.getStorySegmentAsString(segmentsWithoutChapter, bookUiModel.segmentSummaries, chat.id),
-                                });
-                              }}
-                              onWrapChapter={uiAction.openChapterWrapper}
-                              onRedoNarration={gameAction.redoNarration}
-                              isLastMessage={index === segmentsWithoutChapter.length - 1}
-                              disabled={disableAction}
-                            />
-                          );
-                        })}
-                      </>
-                    );
-                  })()}
-                </div>
-                
-                {enhancer.visible && enhancer.segment && (
-                  <SegmentEnhancerModal
-                    segment={enhancer.segment}
-                    prevStory={enhancer.prevStory}
-                    onClose={() => setEnhancer(prev => ({ ...prev, visible: false }))}
-                    onSave={(segment) => {
-                      setEnhancer(prev => ({ ...prev, visible: false }));
-                      uiAction.updateStorySegment(segment, true);
-                    }}
-                  />
-                )}
-                {summarizer.visible && (
-                  <SummarizerModal 
-                    segments={bookUiModel.storySegments}
-                    segmentSummaries={bookUiModel.segmentSummaries}
-                    onClose={() => setSummarizer(prev => ({ ...prev, visible: false }))}
-                    onSave={gameAction.summarizeSegments}
-                  />
-                )}
-                {template && chapterWrapper.visible && (
-                  <ChapterWrapperModal
-                    template={template}
-                    segments={chapterWrapper.segments}
-                    onClose={() => setChapterWrapper(prev => ({ ...prev, visible: false }))}
-                    onSave={gameAction.wrapChapter}
-                  />
-                )}
-              </Panel>
-              <StatusBar {...sbp} />
-              <PanelResizeHandle className=' mt-1 mb-1 h-1 bg-border' />
-              {inputPanelElement}
-            </PanelGroup>
-            <div className=' h-2'></div>
-            <Button
-              className=' w-full h-7'
-              onClick={gameAction.narration}
-              disabled={disableAction}
-            >
-              SEND
-            </Button>
+                            const segmentSummary = segmentSummaryIndex >= 0
+                              ? bookUiModel.segmentSummaries[segmentSummaryIndex]
+                              : null;
+                            
+                            return (
+                              <SegmentDisplay 
+                                key={seg.id}
+                                index={index}
+                                segment={seg}
+                                segmentSummary={segmentSummary}
+                                segmentSummaryIndex={segmentSummaryIndex >= 0 ? segmentSummaryIndex : undefined}
+                                onUpdateSegment={uiAction.updateStorySegment}
+                                onDeleteSegment={uiAction.deleteStorySegment}
+                                onEnhanceClick={(chat) => {
+                                  setEnhancer({
+                                    visible: true,
+                                    segment: chat,
+                                    prevStory: _util.getStorySegmentAsString(segmentsWithoutChapter, bookUiModel.segmentSummaries, chat.id),
+                                  });
+                                }}
+                                onWrapChapter={uiAction.openChapterWrapper}
+                                onRedoNarration={gameAction.redoNarration}
+                                isLastMessage={index === segmentsWithoutChapter.length - 1}
+                                disabled={disableAction}
+                              />
+                            );
+                          })}
+                        </>
+                      );
+                    })()}
+                  </div>
+                  
+                  {enhancer.visible && enhancer.segment && (
+                    <SegmentEnhancerModal
+                      segment={enhancer.segment}
+                      prevStory={enhancer.prevStory}
+                      onClose={() => setEnhancer(prev => ({ ...prev, visible: false }))}
+                      onSave={(segment) => {
+                        setEnhancer(prev => ({ ...prev, visible: false }));
+                        uiAction.updateStorySegment(segment, true);
+                      }}
+                    />
+                  )}
+                  {summarizer.visible && (
+                    <SummarizerModal 
+                      segments={bookUiModel.storySegments}
+                      segmentSummaries={bookUiModel.segmentSummaries}
+                      onClose={() => setSummarizer(prev => ({ ...prev, visible: false }))}
+                      onSave={gameAction.summarizeSegments}
+                    />
+                  )}
+                  {template && chapterWrapper.visible && (
+                    <ChapterWrapperModal
+                      template={template}
+                      segments={chapterWrapper.segments}
+                      onClose={() => setChapterWrapper(prev => ({ ...prev, visible: false }))}
+                      onSave={gameAction.wrapChapter}
+                    />
+                  )}
+                </Panel>
+                <StatusBar {...sbp} />
+                <PanelResizeHandle className='mt-1 mb-1 h-1 bg-border' />
+                {inputPanelElement}
+              </PanelGroup>
+              <div className='h-2'></div>
+              <Button
+                className='h-7 w-full'
+                onClick={gameAction.narration}
+                disabled={disableAction}
+              >
+                SEND
+              </Button>
+            </div>
           </div>
-        </Panel>
-        <PanelResizeHandle className=' w-1 bg-border' />
+        </div>
+        <BookAudioControl
+          segments={bookUiModel.storySegments}
+          chapters={bookUiModel.chapters}
+          disabled={disableAction}
+        />
         {debugPanel.element}
-      </PanelGroup>
-      <BookAudioControl
-        segments={bookUiModel.storySegments}
-        chapters={bookUiModel.chapters}
-        disabled={disableAction}
-      />
+      </div>
     </div>
   );
 }

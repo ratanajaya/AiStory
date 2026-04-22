@@ -250,11 +250,23 @@ export default function BookAudioControl(props: {
       <button
         type="button"
         onClick={() => setIsHidden(false)}
-        className="fixed bottom-6 right-6 z-20 h-14 w-14 rounded-xl border border-border bg-card shadow-lg hover:bg-muted transition-colors"
+        className="fixed bottom-4 right-4 z-20 rounded-md border border-border bg-card p-2 text-foreground transition-all hover:brightness-125 cursor-pointer"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-6 w-6 text-foreground" viewBox="0 0 20 20" fill="currentColor">
-          <path d="M10.158 4.134a1 1 0 00-1.09.217L6.586 6.833H4a1 1 0 00-1 1v4.334a1 1 0 001 1h2.586l2.482 2.482A1 1 0 0010.75 15V5a1 1 0 00-.592-.866z" />
-          <path d="M13.707 6.293a1 1 0 00-1.414 1.414A3 3 0 0113 10a3 3 0 01-.707 1.293 1 1 0 101.414 1.414A4.969 4.969 0 0015 10a4.969 4.969 0 00-1.293-3.707z" />
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M11 5 6 9H3v6h3l5 4V5z" />
+          <path d="M15.5 8.5a5 5 0 0 1 0 7" />
+          <path d="M18.5 5.5a9 9 0 0 1 0 13" />
         </svg>
       </button>
     );
