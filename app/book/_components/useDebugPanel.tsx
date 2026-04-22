@@ -1,13 +1,9 @@
-import { LeftOutlined, RightOutlined } from '@ant-design/icons';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Markdown from 'react-markdown';
-import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import _constant from '@/utils/_constant';
 import { DebugLog } from '@/types';
 import _util from '@/utils/_util';
 import { BookUIModel } from '@/types/extendedTypes';
-
-type PanelProps = React.ComponentProps<typeof Panel>;
 
 type StoryDownload = {
   filename: string;
@@ -17,19 +13,50 @@ type StoryDownload = {
 
 type DebugPanelProps = {
   book: BookUIModel;
-} & PanelProps;
+};
 
-export default function useDebugPanel(panelProps: DebugPanelProps) {
+export default function useDebugPanel({ book }: DebugPanelProps) {
   const [debugLogs, setDebugLogs] = useState<DebugLog[]>([]);
-  const [collapseDebugPanel, setCollapseDebugPanel] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
   const [storyDownloads, setStoryDownloads] = useState<StoryDownload[]>([]);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const storyDownloadsRef = useRef<StoryDownload[]>([]);
 
   useEffect(() => {
-    // Cleanup object URLs on unmount to prevent memory leaks
-    return () => {
-      storyDownloads.forEach(story => URL.revokeObjectURL(story.url));
-    };
+    storyDownloadsRef.current = storyDownloads;
   }, [storyDownloads]);
+
+  useEffect(() => {
+    return () => {
+      storyDownloadsRef.current.forEach(story => URL.revokeObjectURL(story.url));
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isOpen]);
 
   function addDebugLog(content: string, type?: 'info' | 'warning' | 'error') {
     const id = new Date().getTime().toString();
@@ -54,8 +81,8 @@ export default function useDebugPanel(panelProps: DebugPanelProps) {
   }
   
   const handleExportClick = () => {
-    const storyContent = _util.getStorySegmentAsString(panelProps.book.storySegments, [], null, `${_constant.newLine2}---${_constant.newLine2}`, true);
-    const filename = `Story-${panelProps.book.bookId}-[${String(panelProps.book.storySegments.length).padStart(2, '0')}].md`;
+    const storyContent = _util.getStorySegmentAsString(book.storySegments, [], null, `${_constant.newLine2}---${_constant.newLine2}`, true);
+    const filename = `Story-${book.bookId}-[${String(book.storySegments.length).padStart(2, '0')}].md`;
     const storyData = { filename, content: storyContent };
 
     const blob = new Blob([storyData.content], { type: 'text/plain' });
@@ -65,35 +92,90 @@ export default function useDebugPanel(panelProps: DebugPanelProps) {
 
   const element = (
     <>
-      {/* Thin vertical collapse button */}
-      <div className="flex items-center h-full">
-        <div 
-          className='ml-2 mr-1 w-3 h-32 bg-muted hover:bg-border flex items-center justify-center cursor-pointer rounded-sm'
-          onClick={() => setCollapseDebugPanel(!collapseDebugPanel)}
-        >
-          {collapseDebugPanel ? <LeftOutlined className='text-muted-foreground' /> : <RightOutlined className='text-muted-foreground' />}
+      <button
+        type='button'
+        onClick={() => setIsOpen(prev => !prev)}
+        className='fixed top-1/2 right-0 z-30 flex h-32 w-10 -translate-y-1/2 items-center justify-center rounded-l-md border border-r-0 border-border bg-card px-0 py-3 text-sm font-medium text-foreground shadow-md transition-all hover:brightness-125'
+        aria-label='Toggle debug panel'
+        aria-expanded={isOpen}
+      >
+        <span className='flex items-center gap-2 whitespace-nowrap -rotate-90'>
+          <svg
+            xmlns='http://www.w3.org/2000/svg'
+            width='18'
+            height='18'
+            viewBox='0 0 24 24'
+            fill='none'
+            stroke='currentColor'
+            strokeWidth='2'
+            strokeLinecap='round'
+            strokeLinejoin='round'
+            aria-hidden='true'
+          >
+            <path d='M9 3h6' />
+            <path d='M10 9V5h4v4' />
+            <rect x='4' y='9' width='16' height='11' rx='2' />
+            <path d='M8 13h.01' />
+            <path d='M16 13h.01' />
+            <path d='M9 16h6' />
+          </svg>
+          Debug
+        </span>
+      </button>
+
+      {isOpen && (
+        <div className='fixed inset-0 z-40 bg-black/50 transition-opacity' />
+      )}
+
+      <div
+        ref={panelRef}
+        className={`fixed top-0 right-0 z-50 flex h-full w-80 transform flex-col border-l border-border bg-card transition-transform duration-300 ease-in-out ${
+          isOpen ? 'translate-x-0' : 'translate-x-full'
+        }`}
+      >
+        <div className='flex items-center justify-between border-b border-border p-4'>
+          <h2 className='text-lg font-bold text-secondary'>Debug Panel</h2>
+          <button
+            type='button'
+            onClick={() => setIsOpen(false)}
+            className='rounded p-1 transition-colors hover:bg-muted'
+            aria-label='Close debug panel'
+          >
+            <svg
+              xmlns='http://www.w3.org/2000/svg'
+              width='20'
+              height='20'
+              viewBox='0 0 24 24'
+              fill='none'
+              stroke='currentColor'
+              strokeWidth='2'
+              strokeLinecap='round'
+              strokeLinejoin='round'
+              aria-hidden='true'
+            >
+              <line x1='18' y1='6' x2='6' y2='18' />
+              <line x1='6' y1='6' x2='18' y2='18' />
+            </svg>
+          </button>
         </div>
-      </div>
-      {!collapseDebugPanel && (
-        <Panel
-          id='debug'
-          className=' p-3 pl-0 flex flex-col h-full'
-          defaultSize={panelProps.defaultSize} minSize={panelProps.minSize} order={panelProps.order}
-        >
-          <div className=" w-full rounded-md bg-card border border-border mb-2 p-2">
-            <button 
-              className="text-secondary hover:text-foreground w-full text-left"
+
+        <div className='flex-1 overflow-y-auto p-4 space-y-4'>
+          <div className='rounded-md border border-border bg-card p-3'>
+            <button
+              type='button'
+              className='w-full text-left text-secondary transition-colors hover:text-foreground'
               onClick={handleExportClick}
             >
               Export Story
             </button>
-            <div className='flex flex-col gap-1 mt-2'>
+
+            <div className='mt-3 flex flex-col gap-1'>
               {storyDownloads.map((story, index) => (
                 <a
                   key={index}
                   href={story.url}
                   download={story.filename}
-                  className="bg-muted hover:brightness-125 text-foreground text-xs px-2 py-1 rounded block w-full text-left"
+                  className='block w-full rounded bg-muted px-2 py-1 text-left text-xs text-foreground hover:brightness-125'
                 >
                   {story.filename}
                 </a>
@@ -101,29 +183,23 @@ export default function useDebugPanel(panelProps: DebugPanelProps) {
             </div>
           </div>
 
-          <div className="flex flex-col w-full flex-1 rounded-md bg-card border border-border">
-            <div className="w-full font-semibold text-center">
+          <div className='flex min-h-0 flex-col rounded-md border border-border bg-card'>
+            <div className='border-b border-border px-3 py-2 text-center font-semibold'>
               DEBUG
             </div>
-            <PanelGroup 
-              direction="vertical"
-              className= ' flex-1'
-            >
-              <Panel defaultSize={50} minSize={15} order={1}>
 
-              </Panel>
-              <PanelResizeHandle className=' w-full h-1 bg-border' />
-              <Panel defaultSize={50} minSize={15} order={1}>
-                <div className=' w-full h-full overflow-y-auto'>
-                  {debugLogs.map((log, index) => (
-                    <DebugLogDisplay key={index} log={log} />
-                  ))}
-                </div>
-              </Panel>
-            </PanelGroup>
+            <div className='flex-1 overflow-y-auto p-3'>
+              {debugLogs.length === 0 ? (
+                <div className='text-sm text-muted-foreground'>No debug logs yet.</div>
+              ) : (
+                debugLogs.map((log, index) => (
+                  <DebugLogDisplay key={index} log={log} />
+                ))
+              )}
+            </div>
           </div>
-        </Panel>
-      )}
+        </div>
+      </div>
     </>
   );
 

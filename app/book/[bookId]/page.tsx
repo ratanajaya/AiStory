@@ -68,9 +68,6 @@ export default function BookPage({ params }: PageProps) {
   //#endregion
   
   const debugPanel = useDebugPanel({
-    defaultSize: 20,
-    minSize: 15,
-    order: 3,
     book: bookUiModel,
   });
 
@@ -477,7 +474,7 @@ export default function BookPage({ params }: PageProps) {
   const disableAction = loading; 
 
   return (
-    <div className="h-screen p-8">
+    <div className="flex h-screen flex-col p-8">
       <BookNameEditor
         bookId={bookId}
         bookName={bookUiModel.name}
@@ -489,22 +486,16 @@ export default function BookPage({ params }: PageProps) {
         }}
         onStatusChange={setSbp}
       />
-      <PanelGroup
-        direction="horizontal"
-        className=' flex-1'
-      >
-        {/* STORY PANEL */}
-        <Panel id='story' defaultSize={55} minSize={20} order={2}
-          className=' p-3'
-        >
-          <div className=' flex flex-col w-full h-full'>
+      <div className='flex-1 min-h-0 pt-4'>
+        <div className='h-full p-3'>
+          <div className='flex h-full w-full flex-col'>
             <PanelGroup 
               direction="vertical"
-              className= ' flex-1'
+              className='flex-1'
             >
               <Panel defaultSize={75} minSize={15} order={1} className="relative">
                 {bookUiModel.storySegments.some(seg => seg.toSummarize) && (
-                <div className='absolute top-2 left-1/2 -translate-x-1/2 z-10'>
+                <div className='absolute top-2 left-1/2 z-10 -translate-x-1/2'>
                   <Button variant='primary'
                     onClick={() => {
                       const assistantSegments = bookUiModel.storySegments.filter(s => s.role === 'assistant');
@@ -529,7 +520,7 @@ export default function BookPage({ params }: PageProps) {
                   </Button>
                 </div>
                 )}
-                <div className=' overflow-y-scroll w-full h-full p-2 rounded-md bg-card border border-border'>
+                <div className='h-full w-full overflow-y-scroll rounded-md border border-border bg-card p-2'>
                   {(() => {
                     // Separate segments by whether they have a chapterId
                     const { segmentsWithoutChapter, segmentsWithChapter } = _util.splitSegmentsWithChapter(bookUiModel.storySegments);
@@ -625,27 +616,26 @@ export default function BookPage({ params }: PageProps) {
                 )}
               </Panel>
               <StatusBar {...sbp} />
-              <PanelResizeHandle className=' mt-1 mb-1 h-1 bg-border' />
+              <PanelResizeHandle className='mt-1 mb-1 h-1 bg-border' />
               {inputPanelElement}
             </PanelGroup>
-            <div className=' h-2'></div>
+            <div className='h-2'></div>
             <Button
-              className=' w-full h-7'
+              className='h-7 w-full'
               onClick={gameAction.narration}
               disabled={disableAction}
             >
               SEND
             </Button>
           </div>
-        </Panel>
-        <PanelResizeHandle className=' w-1 bg-border' />
-        {debugPanel.element}
-      </PanelGroup>
+        </div>
+      </div>
       <BookAudioControl
         segments={bookUiModel.storySegments}
         chapters={bookUiModel.chapters}
         disabled={disableAction}
       />
+      {debugPanel.element}
     </div>
   );
 }
