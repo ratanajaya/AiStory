@@ -1,5 +1,5 @@
 import { useState } from "react";
-import SegmentAudioControl from "../../_components/SegmentAudioControl";
+import SegmentAudioControl from "./SegmentAudioControl";
 import Markdown from "react-markdown";
 import { Chapter, StorySegment } from "@/types";
 import { DownOutlined, RightOutlined, EditOutlined } from '@ant-design/icons';

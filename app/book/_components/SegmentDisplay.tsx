@@ -1,6 +1,6 @@
 import { Popconfirm, Space, Tooltip } from "antd";
 import { useState } from "react";
-import SegmentAudioControl from "../../_components/SegmentAudioControl";
+import SegmentAudioControl from "./SegmentAudioControl";
 import { Button } from "@/components/Button";
 import { Checkbox } from "@/components/Checkbox";
 import { Textarea } from "@/components/Textarea";

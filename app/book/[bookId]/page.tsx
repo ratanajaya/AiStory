@@ -7,7 +7,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { Button } from '@/components/Button';
 import { useAlert } from '@/components/AlertBox';
 import _util from '@/utils/_util';
-import BookAudioControl from '../../_components/BookAudioControl';
+import BookAudioControl from '../_components/BookAudioControl';
 import SegmentDisplay from '../_components/SegmentDisplay';
 import ChapterDisplay from '../_components/ChapterDisplay';
 import StatusBar, { StatusBarProps } from '../_components/StatusBar';
