@@ -19,6 +19,7 @@ import ChapterWrapperModal from '../_components/ChapterWrapperModal';
 import BookNameEditor from '../_components/BookNameEditor';
 import _constant from '@/utils/_constant';
 import { BookUIModel } from '@/types/extendedTypes';
+import _promptUtil from '@/utils/_promptUtil';
 
 interface PageProps {
   params: Promise<{ bookId: string }>;
@@ -213,34 +214,36 @@ export default function BookPage({ params }: PageProps) {
       const { segmentsWithoutChapter } = _util.splitSegmentsWithChapter(bookUiModel.storySegments);
 
       // Context for the AI
-      let userMessage1 = '';
-      userMessage1 += `STORY BACKGROUND:${_constant.newLine2}`;
-      userMessage1 += `${template.storyBackground}${_constant.newLine2}`;
+      const userMessage1 = _promptUtil.craftBookPrompt(template.promptBuilder.narration1 ?? '', template, bookUiModel, idLimitExclusive);
+      // let userMessage1 = '';
+      // userMessage1 += `STORY BACKGROUND:${_constant.newLine2}`;
+      // userMessage1 += `${template.storyBackground}${_constant.newLine2}`;
 
-      let chapterSoFar = '';
-      bookUiModel.chapters.forEach((chapter, i) => {
-        chapterSoFar += chapter.title.toUpperCase() + ':' + _constant.newLine;
-        chapterSoFar += chapter.summary + _constant.newLine2;
+      // let chapterSoFar = '';
+      // bookUiModel.chapters.forEach((chapter, i) => {
+      //   chapterSoFar += chapter.title.toUpperCase() + ':' + _constant.newLine;
+      //   chapterSoFar += chapter.summary + _constant.newLine2;
 
-        const isLastChapter = (i === bookUiModel.chapters.length - 1);
+      //   const isLastChapter = (i === bookUiModel.chapters.length - 1);
 
-        if(isLastChapter) {
-          chapterSoFar += `SITUATION AT THE END OF ${chapter.title.toUpperCase()}:${_constant.newLine2}`;
-          chapterSoFar += JSON.stringify(chapter.endState, null, 2) + _constant.newLine2;
-        }
-      });
-      userMessage1 += chapterSoFar;
+      //   if(isLastChapter) {
+      //     chapterSoFar += `SITUATION AT THE END OF ${chapter.title.toUpperCase()}:${_constant.newLine2}`;
+      //     chapterSoFar += JSON.stringify(chapter.endState, null, 2) + _constant.newLine2;
+      //   }
+      // });
+      // userMessage1 += chapterSoFar;
       
-      userMessage1 += `STORY SO FAR OF CURRENT CHAPTER:${_constant.newLine2}`;
+      // userMessage1 += `STORY SO FAR OF CURRENT CHAPTER:${_constant.newLine2}`;
 
-      const storySoFar = _util.getStorySegmentAsString(segmentsWithoutChapter, bookUiModel.segmentSummaries, idLimitExclusive);
-      userMessage1 += `${_util.altString(storySoFar, '[THIS IS THE START OF A NEW CHAPTER]')}${_constant.newLine2}`;
+      // const storySoFar = _util.getStorySegmentAsString(segmentsWithoutChapter, bookUiModel.segmentSummaries, idLimitExclusive);
+      // userMessage1 += `${_util.altString(storySoFar, '[THIS IS THE START OF A NEW CHAPTER]')}${_constant.newLine2}`;
 
       // Instructions to the AI on how to respond
-      let userMessage2 = '';
-      userMessage2 += `${template.prompt.narrator}${_constant.newLine2}`;
+      const userMessage2 = _promptUtil.craftBookPrompt(template.promptBuilder.narration2 ?? '', template, bookUiModel, idLimitExclusive);
+      // let userMessage2 = '';
+      // userMessage2 += `${template.prompt.narrator}${_constant.newLine2}`;
       
-      userMessage2 += userSegmentContent;
+      // userMessage2 += userSegmentContent;
   
       const userSegment: StorySegment = {
         id: new Date().getTime().toString(),

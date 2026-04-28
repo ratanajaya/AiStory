@@ -18,6 +18,9 @@ export interface Chapter {
   id: string;
   title: string;
   summary: string;
+  /**
+   * @deprecated useless, no longer used by the new prompt builder. Should be removed in the future.
+   */
   endState: any;
 }
 
