@@ -189,7 +189,7 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
         <fieldset className="mb-4 p-4 border border-border rounded bg-card/50">
           <legend className="font-semibold text-secondary px-2">Prompts</legend>
 
-          <FormField label="Narrator:">
+          <FormField label="[DEPRECATED]Narrator:">
             <Textarea
               value={formData.prompt.narrator || ''}
               onChange={(e) => handlePromptChange('narrator', e.target.value)}
