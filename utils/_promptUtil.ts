@@ -12,19 +12,22 @@ const _promptUtil = {
     }
     return result;
   },
-  craftBookPrompt(promptBuilderText: string, 
+  craftBookPrompt(promptBuilderText: string | null, 
     template: Template,
     book: Book | BookUIModel,
     idLimitExclusive: string | null,
+    includePrevChapters: boolean,
     extraData?: Record<string, string | null | undefined>
   ){
     const background = template.storyBackground;
 
     let previousChapters = '';
-    book.chapters.forEach((chapter) => {
-      previousChapters += chapter.title.toUpperCase() + ':' + _constant.newLine;
-      previousChapters += chapter.summary + _constant.newLine2;
-    });
+    if (includePrevChapters) {
+      book.chapters.forEach((chapter) => {
+        previousChapters += chapter.title.toUpperCase() + ':' + _constant.newLine;
+        previousChapters += chapter.summary + _constant.newLine2;
+      });
+    }
 
     const { segmentsWithoutChapter } = _util.splitSegmentsWithChapter(book.storySegments);
 
@@ -46,7 +49,7 @@ const _promptUtil = {
       });
     }
     
-    return _promptUtil.replacePromptBuilderString(promptBuilderText, promptData);
+    return _promptUtil.replacePromptBuilderString(promptBuilderText ?? '', promptData);
   }
 }
 

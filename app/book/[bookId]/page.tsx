@@ -212,10 +212,10 @@ export default function BookPage({ params }: PageProps) {
       });
 
       // Context for the AI
-      const userMessage1 = _promptUtil.craftBookPrompt(template.promptBuilder.narration1 ?? '', template, bookUiModel, idLimitExclusive);
+      const userMessage1 = _promptUtil.craftBookPrompt(template.promptBuilder.narration1, template, bookUiModel, idLimitExclusive, true);
 
       // Instructions to the AI on how to respond
-      const userMessage2 = _promptUtil.craftBookPrompt(template.promptBuilder.narration2 ?? '', template, bookUiModel, idLimitExclusive, {
+      const userMessage2 = _promptUtil.craftBookPrompt(template.promptBuilder.narration2, template, bookUiModel, idLimitExclusive, true,{
         textboxInput: userSegmentContent,
       });
   
@@ -565,10 +565,11 @@ export default function BookPage({ params }: PageProps) {
                     })()}
                   </div>
                   
-                  {enhancer.visible && enhancer.segment && (
+                  {template && enhancer.visible && enhancer.segment && (
                     <SegmentEnhancerModal
+                      template={template}
+                      book={bookUiModel}
                       segment={enhancer.segment}
-                      prevStory={enhancer.prevStory}
                       onClose={() => setEnhancer(prev => ({ ...prev, visible: false }))}
                       onSave={(segment) => {
                         setEnhancer(prev => ({ ...prev, visible: false }));
