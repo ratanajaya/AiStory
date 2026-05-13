@@ -73,7 +73,7 @@ export function AiSettingsSection({
 
   const llmFields = (
     <>
-      <FormField label={isPage ? 'LLM Provider:' : 'Provider:'}>
+      <FormField label="Provider:">
         <Select
           value={selectedService}
           onChange={(e) => onServiceChange(e.target.value)}
@@ -96,30 +96,30 @@ export function AiSettingsSection({
 
   const apiKeyFields = (
     <>
-      <FormField label={isPage ? 'Mistral API Key:' : 'Mistral AI:'}>
+      <FormField label="Mistral:">
         <Input
           type="password"
           value={apiKey.mistral || ''}
           onChange={(e) => onApiKeyChange('mistral', e.target.value)}
-          placeholder={isPage ? 'Enter Mistral API key' : 'Mistral API key'}
+          placeholder="Mistral API key"
         />
       </FormField>
 
-      <FormField label={isPage ? 'Together API Key:' : 'Together AI:'}>
+      <FormField label="Together:">
         <Input
           type="password"
           value={apiKey.together || ''}
           onChange={(e) => onApiKeyChange('together', e.target.value)}
-          placeholder={isPage ? 'Enter Together API key' : 'Together API key'}
+          placeholder="Together API key"
         />
       </FormField>
 
-      <FormField label={isPage ? 'OpenAI API Key:' : 'OpenAI:'}>
+      <FormField label="OpenAI:">
         <Input
           type="password"
           value={apiKey.openAi || ''}
           onChange={(e) => onApiKeyChange('openAi', e.target.value)}
-          placeholder={isPage ? 'Enter OpenAI API key' : 'OpenAI API key'}
+          placeholder="OpenAI API key"
         />
       </FormField>
     </>
