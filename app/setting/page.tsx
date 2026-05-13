@@ -1,27 +1,18 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { DefaultValue, PromptBuilderConfig, PromptConfig } from '@/types';
+import { DefaultValue, LLMService, PromptBuilderConfig, PromptConfig } from '@/types';
+import { AiSettingsSection } from '@/components/AiSettingsSection';
 import { useFetcher } from '@/components/FetcherProvider';
 import { Button } from '@/components/Button';
-import { FormField } from '@/components/FormField';
-import { Input } from '@/components/Input';
 import { PromptEditorSection } from '@/components/PromptEditorSection';
-import { Select } from '@/components/Select';
 import _constant from '@/utils/_constant';
 
 const emptyDefaultValue: DefaultValue = {
   prompt: { ..._constant.emptyPrompt },
   promptBuilder: { ..._constant.emptyPromptBuilder },
-  apiKey: {
-    mistral: '',
-    together: '',
-    openAi: '',
-  },
-  selectedLlm: {
-    service: 'mistral',
-    model: 'mistral-large-2411',
-  },
+  apiKey: { ..._constant.emptyApiKey },
+  selectedLlm: { ..._constant.defaultSelectedLlm },
 };
 
 export default function SettingPage() {
@@ -57,8 +48,8 @@ export default function SettingPage() {
             openAi: data.apiKey?.openAi || '',
           },
           selectedLlm: {
-            service: data.selectedLlm?.service || 'mistral',
-            model: data.selectedLlm?.model || 'mistral-large-2411',
+            service: data.selectedLlm?.service || _constant.defaultSelectedLlm.service,
+            model: data.selectedLlm?.model || _constant.defaultSelectedLlm.model,
           },
         });
       } catch {
@@ -102,12 +93,27 @@ export default function SettingPage() {
     }));
   };
 
-  const handleSelectedLlmChange = (field: string, value: string) => {
+  const handleSelectedServiceChange = (service: string) => {
+    const nextService = (service || _constant.defaultSelectedLlm.service) as LLMService;
+
     setFormData((prev) => ({
       ...prev,
       selectedLlm: {
         ...prev.selectedLlm,
-        [field]: value,
+        service: nextService,
+        model: service
+          ? prev.selectedLlm.model
+          : _constant.defaultSelectedLlm.model,
+      },
+    }));
+  };
+
+  const handleSelectedModelChange = (model: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      selectedLlm: {
+        ...prev.selectedLlm,
+        model,
       },
     }));
   };
@@ -132,22 +138,6 @@ export default function SettingPage() {
     }));
   };
 
-  // Get available models for selected service
-  const availableModels = formData.selectedLlm.service
-    ? _constant.llmServices[formData.selectedLlm.service]?.models || []
-    : [];
-
-  // Build options for dropdowns
-  const serviceOptions = Object.entries(_constant.llmServices).map(([key, service]) => ({
-    value: key,
-    label: service.label,
-  }));
-
-  const modelOptions = availableModels.map((model) => ({
-    value: model,
-    label: model,
-  }));
-
   if (fetchLoading) {
     return (
       <div className="p-8 max-w-3xl">
@@ -171,59 +161,15 @@ export default function SettingPage() {
           promptBuilderLegend="Default Prompt Builder"
         />
 
-        <fieldset className="mb-4 p-4 border border-border rounded bg-card/50">
-          <legend className="font-semibold text-secondary px-2">LLM Configuration</legend>
-
-          <FormField label="LLM Provider:">
-            <Select
-              value={formData.selectedLlm.service}
-              onChange={(e) => handleSelectedLlmChange('service', e.target.value)}
-              options={serviceOptions}
-              placeholder="Select a provider"
-            />
-          </FormField>
-
-          <FormField label="Model:">
-            <Select
-              value={formData.selectedLlm.model}
-              onChange={(e) => handleSelectedLlmChange('model', e.target.value)}
-              options={modelOptions}
-              placeholder="Select a model"
-              disabled={!formData.selectedLlm.service}
-            />
-          </FormField>
-        </fieldset>
-
-        <fieldset className="mb-4 p-4 border border-border rounded bg-card/50">
-          <legend className="font-semibold text-secondary px-2">API Keys</legend>
-
-          <FormField label="Mistral API Key:">
-            <Input
-              type="password"
-              value={formData.apiKey.mistral || ''}
-              onChange={(e) => handleApiKeyChange('mistral', e.target.value)}
-              placeholder="Enter Mistral API key"
-            />
-          </FormField>
-
-          <FormField label="Together API Key:">
-            <Input
-              type="password"
-              value={formData.apiKey.together || ''}
-              onChange={(e) => handleApiKeyChange('together', e.target.value)}
-              placeholder="Enter Together API key"
-            />
-          </FormField>
-
-          <FormField label="OpenAI API Key:">
-            <Input
-              type="password"
-              value={formData.apiKey.openAi || ''}
-              onChange={(e) => handleApiKeyChange('openAi', e.target.value)}
-              placeholder="Enter OpenAI API key"
-            />
-          </FormField>
-        </fieldset>
+        <AiSettingsSection
+          selectedService={formData.selectedLlm.service}
+          selectedModel={formData.selectedLlm.model}
+          apiKey={formData.apiKey}
+          onServiceChange={handleSelectedServiceChange}
+          onModelChange={handleSelectedModelChange}
+          onApiKeyChange={handleApiKeyChange}
+          variant="page"
+        />
 
         <div className="flex gap-4 items-center">
           <Button type="submit" disabled={loading} variant="primary">

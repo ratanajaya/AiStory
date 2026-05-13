@@ -4,10 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import Link from "next/link";
+import { AiSettingsSection } from "@/components/AiSettingsSection";
 import { Button } from "@/components/Button";
-import { FormField } from "@/components/FormField";
-import { Input } from "@/components/Input";
-import { Select } from "@/components/Select";
 import { useFetcher } from "@/components/FetcherProvider";
 import _constant from "@/utils/_constant";
 import type { LlmConfig, ApiKeyConfig } from "@/types";
@@ -64,30 +62,12 @@ export function Sidebar({
 
   // API Keys
   const [apiKeys, setApiKeys] = useState<ApiKeyConfig>({
-    mistral: null,
-    together: null,
-    openAi: null,
+    ..._constant.nullApiKey,
   });
 
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
-
-  const availableModels = selectedService
-    ? _constant.llmServices[selectedService]?.models || []
-    : [];
-
-  const serviceOptions = Object.entries(_constant.llmServices).map(
-    ([key, service]) => ({
-      value: key,
-      label: service.label,
-    })
-  );
-
-  const modelOptions = availableModels.map((model) => ({
-    value: model,
-    label: model,
-  }));
 
   // Fetch user settings on first open
   useEffect(() => {
@@ -107,6 +87,7 @@ export function Sidebar({
 
         if (data?.apiKey) {
           setApiKeys({
+            ..._constant.nullApiKey,
             mistral: data.apiKey.mistral || null,
             together: data.apiKey.together || null,
             openAi: data.apiKey.openAi || null,
@@ -251,61 +232,17 @@ export function Sidebar({
 
           {/* User Settings Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
-            <h3 className="font-semibold text-secondary text-sm">
-              LLM Configuration
-            </h3>
-
-            <FormField label="Provider:">
-              <Select
-                value={selectedService}
-                onChange={(e) =>
-                  handleServiceChange(e.target.value as LLMServiceKey | "")
-                }
-                options={serviceOptions}
-                placeholder="Select a provider"
-              />
-            </FormField>
-
-            <FormField label="Model:">
-              <Select
-                value={selectedModel}
-                onChange={(e) => setSelectedModel(e.target.value)}
-                options={modelOptions}
-                placeholder="Select a model"
-                disabled={!selectedService}
-              />
-            </FormField>
-
-            <h3 className="font-semibold text-secondary text-sm pt-2">
-              API Keys
-            </h3>
-
-            <FormField label="Mistral AI:">
-              <Input
-                type="password"
-                value={apiKeys.mistral || ""}
-                onChange={(e) => handleApiKeyChange("mistral", e.target.value)}
-                placeholder="Mistral API key"
-              />
-            </FormField>
-
-            <FormField label="Together AI:">
-              <Input
-                type="password"
-                value={apiKeys.together || ""}
-                onChange={(e) => handleApiKeyChange("together", e.target.value)}
-                placeholder="Together API key"
-              />
-            </FormField>
-
-            <FormField label="OpenAI:">
-              <Input
-                type="password"
-                value={apiKeys.openAi || ""}
-                onChange={(e) => handleApiKeyChange("openAi", e.target.value)}
-                placeholder="OpenAI API key"
-              />
-            </FormField>
+            <AiSettingsSection
+              selectedService={selectedService}
+              selectedModel={selectedModel}
+              apiKey={apiKeys}
+              onServiceChange={(service) =>
+                handleServiceChange(service as LLMServiceKey | "")
+              }
+              onModelChange={setSelectedModel}
+              onApiKeyChange={handleApiKeyChange}
+              variant="sidebar"
+            />
 
             <div className="flex gap-2 items-center">
               <Button type="submit" disabled={saving} variant="primary" size="small">

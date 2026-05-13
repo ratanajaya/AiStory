@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import { KeyValueModel } from '@/models';
 import { DefaultValue } from '@/types';
+import _constant from '@/utils/_constant';
 
 const DEFAULT_KEY = 'defaultValue';
 
@@ -24,15 +25,8 @@ export async function GET() {
           narration2: null,
           enhancer: null,
         },
-        apiKey: {
-          mistral: null,
-          together: null,
-          openAi: null,
-        },
-        selectedLlm: {
-          service: 'mistral',
-          model: 'mistral-large-2411',
-        },
+        apiKey: { ..._constant.nullApiKey },
+        selectedLlm: { ..._constant.defaultSelectedLlm },
       };
       return NextResponse.json(emptyDefaultValue);
     }

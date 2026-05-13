@@ -1,4 +1,4 @@
-import { PromptBuilderConfig, PromptConfig } from '@/types';
+import { ApiKeyConfig, LlmConfig, PromptBuilderConfig, PromptConfig } from '@/types';
 
 const emptyPrompt: PromptConfig = {
   narrator: '',
@@ -13,11 +13,31 @@ const emptyPromptBuilder: PromptBuilderConfig = {
   enhancer: '',
 };
 
+const emptyApiKey: ApiKeyConfig = {
+  mistral: '',
+  together: '',
+  openAi: '',
+};
+
+const nullApiKey: ApiKeyConfig = {
+  mistral: null,
+  together: null,
+  openAi: null,
+};
+
+const defaultSelectedLlm: LlmConfig = {
+  service: 'mistral',
+  model: 'mistral-large-2411',
+};
+
 const _constant = {
   newLine: '\n',
   newLine2: '\n\n',
   emptyPrompt,
   emptyPromptBuilder,
+  emptyApiKey,
+  nullApiKey,
+  defaultSelectedLlm,
 
   longDummyText: `Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa. Cum sociis natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus.
 
