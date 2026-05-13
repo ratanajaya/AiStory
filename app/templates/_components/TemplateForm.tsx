@@ -3,13 +3,15 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Template } from '@/types';
+import { PromptBuilderConfig, PromptConfig, Template } from '@/types';
 import { useFetcher } from '@/components/FetcherProvider';
 import { Button } from '@/components/Button';
 import { FormField } from '@/components/FormField';
 import { Input } from '@/components/Input';
+import { PromptEditorSection } from '@/components/PromptEditorSection';
 import { Textarea } from '@/components/Textarea';
 import { TemplateSafeModel } from '@/types/extendedTypes';
+import _constant from '@/utils/_constant';
 
 interface TemplateFormProps {
   templateId?: string; // If provided, we're in edit mode
@@ -18,17 +20,8 @@ interface TemplateFormProps {
 const emptyTemplate: TemplateSafeModel = {
   templateId: null,
   name: '',
-  prompt: {
-    narrator: '',
-    inputTag: '',
-    summarizer: '',
-    summarizerEndState: '',
-  },
-  promptBuilder: {
-    narration1: '',
-    narration2: '',
-    enhancer: '',
-  },
+  prompt: { ..._constant.emptyPrompt },
+  promptBuilder: { ..._constant.emptyPromptBuilder },
   storyBackground: '',
   imageUrl: null,
 };
@@ -137,7 +130,7 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
     }));
   };
 
-  const handlePromptChange = (field: string, value: string) => {
+  const handlePromptChange = (field: keyof PromptConfig, value: string) => {
     setFormData((prev) => ({
       ...prev,
       prompt: {
@@ -147,7 +140,7 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
     }));
   };
 
-  const handlePromptBuilderChange = (field: string, value: string) => {
+  const handlePromptBuilderChange = (field: keyof PromptBuilderConfig, value: string) => {
     setFormData((prev) => ({
       ...prev,
       promptBuilder: {
@@ -186,69 +179,12 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
           />
         </FormField>
 
-        <fieldset className="mb-4 p-4 border border-border rounded bg-card/50">
-          <legend className="font-semibold text-secondary px-2">Prompts</legend>
-
-          <FormField label="[DEPRECATED]Narrator:">
-            <Textarea
-              value={formData.prompt.narrator || ''}
-              onChange={(e) => handlePromptChange('narrator', e.target.value)}
-              rows={4}
-            />
-          </FormField>
-
-          <FormField label="Input Tag:">
-            <Input
-              type="text"
-              value={formData.prompt.inputTag || ''}
-              onChange={(e) => handlePromptChange('inputTag', e.target.value)}
-            />
-          </FormField>
-
-          <FormField label="Summarizer:">
-            <Textarea
-              value={formData.prompt.summarizer || ''}
-              onChange={(e) => handlePromptChange('summarizer', e.target.value)}
-              rows={4}
-            />
-          </FormField>
-
-          <FormField label="Summarizer End State:">
-            <Textarea
-              value={formData.prompt.summarizerEndState || ''}
-              onChange={(e) => handlePromptChange('summarizerEndState', e.target.value)}
-              rows={4}
-            />
-          </FormField>
-        </fieldset>
-
-        <fieldset className="mb-4 p-4 border border-border rounded bg-card/50">
-          <legend className="font-semibold text-secondary px-2">Prompt Builder</legend>
-
-          <FormField label="Narration 1:">
-            <Textarea
-              value={formData.promptBuilder.narration1 || ''}
-              onChange={(e) => handlePromptBuilderChange('narration1', e.target.value)}
-              rows={4}
-            />
-          </FormField>
-
-          <FormField label="Narration 2:">
-            <Textarea
-              value={formData.promptBuilder.narration2 || ''}
-              onChange={(e) => handlePromptBuilderChange('narration2', e.target.value)}
-              rows={4}
-            />
-          </FormField>
-
-          <FormField label="Enhancer:">
-            <Textarea
-              value={formData.promptBuilder.enhancer || ''}
-              onChange={(e) => handlePromptBuilderChange('enhancer', e.target.value)}
-              rows={4}
-            />
-          </FormField>
-        </fieldset>
+        <PromptEditorSection
+          prompt={formData.prompt}
+          promptBuilder={formData.promptBuilder}
+          onPromptChange={handlePromptChange}
+          onPromptBuilderChange={handlePromptBuilderChange}
+        />
 
         <FormField label="Story Background:">
           <Textarea

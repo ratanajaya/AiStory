@@ -1,27 +1,18 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { DefaultValue } from '@/types';
+import { DefaultValue, PromptBuilderConfig, PromptConfig } from '@/types';
 import { useFetcher } from '@/components/FetcherProvider';
 import { Button } from '@/components/Button';
 import { FormField } from '@/components/FormField';
 import { Input } from '@/components/Input';
-import { Textarea } from '@/components/Textarea';
+import { PromptEditorSection } from '@/components/PromptEditorSection';
 import { Select } from '@/components/Select';
 import _constant from '@/utils/_constant';
 
 const emptyDefaultValue: DefaultValue = {
-  prompt: {
-    narrator: '',
-    inputTag: '',
-    summarizer: '',
-    summarizerEndState: '',
-  },
-  promptBuilder: {
-    narration1: '',
-    narration2: '',
-    enhancer: '',
-  },
+  prompt: { ..._constant.emptyPrompt },
+  promptBuilder: { ..._constant.emptyPromptBuilder },
   apiKey: {
     mistral: '',
     together: '',
@@ -101,7 +92,7 @@ export default function SettingPage() {
     }
   };
 
-  const handlePromptChange = (field: string, value: string) => {
+  const handlePromptChange = (field: keyof PromptConfig, value: string) => {
     setFormData((prev) => ({
       ...prev,
       prompt: {
@@ -121,7 +112,7 @@ export default function SettingPage() {
     }));
   };
 
-  const handlePromptBuilderChange = (field: string, value: string) => {
+  const handlePromptBuilderChange = (field: keyof PromptBuilderConfig, value: string) => {
     setFormData((prev) => ({
       ...prev,
       promptBuilder: {
@@ -171,41 +162,14 @@ export default function SettingPage() {
       <h1 className="text-2xl font-bold mb-4 text-secondary">Settings</h1>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <fieldset className="mb-4 p-4 border border-border rounded bg-card/50">
-          <legend className="font-semibold text-secondary px-2">Default Prompts</legend>
-
-          <FormField label="[DEPRECATED]Narrator:">
-            <Textarea
-              value={formData.prompt.narrator || ''}
-              onChange={(e) => handlePromptChange('narrator', e.target.value)}
-              rows={4}
-            />
-          </FormField>
-
-          <FormField label="Input Tag:">
-            <Input
-              type="text"
-              value={formData.prompt.inputTag || ''}
-              onChange={(e) => handlePromptChange('inputTag', e.target.value)}
-            />
-          </FormField>
-
-          <FormField label="Summarizer:">
-            <Textarea
-              value={formData.prompt.summarizer || ''}
-              onChange={(e) => handlePromptChange('summarizer', e.target.value)}
-              rows={4}
-            />
-          </FormField>
-
-          <FormField label="Summarizer End State:">
-            <Textarea
-              value={formData.prompt.summarizerEndState || ''}
-              onChange={(e) => handlePromptChange('summarizerEndState', e.target.value)}
-              rows={4}
-            />
-          </FormField>
-        </fieldset>
+        <PromptEditorSection
+          prompt={formData.prompt}
+          promptBuilder={formData.promptBuilder}
+          onPromptChange={handlePromptChange}
+          onPromptBuilderChange={handlePromptBuilderChange}
+          promptLegend="Default Prompts"
+          promptBuilderLegend="Default Prompt Builder"
+        />
 
         <fieldset className="mb-4 p-4 border border-border rounded bg-card/50">
           <legend className="font-semibold text-secondary px-2">LLM Configuration</legend>
@@ -226,34 +190,6 @@ export default function SettingPage() {
               options={modelOptions}
               placeholder="Select a model"
               disabled={!formData.selectedLlm.service}
-            />
-          </FormField>
-        </fieldset>
-
-        <fieldset className="mb-4 p-4 border border-border rounded bg-card/50">
-          <legend className="font-semibold text-secondary px-2">Default Prompt Builder</legend>
-
-          <FormField label="Narration 1:">
-            <Textarea
-              value={formData.promptBuilder.narration1 || ''}
-              onChange={(e) => handlePromptBuilderChange('narration1', e.target.value)}
-              rows={4}
-            />
-          </FormField>
-
-          <FormField label="Narration 2:">
-            <Textarea
-              value={formData.promptBuilder.narration2 || ''}
-              onChange={(e) => handlePromptBuilderChange('narration2', e.target.value)}
-              rows={4}
-            />
-          </FormField>
-
-          <FormField label="Enhancer:">
-            <Textarea
-              value={formData.promptBuilder.enhancer || ''}
-              onChange={(e) => handlePromptBuilderChange('enhancer', e.target.value)}
-              rows={4}
             />
           </FormField>
         </fieldset>

@@ -1,6 +1,23 @@
+import { PromptBuilderConfig, PromptConfig } from '@/types';
+
+const emptyPrompt: PromptConfig = {
+  narrator: '',
+  inputTag: '',
+  summarizer: '',
+  summarizerEndState: '',
+};
+
+const emptyPromptBuilder: PromptBuilderConfig = {
+  narration1: '',
+  narration2: '',
+  enhancer: '',
+};
+
 const _constant = {
   newLine: '\n',
   newLine2: '\n\n',
+  emptyPrompt,
+  emptyPromptBuilder,
 
   longDummyText: `Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa. Cum sociis natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus.
 
