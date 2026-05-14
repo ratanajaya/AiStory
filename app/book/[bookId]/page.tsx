@@ -14,7 +14,7 @@ import StatusBar, { StatusBarProps } from '../_components/StatusBar';
 import useDebugPanel from '../_components/useDebugPanel';
 import useInputPanel from '../_components/useInputPanel';
 import SegmentEnhancerModal from '../_components/SegmentEnhancerModal';
-import SummarizerModal from '../_components/SummarizerModal';
+import SegmentSummarizerModal from '../_components/SegmentSummarizerModal';
 import ChapterWrapperModal from '../_components/ChapterWrapperModal';
 import BookNameEditor from '../_components/BookNameEditor';
 import _constant from '@/utils/_constant';
@@ -577,8 +577,9 @@ export default function BookPage({ params }: PageProps) {
                       }}
                     />
                   )}
-                  {summarizer.visible && (
-                    <SummarizerModal 
+                  {template && summarizer.visible && (
+                    <SegmentSummarizerModal
+                      template={template}
                       segments={bookUiModel.storySegments}
                       segmentSummaries={bookUiModel.segmentSummaries}
                       onClose={() => setSummarizer(prev => ({ ...prev, visible: false }))}

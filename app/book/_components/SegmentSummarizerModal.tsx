@@ -5,15 +5,19 @@ import { FormField } from '@/components/FormField';
 import { InputNumber } from '@/components/InputNumber';
 import { Textarea } from '@/components/Textarea';
 import _constant from '@/utils/_constant';
-import { SegmentSummary, StorySegment } from '@/types';
+import { SegmentSummary, StorySegment, Template } from '@/types';
 import Modal from '@/components/Modal';
+import _promptUtil from '@/utils/_promptUtil';
 
-export default function SummarizerModal(props: {
+export default function SegmentSummarizerModal(props: {
+  template: Template;
   segments: StorySegment[];
   segmentSummaries: SegmentSummary[];
   onClose: () => void;
   onSave: (segmentIds: string[], newSummary: SegmentSummary) => void;
 }) {
+  const { template } = props;
+
   const [values, setValues] = useState({
     content: '',
     llmResponse: '',
@@ -30,18 +34,19 @@ export default function SummarizerModal(props: {
     }));
 
     const segmentToSummarize = props.segments.filter(s => s.toSummarize);
-
-    const systemPrompt = `Write a short version of the story that captures the key points and essence of the content. The short version should be ${values.paragraphCount} paragraphs long. Maintain the same point of view of the original content.`;
-
     const contentToSummarize = segmentToSummarize.map(s => s.content).join(_constant.newLine2);
+
+    const userMessage = _promptUtil.replacePromptBuilderString(template.promptBuilder.segmentSummarizer!, {
+        segmentContents: contentToSummarize,
+        paragraphCount: `${values.paragraphCount}`,
+      });
 
     try {
       const response = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          systemMessage: systemPrompt,
-          messages: [{ role: 'user', content: contentToSummarize }],
+          messages: [{ role: 'user', content: userMessage }],
           stream: true,
         }),
       });
