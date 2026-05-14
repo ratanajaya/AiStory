@@ -4,6 +4,7 @@ import { FormField } from '@/components/FormField';
 import { Input } from '@/components/Input';
 import { Textarea } from '@/components/Textarea';
 import { PromptBuilderConfig, PromptConfig } from '@/types';
+import _util from '@/utils/_util';
 
 interface PromptEditorSectionProps {
   prompt: PromptConfig;
@@ -29,7 +30,7 @@ export function PromptEditorSection({
 
         <FormField label="[DEPRECATED]Narrator:">
           <Textarea
-            value={prompt.narrator || ''}
+            value={_util.toInputString(prompt.narrator)}
             onChange={(e) => onPromptChange('narrator', e.target.value)}
             rows={4}
           />
@@ -38,14 +39,14 @@ export function PromptEditorSection({
         <FormField label="Input Tag:">
           <Input
             type="text"
-            value={prompt.inputTag || ''}
+            value={_util.toInputString(prompt.inputTag)}
             onChange={(e) => onPromptChange('inputTag', e.target.value)}
           />
         </FormField>
 
         <FormField label="[DEPRECATED]Summarizer:">
           <Textarea
-            value={prompt.summarizer || ''}
+            value={_util.toInputString(prompt.summarizer)}
             onChange={(e) => onPromptChange('summarizer', e.target.value)}
             rows={4}
           />
@@ -53,7 +54,7 @@ export function PromptEditorSection({
 
         <FormField label="[DEPRECATED]Summarizer End State:">
           <Textarea
-            value={prompt.summarizerEndState || ''}
+            value={_util.toInputString(prompt.summarizerEndState)}
             onChange={(e) => onPromptChange('summarizerEndState', e.target.value)}
             rows={4}
           />
@@ -65,7 +66,7 @@ export function PromptEditorSection({
 
         <FormField label="Narration 1:">
           <Textarea
-            value={promptBuilder.narration1 || ''}
+            value={_util.toInputString(promptBuilder.narration1)}
             onChange={(e) => onPromptBuilderChange('narration1', e.target.value)}
             rows={4}
           />
@@ -73,7 +74,7 @@ export function PromptEditorSection({
 
         <FormField label="Narration 2:">
           <Textarea
-            value={promptBuilder.narration2 || ''}
+            value={_util.toInputString(promptBuilder.narration2)}
             onChange={(e) => onPromptBuilderChange('narration2', e.target.value)}
             rows={4}
           />
@@ -81,7 +82,7 @@ export function PromptEditorSection({
 
         <FormField label="Enhancer:">
           <Textarea
-            value={promptBuilder.enhancer || ''}
+            value={_util.toInputString(promptBuilder.enhancer)}
             onChange={(e) => onPromptBuilderChange('enhancer', e.target.value)}
             rows={4}
           />
@@ -89,7 +90,7 @@ export function PromptEditorSection({
 
         <FormField label="Segment Summarizer:">
           <Textarea
-            value={promptBuilder.segmentSummarizer || ''}
+            value={_util.toInputString(promptBuilder.segmentSummarizer)}
             onChange={(e) => onPromptBuilderChange('segmentSummarizer', e.target.value)}
             rows={4}
           />
@@ -97,7 +98,7 @@ export function PromptEditorSection({
 
         <FormField label="Chapter Summarizer:">
           <Textarea
-            value={promptBuilder.chapterSummarizer || ''}
+            value={_util.toInputString(promptBuilder.chapterSummarizer)}
             onChange={(e) => onPromptBuilderChange('chapterSummarizer', e.target.value)}
             rows={4}
           />
@@ -105,7 +106,7 @@ export function PromptEditorSection({
 
         <FormField label="Outline Idea Generator:">
           <Textarea
-            value={promptBuilder.outlineIdeaGenerator || ''}
+            value={_util.toInputString(promptBuilder.outlineIdeaGenerator)}
             onChange={(e) => onPromptBuilderChange('outlineIdeaGenerator', e.target.value)}
             rows={4}
           />
@@ -113,7 +114,7 @@ export function PromptEditorSection({
 
         <FormField label="Note Initializer:">
           <Textarea
-            value={promptBuilder.noteInitializer || ''}
+            value={_util.toInputString(promptBuilder.noteInitializer)}
             onChange={(e) => onPromptBuilderChange('noteInitializer', e.target.value)}
             rows={4}
           />
@@ -121,7 +122,7 @@ export function PromptEditorSection({
 
         <FormField label="Note Updater:">
           <Textarea
-            value={promptBuilder.noteUpdater || ''}
+            value={_util.toInputString(promptBuilder.noteUpdater)}
             onChange={(e) => onPromptBuilderChange('noteUpdater', e.target.value)}
             rows={4}
           />

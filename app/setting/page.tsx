@@ -7,6 +7,7 @@ import { useFetcher } from '@/components/FetcherProvider';
 import { Button } from '@/components/Button';
 import { PromptEditorSection } from '@/components/PromptEditorSection';
 import _constant from '@/utils/_constant';
+import _util from '@/utils/_util';
 
 const emptyDefaultValue: DefaultValue = {
   prompt: { ..._constant.emptyPrompt },
@@ -31,27 +32,9 @@ export default function SettingPage() {
           errorMessage: 'Failed to fetch settings',
         });
         setFormData({
-          prompt: {
-            narrator: data.prompt?.narrator || '',
-            inputTag: data.prompt?.inputTag || '',
-            summarizer: data.prompt?.summarizer || '',
-            summarizerEndState: data.prompt?.summarizerEndState || '',
-          },
-          promptBuilder: {
-            narration1: data.promptBuilder?.narration1 || '',
-            narration2: data.promptBuilder?.narration2 || '',
-            enhancer: data.promptBuilder?.enhancer || '',
-            segmentSummarizer: data.promptBuilder?.segmentSummarizer || '',
-            chapterSummarizer: data.promptBuilder?.chapterSummarizer || '',
-            outlineIdeaGenerator: data.promptBuilder?.outlineIdeaGenerator || '',
-            noteInitializer: data.promptBuilder?.noteInitializer || '',
-            noteUpdater: data.promptBuilder?.noteUpdater || '',
-          },
-          apiKey: {
-            mistral: data.apiKey?.mistral || '',
-            together: data.apiKey?.together || '',
-            openAi: data.apiKey?.openAi || '',
-          },
+          prompt: _util.normalizePromptConfig(data.prompt),
+          promptBuilder: _util.normalizePromptBuilderConfig(data.promptBuilder),
+          apiKey: _util.normalizeApiKeyConfig(data.apiKey),
           selectedLlm: {
             service: data.selectedLlm?.service || _constant.defaultSelectedLlm.service,
             model: data.selectedLlm?.model || _constant.defaultSelectedLlm.model,
@@ -77,7 +60,12 @@ export default function SettingPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          prompt: _util.normalizePromptConfig(formData.prompt),
+          promptBuilder: _util.normalizePromptBuilderConfig(formData.promptBuilder),
+          apiKey: _util.normalizeApiKeyConfig(formData.apiKey),
+        }),
         errorMessage: 'Failed to update settings',
       });
       setSaveMessage('Settings saved successfully!');
@@ -93,7 +81,7 @@ export default function SettingPage() {
       ...prev,
       prompt: {
         ...prev.prompt,
-        [field]: value || null,
+        [field]: value,
       },
     }));
   };
@@ -128,7 +116,7 @@ export default function SettingPage() {
       ...prev,
       promptBuilder: {
         ...prev.promptBuilder,
-        [field]: value || null,
+        [field]: value,
       },
     }));
   };
@@ -138,7 +126,7 @@ export default function SettingPage() {
       ...prev,
       apiKey: {
         ...prev.apiKey,
-        [field]: value || null,
+        [field]: value,
       },
     }));
   };

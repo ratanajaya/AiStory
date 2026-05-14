@@ -12,6 +12,7 @@ import { PromptEditorSection } from '@/components/PromptEditorSection';
 import { Textarea } from '@/components/Textarea';
 import { TemplateSafeModel } from '@/types/extendedTypes';
 import _constant from '@/utils/_constant';
+import _util from '@/utils/_util';
 
 interface TemplateFormProps {
   templateId?: string; // If provided, we're in edit mode
@@ -73,24 +74,10 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
         });
         setFormData({
           templateId: data.templateId,
-          name: data.name,
-          prompt: {
-            narrator: data.prompt?.narrator || '',
-            inputTag: data.prompt?.inputTag || '',
-            summarizer: data.prompt?.summarizer || '',
-            summarizerEndState: data.prompt?.summarizerEndState || '',
-          },
-          promptBuilder: {
-            narration1: data.promptBuilder?.narration1 || '',
-            narration2: data.promptBuilder?.narration2 || '',
-            enhancer: data.promptBuilder?.enhancer || '',
-            segmentSummarizer: data.promptBuilder?.segmentSummarizer || '',
-            chapterSummarizer: data.promptBuilder?.chapterSummarizer || '',
-            outlineIdeaGenerator: data.promptBuilder?.outlineIdeaGenerator || '',
-            noteInitializer: data.promptBuilder?.noteInitializer || '',
-            noteUpdater: data.promptBuilder?.noteUpdater || '',
-          },
-          storyBackground: data.storyBackground || '',
+          name: _util.toInputString(data.name),
+          prompt: _util.normalizePromptConfig(data.prompt),
+          promptBuilder: _util.normalizePromptBuilderConfig(data.promptBuilder),
+          storyBackground: _util.toInputString(data.storyBackground),
           imageUrl: data.imageUrl ?? null,
         });
       } catch {

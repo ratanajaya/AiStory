@@ -5,6 +5,7 @@ import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
 import { ApiKeyConfig } from '@/types';
 import _constant from '@/utils/_constant';
+import _util from '@/utils/_util';
 
 interface AiSettingsSectionProps {
   selectedService: string;
@@ -99,7 +100,7 @@ export function AiSettingsSection({
       <FormField label="Mistral:">
         <Input
           type="password"
-          value={apiKey.mistral || ''}
+          value={_util.toInputString(apiKey.mistral)}
           onChange={(e) => onApiKeyChange('mistral', e.target.value)}
           placeholder="Mistral API key"
         />
@@ -108,7 +109,7 @@ export function AiSettingsSection({
       <FormField label="Together:">
         <Input
           type="password"
-          value={apiKey.together || ''}
+          value={_util.toInputString(apiKey.together)}
           onChange={(e) => onApiKeyChange('together', e.target.value)}
           placeholder="Together API key"
         />
@@ -117,7 +118,7 @@ export function AiSettingsSection({
       <FormField label="OpenAI:">
         <Input
           type="password"
-          value={apiKey.openAi || ''}
+          value={_util.toInputString(apiKey.openAi)}
           onChange={(e) => onApiKeyChange('openAi', e.target.value)}
           placeholder="OpenAI API key"
         />

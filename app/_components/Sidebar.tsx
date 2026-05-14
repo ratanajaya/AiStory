@@ -8,6 +8,7 @@ import { AiSettingsSection } from "@/components/AiSettingsSection";
 import { Button } from "@/components/Button";
 import { useFetcher } from "@/components/FetcherProvider";
 import _constant from "@/utils/_constant";
+import _util from "@/utils/_util";
 import type { LlmConfig, ApiKeyConfig } from "@/types";
 
 type LLMServiceKey = keyof typeof _constant.llmServices;
@@ -87,12 +88,7 @@ export function Sidebar({
         }
 
         if (data?.apiKey) {
-          setApiKeys({
-            ..._constant.emptyApiKey,
-            mistral: data.apiKey.mistral || null,
-            together: data.apiKey.together || null,
-            openAi: data.apiKey.openAi || null,
-          });
+          setApiKeys(_util.normalizeApiKeyConfig(data.apiKey));
         }
       } catch (error) {
         console.error("Failed to fetch settings:", error);
@@ -133,7 +129,7 @@ export function Sidebar({
   const handleApiKeyChange = (key: keyof ApiKeyConfig, value: string) => {
     setApiKeys((prev) => ({
       ...prev,
-      [key]: value || null,
+      [key]: value,
     }));
   };
 
@@ -156,7 +152,7 @@ export function Sidebar({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           selectedLlm,
-          apiKey: apiKeys,
+          apiKey: _util.normalizeApiKeyConfig(apiKeys),
         }),
       });
 

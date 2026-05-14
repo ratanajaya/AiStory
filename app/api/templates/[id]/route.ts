@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import { TemplateModel } from '@/models';
 import { auth } from '@/auth';
+import _util from '@/utils/_util';
 
 export async function GET(
   request: Request,
@@ -20,7 +21,12 @@ export async function GET(
     if (!template) {
       return NextResponse.json({ error: 'Template not found' }, { status: 404 });
     }
-    return NextResponse.json(template);
+    const templateObj = template.toObject();
+    return NextResponse.json({
+      ...templateObj,
+      prompt: _util.normalizePromptConfig(templateObj.prompt),
+      promptBuilder: _util.normalizePromptBuilderConfig(templateObj.promptBuilder),
+    });
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: 'Failed to fetch template' }, { status: 500 });
@@ -38,9 +44,14 @@ export async function PUT(
     await dbConnect();
     const { id } = await params;
     const body = await request.json();
+    const normalizedBody = {
+      ...body,
+      prompt: _util.normalizePromptConfig(body.prompt),
+      promptBuilder: _util.normalizePromptBuilderConfig(body.promptBuilder),
+    };
     const template = await TemplateModel.findOneAndUpdate(
       { templateId: id, ownerEmail },
-      body,
+      normalizedBody,
       { new: true, runValidators: true }
     );
     if (!template) {

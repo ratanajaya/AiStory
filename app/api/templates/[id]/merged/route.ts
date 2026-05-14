@@ -3,13 +3,14 @@ import dbConnect from '@/lib/mongodb';
 import { TemplateModel, KeyValueModel } from '@/models';
 import { DefaultValue, KeyValue, PromptBuilderConfig, PromptConfig } from '@/types';
 import { auth } from '@/auth';
+import _util from '@/utils/_util';
 
 function mergePromptWithDefaults(prompt: PromptConfig, defaultPrompt: PromptConfig): PromptConfig {
   return {
-    narrator: prompt.narrator || defaultPrompt.narrator,
-    inputTag: prompt.inputTag || defaultPrompt.inputTag,
-    summarizer: prompt.summarizer || defaultPrompt.summarizer,
-    summarizerEndState: prompt.summarizerEndState || defaultPrompt.summarizerEndState,
+    narrator: _util.mergeNormalizedString(prompt.narrator, defaultPrompt.narrator),
+    inputTag: _util.mergeNormalizedString(prompt.inputTag, defaultPrompt.inputTag),
+    summarizer: _util.mergeNormalizedString(prompt.summarizer, defaultPrompt.summarizer),
+    summarizerEndState: _util.mergeNormalizedString(prompt.summarizerEndState, defaultPrompt.summarizerEndState),
   };
 }
 
@@ -18,18 +19,26 @@ function mergePromptBuilderWithDefaults(
   defaultPromptBuilder: PromptBuilderConfig
 ): PromptBuilderConfig {
   return {
-    narration1: promptBuilder.narration1 || defaultPromptBuilder.narration1,
-    narration2: promptBuilder.narration2 || defaultPromptBuilder.narration2,
-    enhancer: promptBuilder.enhancer || defaultPromptBuilder.enhancer,
-    segmentSummarizer:
-      promptBuilder.segmentSummarizer || defaultPromptBuilder.segmentSummarizer,
-    chapterSummarizer:
-      promptBuilder.chapterSummarizer || defaultPromptBuilder.chapterSummarizer,
-    outlineIdeaGenerator:
-      promptBuilder.outlineIdeaGenerator || defaultPromptBuilder.outlineIdeaGenerator,
-    noteInitializer:
-      promptBuilder.noteInitializer || defaultPromptBuilder.noteInitializer,
-    noteUpdater: promptBuilder.noteUpdater || defaultPromptBuilder.noteUpdater,
+    narration1: _util.mergeNormalizedString(promptBuilder.narration1, defaultPromptBuilder.narration1),
+    narration2: _util.mergeNormalizedString(promptBuilder.narration2, defaultPromptBuilder.narration2),
+    enhancer: _util.mergeNormalizedString(promptBuilder.enhancer, defaultPromptBuilder.enhancer),
+    segmentSummarizer: _util.mergeNormalizedString(
+      promptBuilder.segmentSummarizer,
+      defaultPromptBuilder.segmentSummarizer
+    ),
+    chapterSummarizer: _util.mergeNormalizedString(
+      promptBuilder.chapterSummarizer,
+      defaultPromptBuilder.chapterSummarizer
+    ),
+    outlineIdeaGenerator: _util.mergeNormalizedString(
+      promptBuilder.outlineIdeaGenerator,
+      defaultPromptBuilder.outlineIdeaGenerator
+    ),
+    noteInitializer: _util.mergeNormalizedString(
+      promptBuilder.noteInitializer,
+      defaultPromptBuilder.noteInitializer
+    ),
+    noteUpdater: _util.mergeNormalizedString(promptBuilder.noteUpdater, defaultPromptBuilder.noteUpdater),
   };
 }
 

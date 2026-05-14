@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import dbConnect from "@/lib/mongodb";
 import { UserModel } from "@/models";
+import _util from "@/utils/_util";
 
 // GET current user settings
 export async function GET() {
@@ -22,7 +23,10 @@ export async function GET() {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    return NextResponse.json(user);
+    return NextResponse.json({
+      ...user,
+      apiKey: _util.normalizeApiKeyConfig(user.apiKey),
+    });
   } catch (error) {
     console.error("Error fetching user settings:", error);
     return NextResponse.json(
@@ -52,12 +56,7 @@ export async function PUT(request: Request) {
     }
 
     if (apiKey !== undefined) {
-      // Only update provided API key fields
-      updateData.apiKey = {
-        mistral: apiKey.mistral ?? null,
-        together: apiKey.together ?? null,
-        openAi: apiKey.openAi ?? null,
-      };
+      updateData.apiKey = _util.normalizeApiKeyConfig(apiKey);
     }
 
     await dbConnect();

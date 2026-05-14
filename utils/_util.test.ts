@@ -46,6 +46,66 @@ describe("_util", () => {
     });
   });
 
+  describe("toInputString", () => {
+    it("normalizes blank values to an empty string", () => {
+      expect(_util.toInputString(null)).toBe("");
+      expect(_util.toInputString(undefined)).toBe("");
+      expect(_util.toInputString("")).toBe("");
+      expect(_util.toInputString("   ")).toBe("");
+    });
+
+    it("preserves non-empty values", () => {
+      expect(_util.toInputString("prompt text")).toBe("prompt text");
+    });
+  });
+
+  describe("mergeNormalizedString", () => {
+    it("falls back when the primary value is blank", () => {
+      expect(_util.mergeNormalizedString("", "fallback")).toBe("fallback");
+      expect(_util.mergeNormalizedString(undefined, "  ")).toBe("");
+    });
+
+    it("preserves the primary value when it contains text", () => {
+      expect(_util.mergeNormalizedString("primary", "fallback")).toBe("primary");
+    });
+  });
+
+  describe("config normalizers", () => {
+    it("normalizes prompt builder input values to empty strings", () => {
+      expect(
+        _util.normalizePromptBuilderConfig({
+          narration1: undefined,
+          narration2: null,
+          enhancer: "  ",
+          segmentSummarizer: "segment",
+        })
+      ).toMatchObject({
+        narration1: "",
+        narration2: "",
+        enhancer: "",
+        segmentSummarizer: "segment",
+        chapterSummarizer: "",
+        outlineIdeaGenerator: "",
+        noteInitializer: "",
+        noteUpdater: "",
+      });
+    });
+
+    it("normalizes api key values to empty strings when blank", () => {
+      expect(
+        _util.normalizeApiKeyConfig({
+          mistral: "",
+          together: " together-key ",
+          openAi: undefined,
+        })
+      ).toEqual({
+        mistral: "",
+        together: " together-key ",
+        openAi: "",
+      });
+    });
+  });
+
   describe("generateTimestamp", () => {
     beforeEach(() => {
       vi.useFakeTimers();

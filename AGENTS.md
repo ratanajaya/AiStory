@@ -62,6 +62,13 @@ AiStory is a Next.js App Router application for template-driven interactive stor
 - Keep changes minimal in `app/book/[bookId]/page.tsx`; it is already a large stateful client page. Prefer extracting logic into focused hooks or components if the change is substantial.
 - Continue using the existing style in route handlers: validate inputs early, return `NextResponse.json(...)` for JSON errors, and log server-side failures.
 
+### String Normalization Boundary
+
+- Treat empty strings, null, undefined, and whitespace-only strings as equivalent unset values for user-facing config fields unless a field explicitly needs different semantics.
+- Normalize to empty strings at controlled-input boundaries so React form components receive stable string values.
+- Normalize to empty strings at persistence boundaries so database writes do not depend on ad hoc `|| ''`, `|| null`, or `?? null` checks.
+- Reuse shared helpers from `utils/_util.ts` for config normalization and fallback merging instead of scattering inline string guards or field-by-field null handling.
+
 ## Validation
 
 Run the narrowest useful checks for the files you touched:
