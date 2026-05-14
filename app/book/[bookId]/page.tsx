@@ -589,6 +589,7 @@ export default function BookPage({ params }: PageProps) {
                   {template && chapterWrapper.visible && (
                     <ChapterWrapperModal
                       template={template}
+                      book={bookUiModel}
                       segments={chapterWrapper.segments}
                       onClose={() => setChapterWrapper(prev => ({ ...prev, visible: false }))}
                       onSave={gameAction.wrapChapter}
