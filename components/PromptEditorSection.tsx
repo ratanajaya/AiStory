@@ -43,7 +43,7 @@ export function PromptEditorSection({
           />
         </FormField>
 
-        <FormField label="Summarizer:">
+        <FormField label="[DEPRECATED]Summarizer:">
           <Textarea
             value={prompt.summarizer || ''}
             onChange={(e) => onPromptChange('summarizer', e.target.value)}
@@ -83,6 +83,46 @@ export function PromptEditorSection({
           <Textarea
             value={promptBuilder.enhancer || ''}
             onChange={(e) => onPromptBuilderChange('enhancer', e.target.value)}
+            rows={4}
+          />
+        </FormField>
+
+        <FormField label="Segment Summarizer:">
+          <Textarea
+            value={promptBuilder.segmentSummarizer || ''}
+            onChange={(e) => onPromptBuilderChange('segmentSummarizer', e.target.value)}
+            rows={4}
+          />
+        </FormField>
+
+        <FormField label="Chapter Summarizer:">
+          <Textarea
+            value={promptBuilder.chapterSummarizer || ''}
+            onChange={(e) => onPromptBuilderChange('chapterSummarizer', e.target.value)}
+            rows={4}
+          />
+        </FormField>
+
+        <FormField label="Outline Idea Generator:">
+          <Textarea
+            value={promptBuilder.outlineIdeaGenerator || ''}
+            onChange={(e) => onPromptBuilderChange('outlineIdeaGenerator', e.target.value)}
+            rows={4}
+          />
+        </FormField>
+
+        <FormField label="Note Initializer:">
+          <Textarea
+            value={promptBuilder.noteInitializer || ''}
+            onChange={(e) => onPromptBuilderChange('noteInitializer', e.target.value)}
+            rows={4}
+          />
+        </FormField>
+
+        <FormField label="Note Updater:">
+          <Textarea
+            value={promptBuilder.noteUpdater || ''}
+            onChange={(e) => onPromptBuilderChange('noteUpdater', e.target.value)}
             rows={4}
           />
         </FormField>

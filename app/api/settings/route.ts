@@ -12,19 +12,10 @@ export async function GET() {
     const doc = await KeyValueModel.findOne({ key: DEFAULT_KEY });
     
     if (!doc) {
-      // Return empty default value if not found
+      // This should never happen in practice, but keep a safe fallback for unset data.
       const emptyDefaultValue: DefaultValue = {
-        prompt: {
-          narrator: null,
-          inputTag: null,
-          summarizer: null,
-          summarizerEndState: null,
-        },
-        promptBuilder: {
-          narration1: null,
-          narration2: null,
-          enhancer: null,
-        },
+        prompt: { ..._constant.emptyPrompt },
+        promptBuilder: { ..._constant.emptyPromptBuilder },
         apiKey: { ..._constant.nullApiKey },
         selectedLlm: { ..._constant.defaultSelectedLlm },
       };

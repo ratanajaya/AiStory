@@ -41,6 +41,11 @@ export default function SettingPage() {
             narration1: data.promptBuilder?.narration1 || '',
             narration2: data.promptBuilder?.narration2 || '',
             enhancer: data.promptBuilder?.enhancer || '',
+            segmentSummarizer: data.promptBuilder?.segmentSummarizer || '',
+            chapterSummarizer: data.promptBuilder?.chapterSummarizer || '',
+            outlineIdeaGenerator: data.promptBuilder?.outlineIdeaGenerator || '',
+            noteInitializer: data.promptBuilder?.noteInitializer || '',
+            noteUpdater: data.promptBuilder?.noteUpdater || '',
           },
           apiKey: {
             mistral: data.apiKey?.mistral || '',

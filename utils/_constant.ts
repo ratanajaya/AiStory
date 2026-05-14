@@ -11,6 +11,11 @@ const emptyPromptBuilder: PromptBuilderConfig = {
   narration1: '',
   narration2: '',
   enhancer: '',
+  segmentSummarizer: '',
+  chapterSummarizer: '',
+  outlineIdeaGenerator: '',
+  noteInitializer: '',
+  noteUpdater: '',
 };
 
 const emptyApiKey: ApiKeyConfig = {

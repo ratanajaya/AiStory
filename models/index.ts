@@ -38,7 +38,12 @@ const TemplateSchema = new Schema<Template>({
   promptBuilder: {
     narration1: { type: String, default: null },
     narration2: { type: String, default: null },
-    enhancer: { type: String, default: null }
+    enhancer: { type: String, default: null },
+    segmentSummarizer: { type: String, default: null },
+    chapterSummarizer: { type: String, default: null },
+    outlineIdeaGenerator: { type: String, default: null },
+    noteInitializer: { type: String, default: null },
+    noteUpdater: { type: String, default: null }
   },
   storyBackground: { type: String, required: true },
   imageUrl: { type: String, default: null },

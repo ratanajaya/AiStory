@@ -21,6 +21,15 @@ function mergePromptBuilderWithDefaults(
     narration1: promptBuilder.narration1 || defaultPromptBuilder.narration1,
     narration2: promptBuilder.narration2 || defaultPromptBuilder.narration2,
     enhancer: promptBuilder.enhancer || defaultPromptBuilder.enhancer,
+    segmentSummarizer:
+      promptBuilder.segmentSummarizer || defaultPromptBuilder.segmentSummarizer,
+    chapterSummarizer:
+      promptBuilder.chapterSummarizer || defaultPromptBuilder.chapterSummarizer,
+    outlineIdeaGenerator:
+      promptBuilder.outlineIdeaGenerator || defaultPromptBuilder.outlineIdeaGenerator,
+    noteInitializer:
+      promptBuilder.noteInitializer || defaultPromptBuilder.noteInitializer,
+    noteUpdater: promptBuilder.noteUpdater || defaultPromptBuilder.noteUpdater,
   };
 }
 

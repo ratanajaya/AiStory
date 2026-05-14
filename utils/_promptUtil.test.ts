@@ -15,6 +15,11 @@ const template: Template = {
     narration1: null,
     narration2: null,
     enhancer: null,
+    segmentSummarizer: null,
+    chapterSummarizer: null,
+    outlineIdeaGenerator: null,
+    noteInitializer: null,
+    noteUpdater: null,
   },
   storyBackground: "A storm is coming.",
   imageUrl: null,
@@ -113,7 +118,7 @@ describe("_promptUtil.craftBookPrompt", () => {
       "{currentChapter}",
     ].join("\n");
 
-    const result = _promptUtil.craftBookPrompt(promptBuilderText, template, book, "seg-future");
+    const result = _promptUtil.craftBookPrompt(promptBuilderText, template, book, "seg-future", true);
 
     expect(result).toContain("A storm is coming.");
     expect(result).toContain("PROLOGUE:\nThe hero wakes.\n\n");
@@ -138,7 +143,7 @@ describe("_promptUtil.craftBookPrompt", () => {
       chapters: [],
     };
 
-    const result = _promptUtil.craftBookPrompt("{currentChapter}", template, emptyBook, null);
+    const result = _promptUtil.craftBookPrompt("{currentChapter}", template, emptyBook, null, true);
 
     expect(result).toBe("[THIS IS THE START OF A NEW CHAPTER]\n\n");
   });
