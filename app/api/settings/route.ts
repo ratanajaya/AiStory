@@ -16,7 +16,7 @@ export async function GET() {
       const emptyDefaultValue: DefaultValue = {
         prompt: { ..._constant.emptyPrompt },
         promptBuilder: { ..._constant.emptyPromptBuilder },
-        apiKey: { ..._constant.nullApiKey },
+        apiKey: { ..._constant.emptyApiKey },
         selectedLlm: { ..._constant.defaultSelectedLlm },
       };
       return NextResponse.json(emptyDefaultValue);

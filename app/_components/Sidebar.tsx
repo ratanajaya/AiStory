@@ -63,7 +63,7 @@ export function Sidebar({
 
   // API Keys
   const [apiKeys, setApiKeys] = useState<ApiKeyConfig>({
-    ..._constant.nullApiKey,
+    ..._constant.emptyApiKey,
   });
 
   const [saving, setSaving] = useState(false);
@@ -88,7 +88,7 @@ export function Sidebar({
 
         if (data?.apiKey) {
           setApiKeys({
-            ..._constant.nullApiKey,
+            ..._constant.emptyApiKey,
             mistral: data.apiKey.mistral || null,
             together: data.apiKey.together || null,
             openAi: data.apiKey.openAi || null,

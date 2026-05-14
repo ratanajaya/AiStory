@@ -24,12 +24,6 @@ const emptyApiKey: ApiKeyConfig = {
   openAi: '',
 };
 
-const nullApiKey: ApiKeyConfig = {
-  mistral: null,
-  together: null,
-  openAi: null,
-};
-
 const defaultSelectedLlm: LlmConfig = {
   service: 'mistral',
   model: 'mistral-large-2411',
@@ -41,7 +35,6 @@ const _constant = {
   emptyPrompt,
   emptyPromptBuilder,
   emptyApiKey,
-  nullApiKey,
   defaultSelectedLlm,
 
   longDummyText: `Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa. Cum sociis natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus.
