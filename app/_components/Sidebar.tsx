@@ -13,6 +13,7 @@ import type { LlmConfig, ApiKeyConfig } from "@/types";
 type LLMServiceKey = keyof typeof _constant.llmServices;
 
 const navLinks = [
+  { href: "/", label: "Library" },
   { href: "/templates", label: "Templates" },
   { href: "/setting", label: "Settings" },
 ];
