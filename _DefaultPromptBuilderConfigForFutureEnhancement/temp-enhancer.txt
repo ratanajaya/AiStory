@@ -1,5 +1,0 @@
-{CurrentChapter}
-
-PROMPT:
-
-{TextboxInput}

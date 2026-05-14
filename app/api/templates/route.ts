@@ -3,6 +3,7 @@ import shortid from 'shortid';
 import dbConnect from '@/lib/mongodb';
 import { TemplateModel } from '@/models';
 import { auth } from '@/auth';
+import _util from '@/utils/_util';
 
 export async function GET() {
   try {
@@ -26,8 +27,13 @@ export async function POST(request: Request) {
     await dbConnect();
     const body = await request.json();
     const templateId = shortid.generate();
+    const normalizedBody = {
+      ...body,
+      prompt: _util.normalizePromptConfig(body.prompt),
+      promptBuilder: _util.normalizePromptBuilderConfig(body.promptBuilder),
+    };
     const template = await TemplateModel.create({ 
-      ...body, 
+      ...normalizedBody,
       templateId,
       ownerEmail 
     });

@@ -1,6 +1,41 @@
+import { ApiKeyConfig, LlmConfig, PromptBuilderConfig, PromptConfig } from '@/types';
+
+const emptyPrompt: PromptConfig = {
+  narrator: '',
+  inputTag: '',
+  summarizer: '',
+  summarizerEndState: '',
+};
+
+const emptyPromptBuilder: PromptBuilderConfig = {
+  narration1: '',
+  narration2: '',
+  enhancer: '',
+  segmentSummarizer: '',
+  chapterSummarizer: '',
+  outlineIdeaGenerator: '',
+  noteInitializer: '',
+  noteUpdater: '',
+};
+
+const emptyApiKey: ApiKeyConfig = {
+  mistral: '',
+  together: '',
+  openAi: '',
+};
+
+const defaultSelectedLlm: LlmConfig = {
+  service: 'mistral',
+  model: 'mistral-large-2411',
+};
+
 const _constant = {
   newLine: '\n',
   newLine2: '\n\n',
+  emptyPrompt,
+  emptyPromptBuilder,
+  emptyApiKey,
+  defaultSelectedLlm,
 
   longDummyText: `Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa. Cum sociis natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus.
 

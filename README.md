@@ -16,6 +16,20 @@ bun dev
 
 Open [http://localhost:7002](http://localhost:7002) with your browser to see the result.
 
+## Testing
+
+Run the unit test suite with:
+
+```bash
+npm test
+```
+
+Use watch mode while working on utilities:
+
+```bash
+npm run test:watch
+```
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.

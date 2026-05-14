@@ -14,11 +14,12 @@ import StatusBar, { StatusBarProps } from '../_components/StatusBar';
 import useDebugPanel from '../_components/useDebugPanel';
 import useInputPanel from '../_components/useInputPanel';
 import SegmentEnhancerModal from '../_components/SegmentEnhancerModal';
-import SummarizerModal from '../_components/SummarizerModal';
+import SegmentSummarizerModal from '../_components/SegmentSummarizerModal';
 import ChapterWrapperModal from '../_components/ChapterWrapperModal';
 import BookNameEditor from '../_components/BookNameEditor';
 import _constant from '@/utils/_constant';
 import { BookUIModel } from '@/types/extendedTypes';
+import _promptUtil from '@/utils/_promptUtil';
 
 interface PageProps {
   params: Promise<{ bookId: string }>;
@@ -210,37 +211,13 @@ export default function BookPage({ params }: PageProps) {
         text: 'Making call to LLM api...',
       });
 
-      const { segmentsWithoutChapter } = _util.splitSegmentsWithChapter(bookUiModel.storySegments);
-
       // Context for the AI
-      let userMessage1 = '';
-      userMessage1 += `STORY BACKGROUND:${_constant.newLine2}`;
-      userMessage1 += `${template.storyBackground}${_constant.newLine2}`;
-
-      let chapterSoFar = '';
-      bookUiModel.chapters.forEach((chapter, i) => {
-        chapterSoFar += chapter.title.toUpperCase() + ':' + _constant.newLine;
-        chapterSoFar += chapter.summary + _constant.newLine2;
-
-        const isLastChapter = (i === bookUiModel.chapters.length - 1);
-
-        if(isLastChapter) {
-          chapterSoFar += `SITUATION AT THE END OF ${chapter.title.toUpperCase()}:${_constant.newLine2}`;
-          chapterSoFar += JSON.stringify(chapter.endState, null, 2) + _constant.newLine2;
-        }
-      });
-      userMessage1 += chapterSoFar;
-      
-      userMessage1 += `STORY SO FAR OF CURRENT CHAPTER:${_constant.newLine2}`;
-
-      const storySoFar = _util.getStorySegmentAsString(segmentsWithoutChapter, bookUiModel.segmentSummaries, idLimitExclusive);
-      userMessage1 += `${_util.altString(storySoFar, '[THIS IS THE START OF A NEW CHAPTER]')}${_constant.newLine2}`;
+      const userMessage1 = _promptUtil.craftBookPrompt(template.promptBuilder.narration1, template, bookUiModel, idLimitExclusive, true);
 
       // Instructions to the AI on how to respond
-      let userMessage2 = '';
-      userMessage2 += `${template.prompt.narrator}${_constant.newLine2}`;
-      
-      userMessage2 += userSegmentContent;
+      const userMessage2 = _promptUtil.craftBookPrompt(template.promptBuilder.narration2, template, bookUiModel, idLimitExclusive, true,{
+        textboxInput: userSegmentContent,
+      });
   
       const userSegment: StorySegment = {
         id: new Date().getTime().toString(),
@@ -588,10 +565,11 @@ export default function BookPage({ params }: PageProps) {
                     })()}
                   </div>
                   
-                  {enhancer.visible && enhancer.segment && (
+                  {template && enhancer.visible && enhancer.segment && (
                     <SegmentEnhancerModal
+                      template={template}
+                      book={bookUiModel}
                       segment={enhancer.segment}
-                      prevStory={enhancer.prevStory}
                       onClose={() => setEnhancer(prev => ({ ...prev, visible: false }))}
                       onSave={(segment) => {
                         setEnhancer(prev => ({ ...prev, visible: false }));
@@ -599,8 +577,9 @@ export default function BookPage({ params }: PageProps) {
                       }}
                     />
                   )}
-                  {summarizer.visible && (
-                    <SummarizerModal 
+                  {template && summarizer.visible && (
+                    <SegmentSummarizerModal
+                      template={template}
                       segments={bookUiModel.storySegments}
                       segmentSummaries={bookUiModel.segmentSummaries}
                       onClose={() => setSummarizer(prev => ({ ...prev, visible: false }))}
@@ -610,6 +589,7 @@ export default function BookPage({ params }: PageProps) {
                   {template && chapterWrapper.visible && (
                     <ChapterWrapperModal
                       template={template}
+                      book={bookUiModel}
                       segments={chapterWrapper.segments}
                       onClose={() => setChapterWrapper(prev => ({ ...prev, visible: false }))}
                       onSave={gameAction.wrapChapter}

@@ -5,12 +5,15 @@ import { Textarea } from '@/components/Textarea';
 import { Checkbox } from '@/components/Checkbox';
 import Modal from '@/components/Modal';
 import _constant from '@/utils/_constant';
-import { StorySegment } from '@/types';
+import { StorySegment, Template } from '@/types';
 import _util from '@/utils/_util';
+import { BookUIModel } from '@/types/extendedTypes';
+import _promptUtil from '@/utils/_promptUtil';
 
 export default function SegmentEnhancerModal(props: {
+  template: Template;
+  book: BookUIModel;
   segment: StorySegment;
-  prevStory: string;
   onClose: () => void;
   onSave: (segment: StorySegment) => void;
 }) {
@@ -19,7 +22,7 @@ export default function SegmentEnhancerModal(props: {
     llmResponse: '',
     userInput: '',
     isLoading: false,
-    includePrevStory: true,
+    includePrevChapters: true,
   });
 
   useEffect(() => {
@@ -36,11 +39,15 @@ export default function SegmentEnhancerModal(props: {
       llmResponse: '',
     }));
 
-    const storyBeforeThisSegment = `${props.prevStory}${_constant.newLine2}`;
-
-    const userInput = `PROMPT:` + _constant.newLine2 + values.userInput.trim();
-
-    const fullUserPrompt = (values.includePrevStory ? (storyBeforeThisSegment + _constant.newLine2) : '') + values.content + _constant.newLine2 + userInput;
+    const fullUserPrompt = _promptUtil.craftBookPrompt(
+      props.template.promptBuilder.enhancer, 
+      props.template, props.book,
+      null, 
+      values.includePrevChapters,
+      {
+        textboxInput: values.userInput.trim(),
+      }
+    );
 
     try {
       const response = await fetch('/api/ai', {
@@ -101,10 +108,10 @@ export default function SegmentEnhancerModal(props: {
     >
       <Checkbox
         className="mb-2"
-        checked={values.includePrevStory}
-        onChange={(e) => setValues(prev => ({ ...prev, includePrevStory: e.target.checked }))}
+        checked={values.includePrevChapters}
+        onChange={(e) => setValues(prev => ({ ...prev, includePrevChapters: e.target.checked }))}
       >
-        Include prev story
+        Include prev chapters
       </Checkbox>
       <Row gutter={8}>
         <Col md={12} sm={24} xs={24}>
