@@ -74,6 +74,8 @@ export default function BookPage({ params }: PageProps) {
 
   const { element: inputPanelElement, getUserInput } = useInputPanel({
     inputTag: template?.prompt.inputTag ?? 'Enter your input here...',
+    template,
+    book: bookUiModel,
   });
 
   const deleteSegment = async (segmentId: string) => {
