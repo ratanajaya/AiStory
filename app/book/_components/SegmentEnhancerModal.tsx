@@ -4,11 +4,12 @@ import { Button } from '@/components/Button';
 import { Textarea } from '@/components/Textarea';
 import { Checkbox } from '@/components/Checkbox';
 import Modal from '@/components/Modal';
-import _constant from '@/utils/_constant';
+import { useAlert } from '@/components/AlertBox';
 import { StorySegment, Template } from '@/types';
-import _util from '@/utils/_util';
 import { BookUIModel } from '@/types/extendedTypes';
 import _promptUtil from '@/utils/_promptUtil';
+import { streamAiRequest, AiStreamError } from '@/lib/aiStreamClient';
+import { formatErrorDetail } from '@/lib/errorClient';
 
 export default function SegmentEnhancerModal(props: {
   template: Template;
@@ -17,6 +18,7 @@ export default function SegmentEnhancerModal(props: {
   onClose: () => void;
   onSave: (segment: StorySegment) => void;
 }) {
+  const { showAlert } = useAlert();
   const [values, setValues] = useState({
     content: '',
     llmResponse: '',
@@ -40,9 +42,9 @@ export default function SegmentEnhancerModal(props: {
     }));
 
     const fullUserPrompt = _promptUtil.craftBookPrompt(
-      props.template.promptBuilder.enhancer, 
+      props.template.promptBuilder.enhancer,
       props.template, props.book,
-      null, 
+      null,
       values.includePrevChapters,
       {
         textboxInput: values.userInput.trim(),
@@ -50,47 +52,23 @@ export default function SegmentEnhancerModal(props: {
     );
 
     try {
-      const response = await fetch('/api/ai', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const cleaned = await streamAiRequest(
+        {
           systemMessage: 'Follow the instruction specified after the PROMPT:',
           messages: [{ role: 'user', content: fullUserPrompt }],
-          stream: true,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to get AI response');
-      }
-
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          const content = decoder.decode(value, { stream: true });
-          setValues(prev => ({
-            ...prev,
-            llmResponse: prev.llmResponse + content,
-          }));
-        }
-      }
-
-      setValues(prev => ({
-        ...prev,
-        llmResponse: _util.cleanupLlmResponse(prev.llmResponse),
-        isLoading: false,
-      }));
-    } catch (error) {
-      console.error('Error during streaming:', error);
-      setValues(prev => ({
-        ...prev,
-        isLoading: false,
-        llmResponse: prev.llmResponse + _constant.newLine2 + 'Error: ' + error,
-      }));
+        },
+        {
+          onChunk: (chunk) => {
+            setValues(prev => ({ ...prev, llmResponse: prev.llmResponse + chunk }));
+          },
+        },
+      );
+      setValues(prev => ({ ...prev, llmResponse: cleaned, isLoading: false }));
+    } catch (err) {
+      const envelope = err instanceof AiStreamError ? err.envelope : undefined;
+      const message = err instanceof Error ? err.message : 'AI request failed';
+      showAlert(message, { type: 'error', detail: formatErrorDetail(envelope) });
+      setValues(prev => ({ ...prev, isLoading: false }));
     }
   }
 

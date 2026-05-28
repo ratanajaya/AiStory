@@ -3,6 +3,7 @@ import dbConnect from '@/lib/mongodb';
 import { TemplateModel } from '@/models';
 import { auth } from '@/auth';
 import _util from '@/utils/_util';
+import { errorResponse, errorResponseFromMessage } from '@/lib/apiError';
 
 export async function GET(
   request: Request,
@@ -14,12 +15,12 @@ export async function GET(
 
     await dbConnect();
     const { id } = await params;
-    const template = await TemplateModel.findOne({ 
-      templateId: id, 
-      ownerEmail 
+    const template = await TemplateModel.findOne({
+      templateId: id,
+      ownerEmail
     });
     if (!template) {
-      return NextResponse.json({ error: 'Template not found' }, { status: 404 });
+      return errorResponseFromMessage('Template not found', 404);
     }
     const templateObj = template.toObject();
     return NextResponse.json({
@@ -27,9 +28,8 @@ export async function GET(
       prompt: _util.normalizePromptConfig(templateObj.prompt),
       promptBuilder: _util.normalizePromptBuilderConfig(templateObj.promptBuilder),
     });
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: 'Failed to fetch template' }, { status: 500 });
+  } catch (err) {
+    return errorResponse(err);
   }
 }
 
@@ -55,12 +55,11 @@ export async function PUT(
       { new: true, runValidators: true }
     );
     if (!template) {
-      return NextResponse.json({ error: 'Template not found' }, { status: 404 });
+      return errorResponseFromMessage('Template not found', 404);
     }
     return NextResponse.json(template);
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: 'Failed to update template' }, { status: 500 });
+  } catch (err) {
+    return errorResponse(err);
   }
 }
 
@@ -74,16 +73,15 @@ export async function DELETE(
 
     await dbConnect();
     const { id } = await params;
-    const template = await TemplateModel.findOneAndDelete({ 
-      templateId: id, 
-      ownerEmail 
+    const template = await TemplateModel.findOneAndDelete({
+      templateId: id,
+      ownerEmail
     });
     if (!template) {
-      return NextResponse.json({ error: 'Template not found' }, { status: 404 });
+      return errorResponseFromMessage('Template not found', 404);
     }
     return NextResponse.json({ message: 'Template deleted successfully' });
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: 'Failed to delete template' }, { status: 500 });
+  } catch (err) {
+    return errorResponse(err);
   }
 }

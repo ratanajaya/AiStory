@@ -1,4 +1,5 @@
 import { getDynamicTtsEndpoint } from '@/lib/ttsEndpointDynamic';
+import { errorResponse, errorResponseFromMessage } from '@/lib/apiError';
 
 export async function POST(request: Request) {
   try {
@@ -6,10 +7,7 @@ export async function POST(request: Request) {
     const input = typeof body?.input === 'string' ? body.input.trim() : '';
 
     if (!input) {
-      return new Response(
-        JSON.stringify({ error: 'input is required' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
+      return errorResponseFromMessage('input is required', 400);
     }
 
     const ttsEndpoint = await getDynamicTtsEndpoint();
@@ -22,11 +20,7 @@ export async function POST(request: Request) {
         'Cache-Control': 'no-store',
       },
     });
-  } catch (error) {
-    console.error('TTS API error:', error);
-    return new Response(
-      JSON.stringify({ error: 'Failed to process TTS request' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
+  } catch (err) {
+    return errorResponse(err);
   }
 }

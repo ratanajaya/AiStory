@@ -3,13 +3,14 @@ import { auth } from "@/auth";
 import dbConnect from "@/lib/mongodb";
 import { UserModel } from "@/models";
 import _util from "@/utils/_util";
+import { errorResponse, errorResponseFromMessage } from "@/lib/apiError";
 
 // GET current user settings
 export async function GET() {
   const session = await auth();
 
   if (!session?.user?.email) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return errorResponseFromMessage("Unauthorized", 401);
   }
 
   try {
@@ -20,19 +21,15 @@ export async function GET() {
     ).lean();
 
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return errorResponseFromMessage("User not found", 404);
     }
 
     return NextResponse.json({
       ...user,
       apiKey: _util.normalizeApiKeyConfig(user.apiKey),
     });
-  } catch (error) {
-    console.error("Error fetching user settings:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch settings" },
-      { status: 500 }
-    );
+  } catch (err) {
+    return errorResponse(err);
   }
 }
 
@@ -41,7 +38,7 @@ export async function PUT(request: Request) {
   const session = await auth();
 
   if (!session?.user?.email) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return errorResponseFromMessage("Unauthorized", 401);
   }
 
   try {
@@ -66,15 +63,11 @@ export async function PUT(request: Request) {
     );
 
     if (result.matchedCount === 0) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return errorResponseFromMessage("User not found", 404);
     }
 
     return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("Error updating user settings:", error);
-    return NextResponse.json(
-      { error: "Failed to update settings" },
-      { status: 500 }
-    );
+  } catch (err) {
+    return errorResponse(err);
   }
 }

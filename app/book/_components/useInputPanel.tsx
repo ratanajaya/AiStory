@@ -1,18 +1,21 @@
 import { Textarea } from "@/components/Textarea";
 import { Button } from "@/components/Button";
+import { useAlert } from "@/components/AlertBox";
 import { useRef, useState } from "react";
 import { Panel } from "react-resizable-panels";
 import { Template } from "@/types";
 import { BookUIModel } from "@/types/extendedTypes";
 import _promptUtil from "@/utils/_promptUtil";
-import _util from "@/utils/_util";
 import _constant from "@/utils/_constant";
+import { streamAiRequest, AiStreamError } from "@/lib/aiStreamClient";
+import { formatErrorDetail } from "@/lib/errorClient";
 
 export default function useInputPanel(props:{
   inputTag: string;
   template: Template | null;
   book: BookUIModel;
 }){
+  const { showAlert } = useAlert();
   // Use refs instead of state to avoid re-renders
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const ideaRef = useRef<HTMLTextAreaElement>(null);
@@ -32,7 +35,11 @@ export default function useInputPanel(props:{
     const ideaText = ideaRef.current?.value?.trim() ?? '';
     const existing = inputRef.current?.value ?? '';
     const separator = existing.length > 0 ? _constant.newLine2 : '';
-    let accumulatedContent = '';
+    const prefix = existing + separator;
+
+    if (inputRef.current) {
+      inputRef.current.value = prefix;
+    }
 
     try {
       // Context message — same shape as the main narration call
@@ -54,42 +61,30 @@ export default function useInputPanel(props:{
         { textboxInput: ideaText },
       );
 
-      const response = await fetch('/api/ai', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const cleaned = await streamAiRequest(
+        {
           systemMessage: null,
           messages: [
             { role: 'user', content: contextMessage },
             { role: 'user', content: instructionMessage },
           ],
-          stream: true,
-        }),
-      });
+        },
+        {
+          onChunk: (chunk) => {
+            if (inputRef.current) {
+              inputRef.current.value = inputRef.current.value + chunk;
+            }
+          },
+        },
+      );
 
-      if (!response.ok || !response.body) {
-        throw new Error('Failed to generate outline');
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        accumulatedContent += chunk;
-        if (inputRef.current) {
-          inputRef.current.value = existing + separator + accumulatedContent;
-        }
-      }
-
-      const cleaned = _util.cleanupLlmResponse(accumulatedContent);
       if (inputRef.current) {
-        inputRef.current.value = existing + separator + cleaned;
+        inputRef.current.value = prefix + cleaned;
       }
-    } catch (error) {
-      console.error('Error during outline generation:', error);
+    } catch (err) {
+      const envelope = err instanceof AiStreamError ? err.envelope : undefined;
+      const message = err instanceof Error ? err.message : 'Outline generation failed';
+      showAlert(message, { type: 'error', detail: formatErrorDetail(envelope) });
     } finally {
       setIsGenerating(false);
     }

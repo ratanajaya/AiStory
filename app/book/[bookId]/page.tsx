@@ -7,6 +7,8 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { Button } from '@/components/Button';
 import { useAlert } from '@/components/AlertBox';
 import _util from '@/utils/_util';
+import { streamAiRequest, AiStreamError } from '@/lib/aiStreamClient';
+import { formatErrorDetail } from '@/lib/errorClient';
 import BookAudioControl from '../_components/BookAudioControl';
 import SegmentDisplay from '../_components/SegmentDisplay';
 import ChapterDisplay from '../_components/ChapterDisplay';
@@ -247,67 +249,47 @@ export default function BookPage({ params }: PageProps) {
       }));
     
       try {
-        const response = await fetch('/api/ai', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+        const finalContent = await streamAiRequest(
+          {
             systemMessage: null,
             messages: [
               { role: 'user', content: userMessage1 },
               { role: 'user', content: userMessage2 },
             ],
-            stream: true,
-          }),
-        });
+          },
+          {
+            onChunk: (chunk) => {
+              setBookUiModel(prev => ({
+                ...prev,
+                storySegments: prev.storySegments.map(msg =>
+                  msg.id === segmentId
+                    ? { ...msg, content: msg.content + chunk }
+                    : msg
+                ),
+              }));
+            },
+          },
+        );
 
-        if (!response.ok) {
-          throw new Error('Failed to get AI response');
-        }
-
-        const reader = response.body?.getReader();
-        const decoder = new TextDecoder();
-        let accumulatedContent = '';
-
-        if (reader) {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            const content = decoder.decode(value, { stream: true });
-            accumulatedContent += content;
-
-            setBookUiModel(prev => ({
-              ...prev,
-              storySegments: prev.storySegments.map(msg => 
-                msg.id === segmentId 
-                  ? { ...msg, content: msg.content+content }
-                  : msg
-              ),
-            }));
-          }
-        }
-  
-        // Stream complete
-        const finalContent = _util.cleanupLlmResponse(accumulatedContent);
         setSbp({
           loading: false,
           text: 'AI response complete',
         });
-  
+
         setBookUiModel(prev => ({
           ...prev,
-          storySegments: prev.storySegments.map(msg => 
-            msg.id === segmentId 
-              ? { 
-                  ...msg,
-                  content: finalContent
-                }
+          storySegments: prev.storySegments.map(msg =>
+            msg.id === segmentId
+              ? { ...msg, content: finalContent }
               : msg
           ),
           segmentIdsToSave: [...prev.segmentIdsToSave, segmentId],
         }));
-        
-      } catch (error) {
-        console.error('Error during streaming:', error);
+
+      } catch (err) {
+        const envelope = err instanceof AiStreamError ? err.envelope : undefined;
+        const message = err instanceof Error ? err.message : 'AI request failed';
+        showAlert(message, { type: 'error', detail: formatErrorDetail(envelope) });
         setSbp({
           loading: false,
           text: 'Error occurred while streaming response',

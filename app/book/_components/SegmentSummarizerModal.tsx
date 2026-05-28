@@ -7,7 +7,10 @@ import { Textarea } from '@/components/Textarea';
 import _constant from '@/utils/_constant';
 import { SegmentSummary, StorySegment, Template } from '@/types';
 import Modal from '@/components/Modal';
+import { useAlert } from '@/components/AlertBox';
 import _promptUtil from '@/utils/_promptUtil';
+import { streamAiRequest, AiStreamError } from '@/lib/aiStreamClient';
+import { formatErrorDetail } from '@/lib/errorClient';
 
 export default function SegmentSummarizerModal(props: {
   template: Template;
@@ -17,6 +20,7 @@ export default function SegmentSummarizerModal(props: {
   onSave: (segmentIds: string[], newSummary: SegmentSummary) => void;
 }) {
   const { template } = props;
+  const { showAlert } = useAlert();
 
   const [values, setValues] = useState({
     content: '',
@@ -42,45 +46,22 @@ export default function SegmentSummarizerModal(props: {
       });
 
     try {
-      const response = await fetch('/api/ai', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const cleaned = await streamAiRequest(
+        {
           messages: [{ role: 'user', content: userMessage }],
-          stream: true,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to get AI response');
-      }
-
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          const content = decoder.decode(value, { stream: true });
-          setValues(prev => ({
-            ...prev,
-            llmResponse: prev.llmResponse + content,
-          }));
-        }
-      }
-
-      setValues(prev => ({
-        ...prev,
-        isLoading: false,
-      }));
-    } catch (error) {
-      console.error('Error during streaming:', error);
-      setValues(prev => ({
-        ...prev,
-        isLoading: false,
-        llmResponse: prev.llmResponse + _constant.newLine2 + 'Error: ' + error,
-      }));
+        },
+        {
+          onChunk: (chunk) => {
+            setValues(prev => ({ ...prev, llmResponse: prev.llmResponse + chunk }));
+          },
+        },
+      );
+      setValues(prev => ({ ...prev, llmResponse: cleaned, isLoading: false }));
+    } catch (err) {
+      const envelope = err instanceof AiStreamError ? err.envelope : undefined;
+      const message = err instanceof Error ? err.message : 'AI request failed';
+      showAlert(message, { type: 'error', detail: formatErrorDetail(envelope) });
+      setValues(prev => ({ ...prev, isLoading: false }));
     }
   }
 
@@ -92,7 +73,7 @@ export default function SegmentSummarizerModal(props: {
       paragraphCount: segmentToSummarizeCount,
     }));
   }, [props.segments]);
-    
+
   return (
     <Modal
       title="Summarize segments"

@@ -4,6 +4,7 @@ import { TemplateModel, KeyValueModel } from '@/models';
 import { DefaultValue, KeyValue, PromptBuilderConfig, PromptConfig } from '@/types';
 import { auth } from '@/auth';
 import _util from '@/utils/_util';
+import { errorResponse, errorResponseFromMessage } from '@/lib/apiError';
 
 function mergePromptWithDefaults(prompt: PromptConfig, defaultPrompt: PromptConfig): PromptConfig {
   return {
@@ -57,7 +58,7 @@ export async function GET(
       ownerEmail 
     });
     if (!template) {
-      return NextResponse.json({ error: 'Template not found' }, { status: 404 });
+      return errorResponseFromMessage('Template not found', 404);
     }
 
     // Fetch default values and merge prompts
@@ -79,8 +80,7 @@ export async function GET(
     }
 
     return NextResponse.json(template);
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: 'Failed to fetch template' }, { status: 500 });
+  } catch (err) {
+    return errorResponse(err);
   }
 }

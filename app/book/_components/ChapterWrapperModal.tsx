@@ -10,6 +10,8 @@ import Modal from '@/components/Modal';
 import { useAlert } from '@/components/AlertBox';
 import _promptUtil from '@/utils/_promptUtil';
 import { BookUIModel } from '@/types/extendedTypes';
+import { streamAiRequest, AiStreamError } from '@/lib/aiStreamClient';
+import { formatErrorDetail } from '@/lib/errorClient';
 
 export default function ChapterWrapperModal(props: {
   template: Template;
@@ -26,7 +28,7 @@ export default function ChapterWrapperModal(props: {
     userInput: '',
     summaryLoading: false,
   });
-  
+
   const { showAlert } = useAlert();
 
   async function handleGenerateSummary() {
@@ -39,49 +41,23 @@ export default function ChapterWrapperModal(props: {
     const userMessage = _promptUtil.craftBookPrompt(template.promptBuilder.chapterSummarizer, template, book, null, true);
 
     try {
-      const response = await fetch('/api/ai', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const cleaned = await streamAiRequest(
+        {
           systemMessage: null,
-          messages: [
-            { role: 'user', content: userMessage }
-          ],
-          stream: true,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to get AI response');
-      }
-
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          const content = decoder.decode(value, { stream: true });
-          setValues(prev => ({
-            ...prev,
-            summary: prev.summary + content,
-          }));
-        }
-      }
-
-      setValues(prev => ({
-        ...prev,
-        summary: _util.cleanupLlmResponse(prev.summary),
-        summaryLoading: false,
-      }));
-    } catch (error) {
-      console.error('Error during streaming:', error);
-      setValues(prev => ({
-        ...prev,
-        summaryLoading: false,
-        summary: prev.summary + _constant.newLine2 + 'Error: ' + error,
-      }));
+          messages: [{ role: 'user', content: userMessage }],
+        },
+        {
+          onChunk: (chunk) => {
+            setValues(prev => ({ ...prev, summary: prev.summary + chunk }));
+          },
+        },
+      );
+      setValues(prev => ({ ...prev, summary: cleaned, summaryLoading: false }));
+    } catch (err) {
+      const envelope = err instanceof AiStreamError ? err.envelope : undefined;
+      const message = err instanceof Error ? err.message : 'AI request failed';
+      showAlert(message, { type: 'error', detail: formatErrorDetail(envelope) });
+      setValues(prev => ({ ...prev, summaryLoading: false }));
     }
   }
 
@@ -91,7 +67,7 @@ export default function ChapterWrapperModal(props: {
       content: props.segments.filter(s => s.role === 'assistant').map(s => s.content).join(_constant.newLine2),
     }));
   }, [props.segments]);
-    
+
   return (
     <Modal
       title="Wrap-Up Chapter"
