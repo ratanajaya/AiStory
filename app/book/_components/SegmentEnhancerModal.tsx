@@ -5,20 +5,35 @@ import { Textarea } from '@/components/Textarea';
 import { Checkbox } from '@/components/Checkbox';
 import Modal from '@/components/Modal';
 import { useAlert } from '@/components/AlertBox';
-import { StorySegment, Template } from '@/types';
+import { StorySegment, StorySegmentCandidate, Template } from '@/types';
 import { BookUIModel } from '@/types/extendedTypes';
 import _promptUtil from '@/utils/_promptUtil';
 import { streamAiRequest, AiStreamError } from '@/lib/aiStreamClient';
 import { formatErrorDetail } from '@/lib/errorClient';
 
-export default function SegmentEnhancerModal(props: {
+type SegmentEnhancerModalProps = {
   template: Template;
   book: BookUIModel;
-  segment: StorySegment;
   onClose: () => void;
+} & ({
+  segment: StorySegment;
+  candidate?: undefined;
+  candidateContentIndex?: never;
   onSave: (segment: StorySegment) => void;
-}) {
+  onSaveCandidate?: never;
+} | {
+  segment?: undefined;
+  candidate: StorySegmentCandidate;
+  candidateContentIndex: number;
+  onSave?: never;
+  onSaveCandidate: (content: string) => void;
+});
+
+export default function SegmentEnhancerModal(props: SegmentEnhancerModalProps) {
   const { showAlert } = useAlert();
+  const selectedCandidateContent = props.candidate
+    ? props.candidate.contents[props.candidateContentIndex] ?? ''
+    : '';
   const [values, setValues] = useState({
     content: '',
     llmResponse: '',
@@ -28,11 +43,14 @@ export default function SegmentEnhancerModal(props: {
   });
 
   useEffect(() => {
-    setValues(prev => ({
-      ...prev,
-      content: props.segment.content,
-    }));
-  }, [props.segment]);
+    setValues({
+      content: props.segment?.content ?? selectedCandidateContent,
+      llmResponse: '',
+      userInput: '',
+      isLoading: false,
+      includePrevChapters: true,
+    });
+  }, [props.segment, selectedCandidateContent]);
 
   async function handleSubmit() {
     setValues(prev => ({
@@ -41,9 +59,24 @@ export default function SegmentEnhancerModal(props: {
       llmResponse: '',
     }));
 
+    const promptBook = props.candidate
+      ? {
+          ...props.book,
+          storySegments: [
+            ...props.book.storySegments,
+            {
+              id: props.candidate.id,
+              day: 0,
+              role: 'assistant',
+              content: values.content,
+            },
+          ],
+        }
+      : props.book;
+
     const fullUserPrompt = _promptUtil.craftBookPrompt(
       props.template.promptBuilder.enhancer,
-      props.template, props.book,
+      props.template, promptBook,
       null,
       values.includePrevChapters,
       {
@@ -77,10 +110,19 @@ export default function SegmentEnhancerModal(props: {
       title="Enhance this segment"
       centered
       open={true}
-      onOk={() => props.onSave({
-        ...props.segment,
-        content: values.content
-      })}
+      onOk={() => {
+        if (props.candidate) {
+          props.onSaveCandidate(values.content);
+          return;
+        }
+
+        if (props.segment) {
+          props.onSave({
+            ...props.segment,
+            content: values.content,
+          });
+        }
+      }}
       onCancel={() => props.onClose()}
       width={800}
     >
@@ -130,5 +172,5 @@ export default function SegmentEnhancerModal(props: {
         </Col>
       </Row>
     </Modal>
-  )
+  );
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, use } from 'react';
-import { Book, Chapter, SegmentSummary, StorySegment, Template } from '@/types';
+import { Book, Chapter, SegmentSummary, StorySegment, StorySegmentCandidate, Template } from '@/types';
 import { useFetcher } from '@/components/FetcherProvider';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { Button } from '@/components/Button';
@@ -22,10 +22,15 @@ import BookNameEditor from '../_components/BookNameEditor';
 import _constant from '@/utils/_constant';
 import { BookUIModel } from '@/types/extendedTypes';
 import _promptUtil from '@/utils/_promptUtil';
+import SegmentCandidateDisplay from '@/app/book/_components/SegmentCandidateDisplay';
 
 interface PageProps {
   params: Promise<{ bookId: string }>;
 }
+
+const replaceCandidateContent = (contents: string[], contentIndex: number, nextContent: string) => {
+  return contents.map((content, index) => index === contentIndex ? nextContent : content);
+};
 
 const emptyBookModel: BookUIModel = {
   bookId: '',
@@ -52,11 +57,13 @@ export default function BookPage({ params }: PageProps) {
     loading: false,
     text: '',
   });
+  const [segmentCandidate, setSegmentCandidate] = useState<StorySegmentCandidate | null>(null);
 
   const [enhancer, setEnhancer] = useState({
     visible: false,
-    segment: null as StorySegment | null,
-    prevStory: '',
+    mode: null as 'segment' | 'candidate' | null,
+    segmentId: null as string | null,
+    candidateContentIndex: 0,
   });
 
   const [summarizer, setSummarizer] = useState({
@@ -205,7 +212,15 @@ export default function BookPage({ params }: PageProps) {
   }, [bookUiModel, bookId, fetcher, showAlert]);
 
   const bookAction = {
-    _applyNarration: async (userSegmentContent: string, idLimitExclusive: string | null) => {
+    _streamSegmentCandidate: async (options: {
+      promptBook: BookUIModel;
+      userSegmentContent: string;
+      userSegmentId: string;
+      idLimitExclusive: string | null;
+      appendToExisting: boolean;
+      candidateId?: string;
+      contentIndex?: number;
+    }) => {
       if(!template) {
         console.error('Template not loaded');
         return;
@@ -216,38 +231,50 @@ export default function BookPage({ params }: PageProps) {
         text: 'Making call to LLM api...',
       });
 
-      // Context for the AI
-      const userMessage1 = _promptUtil.craftBookPrompt(template.promptBuilder.narration1, template, bookUiModel, idLimitExclusive, true);
+      const userMessage1 = _promptUtil.craftBookPrompt(
+        template.promptBuilder.narration1,
+        template,
+        options.promptBook,
+        options.idLimitExclusive,
+        true,
+      );
 
-      // Instructions to the AI on how to respond
-      const userMessage2 = _promptUtil.craftBookPrompt(template.promptBuilder.narration2, template, bookUiModel, idLimitExclusive, true,{
-        textboxInput: userSegmentContent,
-      });
-  
-      const userSegment: StorySegment = {
-        id: new Date().getTime().toString(),
-        day: 0, // Legacy, not used
-        content: userSegmentContent,
-        role: 'user',
-      };
-      setBookUiModel(prev => ({
-        ...prev,
-        storySegments: [...prev.storySegments, userSegment],
-        segmentIdsToSave: [...prev.segmentIdsToSave, userSegment.id],
-      }));
-      
-      await new Promise(r => setTimeout(r, 50));
-      // Add a placeholder for the streaming response
-      const segmentId = new Date().getTime().toString();
-      setBookUiModel(prev => ({
-        ...prev,
-        storySegments: [...prev.storySegments, {
-          id: segmentId,
-          day: 0, // Legacy, not used
-          content: '',
-          role: 'assistant',
-        }],
-      }));
+      const userMessage2 = _promptUtil.craftBookPrompt(
+        template.promptBuilder.narration2,
+        template,
+        options.promptBook,
+        options.idLimitExclusive,
+        true,
+        {
+          textboxInput: options.userSegmentContent,
+        },
+      );
+
+      const candidateId = options.candidateId ?? new Date().getTime().toString();
+      const contentIndex = options.appendToExisting ? options.contentIndex ?? 0 : 0;
+
+      if (options.appendToExisting) {
+        setSegmentCandidate(prev => {
+          if (!prev || prev.id !== candidateId) {
+            return prev;
+          }
+
+          return {
+            ...prev,
+            contents: [...prev.contents, ''],
+            selectedContentIndex: contentIndex,
+            isLoading: true,
+          };
+        });
+      } else {
+        setSegmentCandidate({
+          id: candidateId,
+          userSegmentId: options.userSegmentId,
+          contents: [''],
+          selectedContentIndex: 0,
+          isLoading: true,
+        });
+      }
     
       try {
         const finalContent = await streamAiRequest(
@@ -260,14 +287,18 @@ export default function BookPage({ params }: PageProps) {
           },
           {
             onChunk: (chunk) => {
-              setBookUiModel(prev => ({
-                ...prev,
-                storySegments: prev.storySegments.map(msg =>
-                  msg.id === segmentId
-                    ? { ...msg, content: msg.content + chunk }
-                    : msg
-                ),
-              }));
+              setSegmentCandidate(prev => {
+                if (!prev || prev.id !== candidateId) {
+                  return prev;
+                }
+
+                const currentContent = prev.contents[contentIndex] ?? '';
+
+                return {
+                  ...prev,
+                  contents: replaceCandidateContent(prev.contents, contentIndex, currentContent + chunk),
+                };
+              });
             },
           },
         );
@@ -277,15 +308,18 @@ export default function BookPage({ params }: PageProps) {
           text: 'AI response complete',
         });
 
-        setBookUiModel(prev => ({
-          ...prev,
-          storySegments: prev.storySegments.map(msg =>
-            msg.id === segmentId
-              ? { ...msg, content: finalContent }
-              : msg
-          ),
-          segmentIdsToSave: [...prev.segmentIdsToSave, segmentId],
-        }));
+        setSegmentCandidate(prev => {
+          if (!prev || prev.id !== candidateId) {
+            return prev;
+          }
+
+          return {
+            ...prev,
+            contents: replaceCandidateContent(prev.contents, contentIndex, finalContent),
+            selectedContentIndex: contentIndex,
+            isLoading: false,
+          };
+        });
 
       } catch (err) {
         const envelope = err instanceof AiStreamError ? err.envelope : undefined;
@@ -295,9 +329,117 @@ export default function BookPage({ params }: PageProps) {
           loading: false,
           text: 'Error occurred while streaming response',
         });
+
+        setSegmentCandidate(prev => {
+          if (!prev || prev.id !== candidateId) {
+            return prev;
+          }
+
+          const currentContent = prev.contents[contentIndex] ?? '';
+          if (!_util.isNullOrWhitespace(currentContent)) {
+            return {
+              ...prev,
+              isLoading: false,
+              selectedContentIndex: contentIndex,
+            };
+          }
+
+          const nextContents = prev.contents.filter((_, index) => index !== contentIndex);
+          if (nextContents.length === 0) {
+            return null;
+          }
+
+          return {
+            ...prev,
+            contents: nextContents,
+            selectedContentIndex: Math.min(prev.selectedContentIndex, nextContents.length - 1),
+            isLoading: false,
+          };
+        });
       }
     },
+    _applyNarration: async (userSegmentContent: string, idLimitExclusive: string | null) => {
+      if(!template) {
+        console.error('Template not loaded');
+        return;
+      }
+
+      const promptBook = bookUiModel;
+      const userSegment: StorySegment = {
+        id: new Date().getTime().toString(),
+        day: 0,
+        content: userSegmentContent,
+        role: 'user',
+      };
+
+      setBookUiModel(prev => ({
+        ...prev,
+        storySegments: [...prev.storySegments, userSegment],
+        segmentIdsToSave: [...prev.segmentIdsToSave, userSegment.id],
+      }));
+
+      await bookAction._streamSegmentCandidate({
+        promptBook,
+        userSegmentContent,
+        userSegmentId: userSegment.id,
+        idLimitExclusive,
+        appendToExisting: false,
+      });
+    },
+    retrySegmentCandidate: async () => {
+      if (!segmentCandidate) {
+        return;
+      }
+
+      const sourceUserSegment = bookUiModel.storySegments.find(seg => seg.id === segmentCandidate.userSegmentId);
+      if (!sourceUserSegment || sourceUserSegment.role !== 'user') {
+        showAlert('Source user segment not found for this candidate');
+        return;
+      }
+
+      await bookAction._streamSegmentCandidate({
+        promptBook: bookUiModel,
+        userSegmentContent: sourceUserSegment.content,
+        userSegmentId: sourceUserSegment.id,
+        idLimitExclusive: null,
+        appendToExisting: true,
+        candidateId: segmentCandidate.id,
+        contentIndex: segmentCandidate.contents.length,
+      });
+    },
+    acceptSegmentCandidate: () => {
+      if (!segmentCandidate) {
+        return;
+      }
+
+      const content = segmentCandidate.contents[segmentCandidate.selectedContentIndex] ?? '';
+      if (_util.isNullOrWhitespace(content)) {
+        showAlert('Candidate response is empty');
+        return;
+      }
+
+      const assistantSegment: StorySegment = {
+        id: new Date().getTime().toString(),
+        day: 0,
+        content,
+        role: 'assistant',
+      };
+
+      setBookUiModel(prev => ({
+        ...prev,
+        storySegments: [...prev.storySegments, assistantSegment],
+        segmentIdsToSave: [...prev.segmentIdsToSave, assistantSegment.id],
+      }));
+      setSegmentCandidate(null);
+    },
+    rejectSegmentCandidate: () => {
+      setSegmentCandidate(null);
+    },
     narration: async () => {
+      if (segmentCandidate) {
+        return;
+      }
+
       const userInput = getUserInput();
       
       const inputSegment = `${_util.conditionalString(userInput.input1, template?.prompt.inputTag + _constant.newLine + userInput.input1)}`;
@@ -417,8 +559,37 @@ export default function BookPage({ params }: PageProps) {
         chapters: prev.chapters.map(c => c.id === updatedChapter.id ? updatedChapter : c),
         shouldSave: true,
       }));
-    }
-  }
+    },
+    selectCandidateContent: (contentIndex: number) => {
+      setSegmentCandidate(prev => {
+        if (!prev || contentIndex < 0 || contentIndex >= prev.contents.length) {
+          return prev;
+        }
+
+        return {
+          ...prev,
+          selectedContentIndex: contentIndex,
+        };
+      });
+    },
+    updateCandidateContent: (contentIndex: number, content: string) => {
+      setSegmentCandidate(prev => {
+        if (!prev || contentIndex < 0 || contentIndex >= prev.contents.length) {
+          return prev;
+        }
+
+        return {
+          ...prev,
+          contents: replaceCandidateContent(prev.contents, contentIndex, content),
+          selectedContentIndex: contentIndex,
+        };
+      });
+    },
+  };
+
+  const enhancerSegment = enhancer.segmentId
+    ? bookUiModel.storySegments.find(segment => segment.id === enhancer.segmentId) ?? null
+    : null;
 
   if (loading) {
     return <div className="p-8">Loading book...</div>;
@@ -428,7 +599,8 @@ export default function BookPage({ params }: PageProps) {
     return <div className="p-8">Book not found</div>;
   }
 
-  const disableAction = loading; 
+  const disableStoryAction = loading || segmentCandidate !== null;
+  const disableCandidateAction = loading || (segmentCandidate?.isLoading ?? false);
 
   return (
     <div className="h-screen bg-background">
@@ -455,6 +627,7 @@ export default function BookPage({ params }: PageProps) {
                   {bookUiModel.storySegments.some(seg => seg.toSummarize) && (
                   <div className='absolute top-2 left-1/2 z-10 -translate-x-1/2'>
                     <Button variant='primary'
+                      disabled={disableStoryAction}
                       onClick={() => {
                         const assistantSegments = bookUiModel.storySegments.filter(s => s.role === 'assistant');
                         const segmentsToSummarize = assistantSegments.filter(s => s.toSummarize);
@@ -529,31 +702,85 @@ export default function BookPage({ params }: PageProps) {
                                 onEnhanceClick={(chat) => {
                                   setEnhancer({
                                     visible: true,
-                                    segment: chat,
-                                    prevStory: _util.getStorySegmentAsString(segmentsWithoutChapter, bookUiModel.segmentSummaries, chat.id),
+                                    mode: 'segment',
+                                    segmentId: chat.id,
+                                    candidateContentIndex: 0,
                                   });
                                 }}
                                 onWrapChapter={uiAction.openChapterWrapper}
                                 onRedoNarration={bookAction.redoNarration}
                                 isLastMessage={index === segmentsWithoutChapter.length - 1}
-                                disabled={disableAction}
+                                disabled={disableStoryAction}
                               />
                             );
                           })}
+
+                          {segmentCandidate && (
+                            <SegmentCandidateDisplay
+                              candidate={segmentCandidate}
+                              onSelectContent={uiAction.selectCandidateContent}
+                              onUpdateContent={uiAction.updateCandidateContent}
+                              onTryAgain={bookAction.retrySegmentCandidate}
+                              onEnhanceClick={(_candidate: StorySegmentCandidate, contentIndex: number) => {
+                                setEnhancer({
+                                  visible: true,
+                                  mode: 'candidate',
+                                  segmentId: null,
+                                  candidateContentIndex: contentIndex,
+                                });
+                              }}
+                              onAccept={bookAction.acceptSegmentCandidate}
+                              onReject={bookAction.rejectSegmentCandidate}
+                              disabled={disableCandidateAction}
+                            />
+                          )}
                         </>
                       );
                     })()}
                   </div>
                   
-                  {template && enhancer.visible && enhancer.segment && (
+                  {template && enhancer.visible && enhancer.mode === 'segment' && enhancerSegment && (
                     <SegmentEnhancerModal
                       template={template}
                       book={bookUiModel}
-                      segment={enhancer.segment}
-                      onClose={() => setEnhancer(prev => ({ ...prev, visible: false }))}
+                      segment={enhancerSegment}
+                      onClose={() => setEnhancer({
+                        visible: false,
+                        mode: null,
+                        segmentId: null,
+                        candidateContentIndex: 0,
+                      })}
                       onSave={(segment) => {
-                        setEnhancer(prev => ({ ...prev, visible: false }));
+                        setEnhancer({
+                          visible: false,
+                          mode: null,
+                          segmentId: null,
+                          candidateContentIndex: 0,
+                        });
                         uiAction.updateStorySegment(segment, true);
+                      }}
+                    />
+                  )}
+                  {template && enhancer.visible && enhancer.mode === 'candidate' && segmentCandidate && (
+                    <SegmentEnhancerModal
+                      template={template}
+                      book={bookUiModel}
+                      candidate={segmentCandidate}
+                      candidateContentIndex={enhancer.candidateContentIndex}
+                      onClose={() => setEnhancer({
+                        visible: false,
+                        mode: null,
+                        segmentId: null,
+                        candidateContentIndex: 0,
+                      })}
+                      onSaveCandidate={(content) => {
+                        uiAction.updateCandidateContent(enhancer.candidateContentIndex, content);
+                        setEnhancer({
+                          visible: false,
+                          mode: null,
+                          segmentId: null,
+                          candidateContentIndex: 0,
+                        });
                       }}
                     />
                   )}
@@ -584,7 +811,7 @@ export default function BookPage({ params }: PageProps) {
               <Button
                 className='h-7 w-full'
                 onClick={bookAction.narration}
-                disabled={disableAction}
+                disabled={disableStoryAction}
               >
                 SEND
               </Button>
@@ -594,7 +821,7 @@ export default function BookPage({ params }: PageProps) {
         <BookAudioControl
           segments={bookUiModel.storySegments}
           chapters={bookUiModel.chapters}
-          disabled={disableAction}
+          disabled={loading}
         />
         {debugPanel.element}
       </div>

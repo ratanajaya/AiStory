@@ -9,6 +9,14 @@ export interface StorySegment {
   chapterId?: string;
 }
 
+export interface StorySegmentCandidate {
+  id: string;
+  userSegmentId: string;
+  contents: string[];
+  selectedContentIndex: number;
+  isLoading: boolean;
+}
+
 export interface SegmentSummary {
   id: string;
   content: string;
