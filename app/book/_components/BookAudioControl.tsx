@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAlert } from "@/components/AlertBox";
+import { useUiState } from "@/components/UiStateProvider";
 import { ensureSegmentAudioBlob, formatAudioTime } from "@/lib/ttsAudioClient";
 import {
   AudioPlaybackStatus,
@@ -25,7 +26,7 @@ export default function BookAudioControl(props: {
   disabled?: boolean;
 }) {
   const { showAlert } = useAlert();
-  const [isHidden, setIsHidden] = useState(false);
+  const { uiState, setBookAudioHidden } = useUiState();
   const [isQueueActive, setIsQueueActive] = useState(false);
   const [isPreparingSegment, setIsPreparingSegment] = useState(false);
   const [currentQueueIndex, setCurrentQueueIndex] = useState<number | null>(null);
@@ -245,11 +246,11 @@ export default function BookAudioControl(props: {
     }
   };
 
-  if (isHidden) {
+  if (uiState.bookAudioHidden) {
     return (
       <button
         type="button"
-        onClick={() => setIsHidden(false)}
+        onClick={() => setBookAudioHidden(false)}
         className="fixed bottom-4 right-4 z-20 rounded-md border border-border bg-card p-2 text-foreground transition-all hover:brightness-125 cursor-pointer"
       >
         <svg
@@ -279,7 +280,7 @@ export default function BookAudioControl(props: {
           <span>Book Audio</span>
           <button
             type="button"
-            onClick={() => setIsHidden(true)}
+            onClick={() => setBookAudioHidden(true)}
             className="rounded p-1 hover:bg-muted"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">

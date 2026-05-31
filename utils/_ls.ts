@@ -1,47 +1,86 @@
-const cache = {};
+const cache: Record<string, unknown> = {};
+
+const canUseLocalStorage = () => {
+  return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
+};
+
+const hasCachedValue = (key: string) => {
+  return Object.prototype.hasOwnProperty.call(cache, key);
+};
+
+const keys = {
+  uiState: "ai-story:ui-state",
+};
 
 const _ls = {
+  keys,
   getAllKeys: () => {
-    return Object.keys(localStorage);
+    if (!canUseLocalStorage()) {
+      return [];
+    }
+
+    return Object.keys(window.localStorage);
   },
 
   load: <T>(key: string) => {
+    if (!canUseLocalStorage()) {
+      return undefined;
+    }
+
     try {
-      const serializedValue = localStorage.getItem(key);
+      const serializedValue = window.localStorage.getItem(key);
       if (serializedValue === null) {
         return undefined;
       }
+
       return JSON.parse(serializedValue) as T;
-    } catch (err) {
+    } catch {
       return undefined;
     }
   },
 
   loadWithCache: <T>(key: string) => {
-    const keyIdx = key as keyof typeof cache;
-    if(cache[keyIdx])
-      return cache[keyIdx];
+    if (hasCachedValue(key)) {
+      return cache[key] as T | undefined;
+    }
 
-    //@ts-ignore
-    cache[keyIdx] = _ls.load<T>(key);
+    const value = _ls.load<T>(key);
+    cache[key] = value;
 
-    return cache[keyIdx];
+    return value;
   },
+
   remove: (key: string) => {
-    localStorage.removeItem(key);
+    delete cache[key];
+
+    if (!canUseLocalStorage()) {
+      return;
+    }
+
+    window.localStorage.removeItem(key);
   },
   
   set: (key: string, value: any) => {
-    const serializedValue = JSON.stringify(value);
-    localStorage.setItem(key, serializedValue);
+    delete cache[key];
 
-    const keyIdx = key as keyof typeof cache;
-    //@ts-ignore
-    cache[keyIdx] = null;
+    if (!canUseLocalStorage()) {
+      return;
+    }
+
+    const serializedValue = JSON.stringify(value);
+    window.localStorage.setItem(key, serializedValue);
   },
 
   clear: () => {
-    localStorage.clear();
+    Object.keys(cache).forEach((key) => {
+      delete cache[key];
+    });
+
+    if (!canUseLocalStorage()) {
+      return;
+    }
+
+    window.localStorage.clear();
   }
 }
 

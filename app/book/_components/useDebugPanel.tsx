@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Markdown from 'react-markdown';
+import { useUiState } from '@/components/UiStateProvider';
 import _constant from '@/utils/_constant';
 import { DebugLog } from '@/types';
 import _util from '@/utils/_util';
@@ -17,10 +18,10 @@ type DebugPanelProps = {
 
 export default function useDebugPanel({ book }: DebugPanelProps) {
   const [debugLogs, setDebugLogs] = useState<DebugLog[]>([]);
-  const [isOpen, setIsOpen] = useState(false);
   const [storyDownloads, setStoryDownloads] = useState<StoryDownload[]>([]);
   const panelRef = useRef<HTMLDivElement>(null);
   const storyDownloadsRef = useRef<StoryDownload[]>([]);
+  const { uiState, setDebugPanelOpen } = useUiState();
 
   useEffect(() => {
     storyDownloadsRef.current = storyDownloads;
@@ -33,19 +34,19 @@ export default function useDebugPanel({ book }: DebugPanelProps) {
   }, []);
 
   useEffect(() => {
-    if (!isOpen) {
+    if (!uiState.debugPanelOpen) {
       return;
     }
 
     const handleClickOutside = (event: MouseEvent) => {
       if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
+        setDebugPanelOpen(false);
       }
     };
 
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        setIsOpen(false);
+        setDebugPanelOpen(false);
       }
     };
 
@@ -56,7 +57,7 @@ export default function useDebugPanel({ book }: DebugPanelProps) {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleEscape);
     };
-  }, [isOpen]);
+  }, [setDebugPanelOpen, uiState.debugPanelOpen]);
 
   function addDebugLog(content: string, type?: 'info' | 'warning' | 'error') {
     const id = new Date().getTime().toString();
@@ -94,10 +95,10 @@ export default function useDebugPanel({ book }: DebugPanelProps) {
     <>
       <button
         type='button'
-        onClick={() => setIsOpen(prev => !prev)}
+        onClick={() => setDebugPanelOpen(!uiState.debugPanelOpen)}
         className='fixed right-4 bottom-16 z-30 rounded-md border border-border bg-card p-2 text-foreground transition-all hover:brightness-125 cursor-pointer'
         aria-label='Toggle debug panel'
-        aria-expanded={isOpen}
+        aria-expanded={uiState.debugPanelOpen}
         title='Debug panel'
       >
         <svg
@@ -121,21 +122,21 @@ export default function useDebugPanel({ book }: DebugPanelProps) {
         </svg>
       </button>
 
-      {isOpen && (
+      {uiState.debugPanelOpen && (
         <div className='fixed inset-0 z-40 bg-black/50 transition-opacity' />
       )}
 
       <div
         ref={panelRef}
         className={`fixed top-0 right-0 z-50 flex h-full w-80 transform flex-col border-l border-border bg-card transition-transform duration-300 ease-in-out ${
-          isOpen ? 'translate-x-0' : 'translate-x-full'
+          uiState.debugPanelOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
         <div className='flex items-center justify-between border-b border-border p-4'>
           <h2 className='text-lg font-bold text-secondary'>Debug Panel</h2>
           <button
             type='button'
-            onClick={() => setIsOpen(false)}
+            onClick={() => setDebugPanelOpen(false)}
             className='rounded p-1 transition-colors hover:bg-muted'
             aria-label='Close debug panel'
           >

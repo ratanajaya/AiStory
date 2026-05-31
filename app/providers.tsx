@@ -2,6 +2,7 @@
 
 import { AlertProvider } from '@/components/AlertBox';
 import { FetcherProvider } from '@/components/FetcherProvider';
+import { UiStateProvider } from '@/components/UiStateProvider';
 import { SessionProvider } from 'next-auth/react';
 
 import { ConfigProvider, theme } from 'antd'
@@ -23,7 +24,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
         }}
       >
         <AlertProvider>
-          <FetcherProvider>{children}</FetcherProvider>
+          <FetcherProvider>
+            <UiStateProvider>{children}</UiStateProvider>
+          </FetcherProvider>
         </AlertProvider>
       </ConfigProvider>
     </SessionProvider>

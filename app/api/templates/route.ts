@@ -4,6 +4,7 @@ import dbConnect from '@/lib/mongodb';
 import { TemplateModel } from '@/models';
 import { auth } from '@/auth';
 import _util from '@/utils/_util';
+import { errorResponse } from '@/lib/apiError';
 
 export async function GET() {
   try {
@@ -13,9 +14,8 @@ export async function GET() {
     await dbConnect();
     const templates = await TemplateModel.find({ ownerEmail });
     return NextResponse.json(templates);
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: 'Failed to fetch templates' }, { status: 500 });
+  } catch (err) {
+    return errorResponse(err);
   }
 }
 
@@ -32,14 +32,13 @@ export async function POST(request: Request) {
       prompt: _util.normalizePromptConfig(body.prompt),
       promptBuilder: _util.normalizePromptBuilderConfig(body.promptBuilder),
     };
-    const template = await TemplateModel.create({ 
+    const template = await TemplateModel.create({
       ...normalizedBody,
       templateId,
-      ownerEmail 
+      ownerEmail
     });
     return NextResponse.json(template, { status: 201 });
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: 'Failed to create template' }, { status: 500 });
+  } catch (err) {
+    return errorResponse(err);
   }
 }

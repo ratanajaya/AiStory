@@ -4,6 +4,7 @@ import { KeyValueModel } from '@/models';
 import { DefaultValue } from '@/types';
 import _constant from '@/utils/_constant';
 import _util from '@/utils/_util';
+import { errorResponse } from '@/lib/apiError';
 
 const DEFAULT_KEY = 'defaultValue';
 
@@ -11,7 +12,7 @@ export async function GET() {
   try {
     await dbConnect();
     const doc = await KeyValueModel.findOne({ key: DEFAULT_KEY });
-    
+
     if (!doc) {
       // This should never happen in practice, but keep a safe fallback for unset data.
       const emptyDefaultValue: DefaultValue = {
@@ -24,7 +25,7 @@ export async function GET() {
     }
 
     const value = doc.value as DefaultValue;
-    
+
     return NextResponse.json({
       ...value,
       prompt: _util.normalizePromptConfig(value.prompt),
@@ -35,9 +36,8 @@ export async function GET() {
         model: value.selectedLlm?.model || _constant.defaultSelectedLlm.model,
       },
     } satisfies DefaultValue);
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: 'Failed to fetch settings' }, { status: 500 });
+  } catch (err) {
+    return errorResponse(err);
   }
 }
 
@@ -54,16 +54,15 @@ export async function PUT(request: Request) {
         model: body.selectedLlm?.model || _constant.defaultSelectedLlm.model,
       },
     };
-    
+
     const doc = await KeyValueModel.findOneAndUpdate(
       { key: DEFAULT_KEY },
       { key: DEFAULT_KEY, value: normalizedValue },
       { upsert: true, new: true }
     );
-    
+
     return NextResponse.json(doc.value as DefaultValue);
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: 'Failed to update settings' }, { status: 500 });
+  } catch (err) {
+    return errorResponse(err);
   }
 }

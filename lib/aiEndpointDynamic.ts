@@ -13,22 +13,21 @@ export interface AiEndpoint {
 
 const createAiSdkEndpoint = (model: LanguageModel): AiEndpoint => ({
   chatCompletionFull: async (systemMsg: string | null, messages: any[]) => {
-    try {
-      const systemPrompt: ModelMessage[] = systemMsg ? [{ role: 'system', content: systemMsg }] : [];
-      
-      const { text } = await generateText({
-        model,
-        messages: [
-          ...systemPrompt,
-          ...messages,
-        ] as ModelMessage[],
-      });
+    const systemPrompt: ModelMessage[] = systemMsg ? [{ role: 'system', content: systemMsg }] : [];
 
-      return text;
-    } catch (error) {
-       console.error('Error getting chat completion:', error);
-       return 'Error: Failed to get response from AI service.';
+    const { text } = await generateText({
+      model,
+      messages: [
+        ...systemPrompt,
+        ...messages,
+      ] as ModelMessage[],
+    });
+
+    if (!text || !text.trim()) {
+      throw new Error('LLM returned no content (empty response)');
     }
+
+    return text;
   },
   chatCompletion: async (systemMsg: string | null, userMsg: string) => {
     return createAiSdkEndpoint(model).chatCompletionFull(systemMsg, [
@@ -36,22 +35,32 @@ const createAiSdkEndpoint = (model: LanguageModel): AiEndpoint => ({
     ]);
   },
   chatStreamFull: async (systemMsg: string | null, messages: any[], onReceiveChunk: (content: string) => void) => {
-    try {
-        const systemPrompt: ModelMessage[] = systemMsg ? [{ role: 'system', content: systemMsg }] : [];
-        const result = streamText({
-            model,
-            messages: [
-                ...systemPrompt,
-                ...messages,
-            ] as ModelMessage[],
-        });
+    const systemPrompt: ModelMessage[] = systemMsg ? [{ role: 'system', content: systemMsg }] : [];
 
-        for await (const textPart of result.textStream) {
-            onReceiveChunk(textPart);
-        }
-    } catch (error) {
-        onReceiveChunk('Error: Failed to get response from AI service.');
-        console.error('Error streaming chat:', error);
+    let streamError: unknown = null;
+    const result = streamText({
+      model,
+      messages: [
+        ...systemPrompt,
+        ...messages,
+      ] as ModelMessage[],
+      onError: ({ error }) => {
+        streamError = error;
+      },
+    });
+
+    let chunksReceived = 0;
+    for await (const textPart of result.textStream) {
+      chunksReceived++;
+      onReceiveChunk(textPart);
+    }
+
+    if (streamError) {
+      throw streamError;
+    }
+
+    if (chunksReceived === 0) {
+      throw new Error('LLM returned no content (empty stream)');
     }
   },
   chatStream: async (systemMsg: string | null, userMsg: string, onReceiveChunk: (content: string) => void) => {

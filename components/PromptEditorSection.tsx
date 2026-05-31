@@ -27,36 +27,11 @@ export function PromptEditorSection({
     <>
       <fieldset className="mb-4 p-4 border border-border rounded bg-card/50">
         <legend className="font-semibold text-secondary px-2">{promptLegend}</legend>
-
-        <FormField label="[DEPRECATED]Narrator:">
-          <Textarea
-            value={_util.toInputString(prompt.narrator)}
-            onChange={(e) => onPromptChange('narrator', e.target.value)}
-            rows={4}
-          />
-        </FormField>
-
         <FormField label="Input Tag:">
           <Input
             type="text"
             value={_util.toInputString(prompt.inputTag)}
             onChange={(e) => onPromptChange('inputTag', e.target.value)}
-          />
-        </FormField>
-
-        <FormField label="[DEPRECATED]Summarizer:">
-          <Textarea
-            value={_util.toInputString(prompt.summarizer)}
-            onChange={(e) => onPromptChange('summarizer', e.target.value)}
-            rows={4}
-          />
-        </FormField>
-
-        <FormField label="[DEPRECATED]Summarizer End State:">
-          <Textarea
-            value={_util.toInputString(prompt.summarizerEndState)}
-            onChange={(e) => onPromptChange('summarizerEndState', e.target.value)}
-            rows={4}
           />
         </FormField>
       </fieldset>
