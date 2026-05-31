@@ -26,7 +26,7 @@ const emptyApiKey: ApiKeyConfig = {
 
 const defaultSelectedLlm: LlmConfig = {
   service: 'mistral',
-  model: 'mistral-large-2411',
+  model: 'mistral-large-2512',
 };
 
 const _constant = {
@@ -43,9 +43,7 @@ const _constant = {
       provider: 'mistral',
       models: [
         'mistral-large-2512',
-        'mistral-large-2411',
-        'mistral-medium-2508',
-        'mistral-small-2506',
+        'mistral-large-latest',
       ],
     },
     together: {
@@ -54,7 +52,6 @@ const _constant = {
       models: [
         'deepseek-ai/DeepSeek-V4-Pro',
         'MiniMaxAI/MiniMax-M2.7',
-        //'Qwen/Qwen3.7-Max',
         'moonshotai/Kimi-K2.6',
         'zai-org/GLM-5',
         'zai-org/GLM-5.1',
