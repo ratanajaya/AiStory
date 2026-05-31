@@ -204,7 +204,7 @@ export default function BookPage({ params }: PageProps) {
     saveBook();
   }, [bookUiModel, bookId, fetcher, showAlert]);
 
-  const gameAction = {
+  const bookAction = {
     _applyNarration: async (userSegmentContent: string, idLimitExclusive: string | null) => {
       if(!template) {
         console.error('Template not loaded');
@@ -302,7 +302,7 @@ export default function BookPage({ params }: PageProps) {
       
       const inputSegment = `${_util.conditionalString(userInput.input1, template?.prompt.inputTag + _constant.newLine + userInput.input1)}`;
 
-      await gameAction._applyNarration(inputSegment, null);
+      await bookAction._applyNarration(inputSegment, null);
     },
     redoNarration: async (segmentId: string) => {
       const segmentIndex = bookUiModel.storySegments.findIndex(seg => seg.id === segmentId);
@@ -329,7 +329,7 @@ export default function BookPage({ params }: PageProps) {
       deleteSegment(segmentId);
       deleteSegment(prevUserSegment.id);
 
-      await gameAction._applyNarration(prevUserSegment.content, segmentId);
+      await bookAction._applyNarration(prevUserSegment.content, segmentId);
     },
     summarizeSegments: (segmentIds: string[], newSummary: SegmentSummary) => {
       setBookUiModel(prev => {
@@ -405,11 +405,6 @@ export default function BookPage({ params }: PageProps) {
       const segmentIndex = bookUiModel.storySegments.findIndex(s => s.id === segmentId);
 
       const chapterSegments = bookUiModel.storySegments.filter((s, index) => !s.chapterId && index <= segmentIndex);
-
-      // if(chapterSegments.length <= 2) {
-      //   showAlert('At least 3 segments are required to form a chapter.');
-      //   return;
-      // }
 
       setChapterWrapper({
         visible: true,
@@ -539,7 +534,7 @@ export default function BookPage({ params }: PageProps) {
                                   });
                                 }}
                                 onWrapChapter={uiAction.openChapterWrapper}
-                                onRedoNarration={gameAction.redoNarration}
+                                onRedoNarration={bookAction.redoNarration}
                                 isLastMessage={index === segmentsWithoutChapter.length - 1}
                                 disabled={disableAction}
                               />
@@ -568,7 +563,7 @@ export default function BookPage({ params }: PageProps) {
                       segments={bookUiModel.storySegments}
                       segmentSummaries={bookUiModel.segmentSummaries}
                       onClose={() => setSummarizer(prev => ({ ...prev, visible: false }))}
-                      onSave={gameAction.summarizeSegments}
+                      onSave={bookAction.summarizeSegments}
                     />
                   )}
                   {template && chapterWrapper.visible && (
@@ -577,7 +572,7 @@ export default function BookPage({ params }: PageProps) {
                       book={bookUiModel}
                       segments={chapterWrapper.segments}
                       onClose={() => setChapterWrapper(prev => ({ ...prev, visible: false }))}
-                      onSave={gameAction.wrapChapter}
+                      onSave={bookAction.wrapChapter}
                     />
                   )}
                 </Panel>
@@ -588,7 +583,7 @@ export default function BookPage({ params }: PageProps) {
               <div className='h-2'></div>
               <Button
                 className='h-7 w-full'
-                onClick={gameAction.narration}
+                onClick={bookAction.narration}
                 disabled={disableAction}
               >
                 SEND
