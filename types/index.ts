@@ -18,10 +18,6 @@ export interface Chapter {
   id: string;
   title: string;
   summary: string;
-  /**
-   * @deprecated no longer used by the new prompt builder. Should be removed in the future.
-   */
-  endState: any;
 }
 
 export interface DebugLog {
@@ -31,19 +27,7 @@ export interface DebugLog {
 }
 
 export interface PromptConfig {
-  /**
-   * @deprecated no longer used by the new prompt builder. Should be removed in the future.
-   */
-  narrator: string | null;
   inputTag: string | null;
-  /**
-   * @deprecated no longer used by the new prompt builder. Should be removed in the future.
-   */
-  summarizer: string | null;
-  /**
-   * @deprecated no longer used by the new prompt builder. Should be removed in the future.
-   */
-  summarizerEndState: string | null;
 }
 
 export interface PromptBuilderConfig {

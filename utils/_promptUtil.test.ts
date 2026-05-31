@@ -6,10 +6,7 @@ const template: Template = {
   templateId: "template-1",
   name: "Template",
   prompt: {
-    narrator: "Narrator instructions",
     inputTag: "Action",
-    summarizer: null,
-    summarizerEndState: null,
   },
   promptBuilder: {
     narration1: null,
@@ -69,7 +66,6 @@ const book: Book = {
       id: "chapter-1",
       title: "Prologue",
       summary: "The hero wakes.",
-      endState: { mood: "tense" },
     },
   ],
   ownerEmail: "owner@example.com",

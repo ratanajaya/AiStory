@@ -20,7 +20,6 @@ export default function ChapterEditorModal({ isOpen, onClose, onSave, chapter }:
       form.setFieldsValue({
         title: chapter.title,
         summary: chapter.summary,
-        endState: chapter.endState ? JSON.stringify(chapter.endState, null, 2) : '',
       });
     }
   }, [isOpen, chapter, form]);
@@ -29,22 +28,11 @@ export default function ChapterEditorModal({ isOpen, onClose, onSave, chapter }:
     form
       .validateFields()
       .then(values => {
-        try {
-          const parsedEndState = values.endState ? JSON.parse(values.endState) : null;
-          onSave({
+        onSave({
             ...chapter,
             ...values,
-            endState: parsedEndState,
           });
           onClose();
-        } catch (error) {
-          form.setFields([
-            {
-              name: 'endState',
-              errors: ['Invalid JSON format.'],
-            },
-          ]);
-        }
       })
       .catch(info => {
         console.log('Validate Failed:', info);
@@ -64,7 +52,7 @@ export default function ChapterEditorModal({ isOpen, onClose, onSave, chapter }:
         <Form.Item
           name="title"
           label="Title"
-          rules={[{ required: true, message: 'Please input the title of the chapter!' }]}
+          rules={[{ required: true, message: 'Please input the title of the chapter' }]}
         >
           <Input />
         </Form.Item>
@@ -73,12 +61,6 @@ export default function ChapterEditorModal({ isOpen, onClose, onSave, chapter }:
           label="Summary"
         >
           <Textarea rows={10} />
-        </Form.Item>
-        <Form.Item
-          name="endState"
-          label="End State"
-        >
-          <Textarea rows={8} />
         </Form.Item>
       </Form>
     </Modal>

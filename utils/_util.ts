@@ -31,10 +31,7 @@ const _util = {
   },
   normalizePromptConfig: (prompt: Partial<PromptConfig> | null | undefined): PromptConfig => {
     return {
-      narrator: _util.toInputString(prompt?.narrator),
       inputTag: _util.toInputString(prompt?.inputTag),
-      summarizer: _util.toInputString(prompt?.summarizer),
-      summarizerEndState: _util.toInputString(prompt?.summarizerEndState),
     };
   },
   normalizePromptBuilderConfig: (

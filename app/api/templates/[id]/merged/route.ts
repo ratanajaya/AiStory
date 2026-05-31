@@ -8,10 +8,7 @@ import { errorResponse, errorResponseFromMessage } from '@/lib/apiError';
 
 function mergePromptWithDefaults(prompt: PromptConfig, defaultPrompt: PromptConfig): PromptConfig {
   return {
-    narrator: _util.mergeNormalizedString(prompt.narrator, defaultPrompt.narrator),
     inputTag: _util.mergeNormalizedString(prompt.inputTag, defaultPrompt.inputTag),
-    summarizer: _util.mergeNormalizedString(prompt.summarizer, defaultPrompt.summarizer),
-    summarizerEndState: _util.mergeNormalizedString(prompt.summarizerEndState, defaultPrompt.summarizerEndState),
   };
 }
 
