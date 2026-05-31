@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { HamburgerButton, Sidebar } from "@/app/_components/Sidebar";
+import { useUiState } from "@/components/UiStateProvider";
 
 export function MainLayoutShell({ children }: { children: React.ReactNode }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
+  const { uiState, setSidebarOpen } = useUiState();
 
   if (pathname.startsWith("/login")) {
     return <>{children}</>;
@@ -15,7 +15,7 @@ export function MainLayoutShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       <HamburgerButton onClick={() => setSidebarOpen(true)} />
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <Sidebar isOpen={uiState.sidebarOpen} onClose={() => setSidebarOpen(false)} />
       {children}
     </>
   );
