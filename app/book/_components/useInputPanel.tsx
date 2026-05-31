@@ -9,11 +9,13 @@ import _promptUtil from "@/utils/_promptUtil";
 import _constant from "@/utils/_constant";
 import { streamAiRequest, AiStreamError } from "@/lib/aiStreamClient";
 import { formatErrorDetail } from "@/lib/errorClient";
+import { StatusBarProps } from "./StatusBar";
 
 export default function useInputPanel(props:{
   inputTag: string;
   template: Template | null;
   book: BookUIModel;
+  onStatusChange: (status: StatusBarProps) => void;
 }){
   const { showAlert } = useAlert();
   // Use refs instead of state to avoid re-renders
@@ -31,6 +33,10 @@ export default function useInputPanel(props:{
   const handleGenerateOutline = async () => {
     if (isGenerating || !props.template || !hasGenerator) return;
     setIsGenerating(true);
+    props.onStatusChange({
+      loading: true,
+      text: 'Generating outline...',
+    });
 
     const ideaText = ideaRef.current?.value?.trim() ?? '';
     const existing = inputRef.current?.value ?? '';
@@ -81,10 +87,18 @@ export default function useInputPanel(props:{
       if (inputRef.current) {
         inputRef.current.value = prefix + cleaned;
       }
+      props.onStatusChange({
+        loading: false,
+        text: 'Outline generation complete',
+      });
     } catch (err) {
       const envelope = err instanceof AiStreamError ? err.envelope : undefined;
       const message = err instanceof Error ? err.message : 'Outline generation failed';
       showAlert(message, { type: 'error', detail: formatErrorDetail(envelope) });
+      props.onStatusChange({
+        loading: false,
+        text: 'Outline generation failed',
+      });
     } finally {
       setIsGenerating(false);
     }

@@ -78,6 +78,7 @@ export default function BookPage({ params }: PageProps) {
     inputTag: template?.prompt.inputTag ?? 'Enter your input here...',
     template,
     book: bookUiModel,
+    onStatusChange: setSbp,
   });
 
   const deleteSegment = async (segmentId: string) => {
