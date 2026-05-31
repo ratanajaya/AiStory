@@ -455,7 +455,7 @@ export default function BookPage({ params }: PageProps) {
                 direction="vertical"
                 className='flex-1'
               >
-                <Panel defaultSize={75} minSize={15} order={1} className="relative">
+                <Panel defaultSize={72} minSize={15} order={1} className="relative">
                   {bookUiModel.storySegments.some(seg => seg.toSummarize) && (
                   <div className='absolute top-2 left-1/2 z-10 -translate-x-1/2'>
                     <Button variant='primary'

@@ -91,13 +91,14 @@ export default function useInputPanel(props:{
   };
 
   const element = (
-    <Panel defaultSize={15} minSize={5} order={3}>
+    <Panel defaultSize={18} minSize={5} order={3}>
       <div className='flex h-full flex-col gap-1'>
-        <div className='flex gap-1'>
+        <div className='flex items-start gap-1'>
           <Textarea
             className='flex-1 min-h-0'
             placeholder='Outline idea (optional)'
-            rows={2}
+            rows={1}
+            size='small'
             ref={ideaRef}
             disabled={isGenerating}
           />
