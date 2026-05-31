@@ -22,18 +22,14 @@ const SegmentSummarySchema = new Schema<SegmentSummary>({
 const ChapterSchema = new Schema<Chapter>({
   id: { type: String, required: true },
   title: { type: String, required: true },
-  summary: { type: String, required: true },
-  endState: { type: Schema.Types.Mixed }
+  summary: { type: String, required: true }
 }, { _id: false });
 
 const TemplateSchema = new Schema<Template>({
   templateId: { type: String, required: true, unique: true },
   name: { type: String, required: true },
   prompt: {
-    narrator: { type: String, default: null },
-    inputTag: { type: String, default: null },
-    summarizer: { type: String, default: null },
-    summarizerEndState: { type: String, default: null }
+    inputTag: { type: String, default: null }
   },
   promptBuilder: {
     narration1: { type: String, default: null },

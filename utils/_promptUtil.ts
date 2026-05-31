@@ -38,7 +38,6 @@ const _promptUtil = {
       background,
       previousChapters,
       currentChapter,
-      //narrator: template.prompt.narrator ?? '',
       textboxInput: '',
       inputTag: template.prompt.inputTag ?? '',
     };

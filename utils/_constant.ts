@@ -1,10 +1,7 @@
 import { ApiKeyConfig, LlmConfig, PromptBuilderConfig, PromptConfig } from '@/types';
 
 const emptyPrompt: PromptConfig = {
-  narrator: '',
   inputTag: '',
-  summarizer: '',
-  summarizerEndState: '',
 };
 
 const emptyPromptBuilder: PromptBuilderConfig = {

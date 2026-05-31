@@ -85,7 +85,6 @@ export default function ChapterWrapperModal(props: {
             id: new Date().getTime().toString(),
             title: values.chapterName,
             summary: values.summary,
-            endState: {},
           }
         );
       }}
