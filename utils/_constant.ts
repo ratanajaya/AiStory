@@ -16,14 +16,13 @@ const emptyPromptBuilder: PromptBuilderConfig = {
 };
 
 const emptyApiKey: ApiKeyConfig = {
-  mistral: '',
   together: '',
   openAi: '',
 };
 
 const defaultSelectedLlm: LlmConfig = {
-  service: 'mistral',
-  model: 'mistral-large-2512',
+  service: 'together',
+  model: '',
 };
 
 const _constant = {
@@ -35,24 +34,10 @@ const _constant = {
   defaultSelectedLlm,
 
   llmServices: {
-    mistral: {
-      label: 'Mistral AI',
-      provider: 'mistral',
-      models: [
-        'mistral-large-2512',
-        'mistral-large-latest',
-      ],
-    },
     together: {
       label: 'Together AI',
       provider: 'together',
-      models: [
-        'deepseek-ai/DeepSeek-V4-Pro',
-        'MiniMaxAI/MiniMax-M2.7',
-        'moonshotai/Kimi-K2.6',
-        'zai-org/GLM-5',
-        'zai-org/GLM-5.1',
-      ],
+      models: [],
     },
     openAi: {
       label: 'OpenAI',

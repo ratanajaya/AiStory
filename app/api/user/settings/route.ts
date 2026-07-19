@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import dbConnect from "@/lib/mongodb";
 import { UserModel } from "@/models";
+import { validateLlmConfig } from "@/lib/llmSettings";
 import _util from "@/utils/_util";
 import { errorResponse, errorResponseFromMessage } from "@/lib/apiError";
 
@@ -49,7 +50,11 @@ export async function PUT(request: Request) {
     const updateData: Record<string, unknown> = {};
 
     if (selectedLlm !== undefined) {
-      updateData.selectedLlm = selectedLlm;
+      const llmResult = validateLlmConfig(selectedLlm, { allowNull: true });
+      if (!llmResult.ok) {
+        return errorResponseFromMessage(llmResult.message, 400);
+      }
+      updateData.selectedLlm = llmResult.value;
     }
 
     if (apiKey !== undefined) {

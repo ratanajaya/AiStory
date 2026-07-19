@@ -4,7 +4,7 @@ Full-stack interactive fiction platform with **multi-provider LLM generation**, 
 
 ## Highlights
 
-- **Multi-LLM Story Generation** — Mistral and Together AI via unified Vercel AI SDK with real-time token streaming
+- **Multi-LLM Story Generation** — Together AI and OpenAI via unified Vercel AI SDK with real-time token streaming
 - **AI Text-to-Speech** — Together AI with client-side IndexedDB caching and automatic invalidation
 - **Template-Driven Prompts** — Customizable prompt builders with placeholder substitution for repeatable story workflows
 - **Audio Queue Playback** — Sequential narration with intelligent prefetching and chapter-aware playback barriers
@@ -26,7 +26,7 @@ Full-stack interactive fiction platform with **multi-provider LLM generation**, 
            │ Vercel AI SDK       │ Together AI Audio API
 ┌──────────▼──────────┐  ┌───────▼───────────────────────────┐
 │  LLM Providers      │  │  TTS Model                        │
-│  Mistral · Together  │  │  48 kHz MP3 · Client IndexedDB    │
+│  Together · OpenAI   │  │  48 kHz MP3 · Client IndexedDB    │
 │                     │  │  cache                             │
 └─────────────────────┘  └───────────────────────────────────┘
            │
@@ -41,7 +41,7 @@ Full-stack interactive fiction platform with **multi-provider LLM generation**, 
 
 ### Multi-Provider LLM Engine
 
-Two LLM providers wired through Vercel AI SDK, using the most advanced models from Mistral and Together AI. Selectable per-user with system-wide fallback defaults.
+Two LLM providers wired through Vercel AI SDK, using Together AI and OpenAI models. Selectable per-user with system-wide fallback defaults.
 
 The AI route supports dual response modes — chunked streaming for real-time UI updates during story generation, and synchronous JSON for structured operations like summarization:
 
@@ -84,7 +84,7 @@ POST /api/ai
 
 **Runtime:** Next.js 16 · React 19 · TypeScript (strict) · Node.js
 
-**AI/LLM:** Vercel AI SDK 6 · @ai-sdk/mistral · @ai-sdk/togetherai
+**AI/LLM:** Vercel AI SDK 6 · @ai-sdk/togetherai · @ai-sdk/openai
 
 **TTS:** Together AI Audio API · IndexedDB client cache
 

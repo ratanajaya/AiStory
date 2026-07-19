@@ -50,7 +50,6 @@ const _util = {
   },
   normalizeApiKeyConfig: (apiKey: Partial<ApiKeyConfig> | null | undefined): ApiKeyConfig => {
     return {
-      mistral: _util.toInputString(apiKey?.mistral),
       together: _util.toInputString(apiKey?.together),
       openAi: _util.toInputString(apiKey?.openAi),
     };

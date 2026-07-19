@@ -9,7 +9,7 @@ AiStory is a Next.js App Router application for template-driven interactive stor
 - Next.js 16 App Router with React 19 and TypeScript strict mode
 - MongoDB with Mongoose models in `models/index.ts`
 - NextAuth v5 with Google SSO
-- Vercel AI SDK with Mistral, Together AI, and OpenAI wiring in `lib/aiEndpointDynamic.ts`
+- Vercel AI SDK with Together AI and OpenAI wiring in `lib/aiEndpointDynamic.ts`
 - Together AI TTS in `lib/ttsEndpointDynamic.ts`
 - Ant Design, Tailwind CSS v4, and `react-resizable-panels`
 - Vitest for unit tests, ESLint for linting
@@ -52,7 +52,7 @@ AiStory is a Next.js App Router application for template-driven interactive stor
 - `/api/ai/tts` returns raw audio bytes, not JSON. Client code should fetch it directly as a `Blob`; do not route TTS through `FetcherProvider`.
 - User-specific AI and TTS credentials come from `getUserSettingWithFallback()` in `auth.ts`, which falls back to the `defaultValue` document in `keyvalues`.
 - If you add or change providers, update all relevant layers together: `types/index.ts`, `models/index.ts`, settings routes, defaults, UI, and `lib/aiEndpointDynamic.ts`.
-- Note the current mismatch: `types/index.ts` includes `openAi`, but the Mongoose enum in `models/index.ts` only allows `mistral` and `together`.
+- Keep provider support in sync across `types/index.ts`, `models/index.ts`, `utils/_constant.ts`, settings UI, and `lib/aiEndpointDynamic.ts`.
 
 ## Coding Patterns To Preserve
 

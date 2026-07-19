@@ -94,12 +94,10 @@ describe("_util", () => {
     it("normalizes api key values to empty strings when blank", () => {
       expect(
         _util.normalizeApiKeyConfig({
-          mistral: "",
           together: " together-key ",
           openAi: undefined,
         })
       ).toEqual({
-        mistral: "",
         together: " together-key ",
         openAi: "",
       });

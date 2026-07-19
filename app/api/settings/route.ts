@@ -2,9 +2,10 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import { KeyValueModel } from '@/models';
 import { DefaultValue } from '@/types';
+import { validateLlmConfig } from '@/lib/llmSettings';
 import _constant from '@/utils/_constant';
 import _util from '@/utils/_util';
-import { errorResponse } from '@/lib/apiError';
+import { errorResponse, errorResponseFromMessage } from '@/lib/apiError';
 
 const DEFAULT_KEY = 'defaultValue';
 
@@ -35,7 +36,7 @@ export async function GET() {
         service: value.selectedLlm?.service || _constant.defaultSelectedLlm.service,
         model: value.selectedLlm?.model || _constant.defaultSelectedLlm.model,
       },
-    } satisfies DefaultValue);
+    });
   } catch (err) {
     return errorResponse(err);
   }
@@ -45,14 +46,19 @@ export async function PUT(request: Request) {
   try {
     await dbConnect();
     const body: DefaultValue = await request.json();
+    const llmResult = validateLlmConfig(body.selectedLlm);
+    if (!llmResult.ok) {
+      return errorResponseFromMessage(llmResult.message, 400);
+    }
+    if (!llmResult.value) {
+      return errorResponseFromMessage("LLM provider and model are required.", 400);
+    }
+
     const normalizedValue: DefaultValue = {
       prompt: _util.normalizePromptConfig(body.prompt),
       promptBuilder: _util.normalizePromptBuilderConfig(body.promptBuilder),
       apiKey: _util.normalizeApiKeyConfig(body.apiKey),
-      selectedLlm: {
-        service: body.selectedLlm?.service || _constant.defaultSelectedLlm.service,
-        model: body.selectedLlm?.model || _constant.defaultSelectedLlm.model,
-      },
+      selectedLlm: llmResult.value,
     };
 
     const doc = await KeyValueModel.findOneAndUpdate(

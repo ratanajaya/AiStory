@@ -104,7 +104,6 @@ async function getUserSettingWithFallback(): Promise<{
     model: _util.altString(user?.selectedLlm?.model, defaultValue.selectedLlm.model)!,
   };
   const apiKey: ApiKeyConfig = {
-    mistral: _util.altString(user?.apiKey?.mistral, defaultValue.apiKey.mistral)!,
     together: _util.altString(user?.apiKey?.together, defaultValue.apiKey.together)!,
     openAi: _util.altString(user?.apiKey?.openAi, defaultValue.apiKey.openAi)!,
   };
