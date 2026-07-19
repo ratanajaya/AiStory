@@ -7,6 +7,7 @@ import Link from "next/link";
 import { AiSettingsSection } from "@/components/AiSettingsSection";
 import { Button } from "@/components/Button";
 import { useFetcher } from "@/components/FetcherProvider";
+import { streamAiRequest } from "@/lib/aiStreamClient";
 import _constant from "@/utils/_constant";
 import _util from "@/utils/_util";
 import type { AiModelOption, LlmConfig, ApiKeyConfig } from "@/types";
@@ -67,7 +68,8 @@ export function Sidebar({
   });
 
   const [saving, setSaving] = useState(false);
-  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [testing, setTesting] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [loaded, setLoaded] = useState(false);
 
   // Fetch user settings on first open
@@ -178,35 +180,73 @@ export function Sidebar({
     }));
   };
 
+  const saveCurrentSettings = async () => {
+    const selectedLlm: LlmConfig | null =
+      selectedService && selectedModel
+        ? {
+            service: selectedService as LlmConfig["service"],
+            model: selectedModel,
+          }
+        : null;
+
+    await fetcher("/api/user/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        selectedLlm,
+        apiKey: _util.normalizeApiKeyConfig(apiKeys),
+      }),
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    setSaveMessage(null);
+    setStatusMessage(null);
 
     try {
-      const selectedLlm: LlmConfig | null =
-        selectedService && selectedModel
-          ? {
-              service: selectedService as LlmConfig["service"],
-              model: selectedModel,
-            }
-          : null;
+      await saveCurrentSettings();
 
-      await fetcher("/api/user/settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          selectedLlm,
-          apiKey: _util.normalizeApiKeyConfig(apiKeys),
-        }),
-      });
-
-      setSaveMessage("Settings saved!");
-      setTimeout(() => setSaveMessage(null), 3000);
+      setStatusMessage({ type: "success", text: "Settings saved!" });
+      setTimeout(() => setStatusMessage(null), 3000);
     } catch (error) {
       console.error("Failed to save settings:", error);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleTestModel = async () => {
+    setTesting(true);
+    setStatusMessage(null);
+
+    try {
+      await saveCurrentSettings();
+
+      const result = await streamAiRequest(
+        {
+          systemMessage: "You are a connectivity test. Reply with exactly: OK",
+          messages: [
+            {
+              role: "user",
+              content: "Reply with exactly OK.",
+            },
+          ],
+        },
+        {
+          onChunk: () => {},
+        }
+      );
+
+      setStatusMessage({
+        type: "success",
+        text: `Model test passed: ${result.slice(0, 80)}`,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Model test failed";
+      setStatusMessage({ type: "error", text: message });
+    } finally {
+      setTesting(false);
     }
   };
 
@@ -223,7 +263,7 @@ export function Sidebar({
       : selectedService === "together" && !selectedModel && !modelLoading
         ? "Select a Together AI model."
         : null;
-  const saveDisabled = saving || modelLoading || Boolean(llmError) || Boolean(modelLoadError);
+  const actionDisabled = saving || testing || modelLoading || Boolean(llmError) || Boolean(modelLoadError);
 
   return (
     <>
@@ -306,13 +346,28 @@ export function Sidebar({
             />
 
             <div className="flex gap-2 items-center">
-              <Button type="submit" disabled={saveDisabled} variant="primary" size="small">
+              <Button type="submit" disabled={actionDisabled} variant="primary" size="small">
                 {saving ? "Saving..." : "Save"}
               </Button>
-              {saveMessage && (
-                <span className="text-green-500 text-xs">{saveMessage}</span>
-              )}
+              <Button
+                type="button"
+                disabled={actionDisabled}
+                variant="outline"
+                size="small"
+                onClick={handleTestModel}
+              >
+                {testing ? "Testing..." : "Save & Test"}
+              </Button>
             </div>
+            {statusMessage && (
+              <div
+                className={`text-xs ${
+                  statusMessage.type === "success" ? "text-green-500" : "text-red-500"
+                }`}
+              >
+                {statusMessage.text}
+              </div>
+            )}
           </form>
         </div>
 
