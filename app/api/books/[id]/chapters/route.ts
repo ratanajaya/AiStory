@@ -53,7 +53,7 @@ export async function POST(
         $set: { 'storySegments.$[segment].chapterId': chapter.id },
       },
       {
-        arrayFilters: [{ 'segment.id': { $in: segmentIds }, 'segment.chapterId': { $exists: false } }],
+        arrayFilters: [{ 'segment.id': { $in: segmentIds }, 'segment.chapterId': null }],
         new: true,
         runValidators: true,
       }
