@@ -57,8 +57,7 @@ const BookSchema = new Schema<Book>({
   storySegments: [StorySegmentSchema],
   segmentSummaries: [SegmentSummarySchema],
   chapters: [ChapterSchema],
-  ownerEmail: { type: String, required: true },
-  version: { type: Number, required: true }
+  ownerEmail: { type: String, required: true }
 }, {
   timestamps: true,
   toJSON: { virtuals: false },
@@ -81,13 +80,12 @@ export const KeyValueModel = mongoose.models.KeyValue || mongoose.model<KeyValue
 
 // User schemas
 const ApiKeyConfigSchema = new Schema<ApiKeyConfig>({
-  mistral: { type: String, default: null },
   together: { type: String, default: null },
   openAi: { type: String, default: null }
 }, { _id: false });
 
 const LlmConfigSchema = new Schema<LlmConfig>({
-  service: { type: String, enum: ['mistral', 'together'], required: true },
+  service: { type: String, enum: ['together', 'openAi'], required: true },
   model: { type: String, required: true }
 }, { _id: false });
 
@@ -97,7 +95,7 @@ const UserSchema = new Schema<User>({
   registeredAt: { type: Date, default: Date.now },
   lastLoginAt: { type: Date, default: Date.now },
   selectedLlm: { type: LlmConfigSchema, default: null },
-  apiKey: { type: ApiKeyConfigSchema, default: () => ({ mistral: null, together: null, openAi: null }) }
+  apiKey: { type: ApiKeyConfigSchema, default: () => ({ together: null, openAi: null }) }
 }, {
   timestamps: true,
   toJSON: { virtuals: false },

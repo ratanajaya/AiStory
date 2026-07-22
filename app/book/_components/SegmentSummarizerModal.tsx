@@ -17,7 +17,7 @@ export default function SegmentSummarizerModal(props: {
   segments: StorySegment[];
   segmentSummaries: SegmentSummary[];
   onClose: () => void;
-  onSave: (segmentIds: string[], newSummary: SegmentSummary) => void;
+  onSave: (segmentIds: string[], newSummary: SegmentSummary) => Promise<boolean>;
 }) {
   const { template } = props;
   const { showAlert } = useAlert();
@@ -79,13 +79,15 @@ export default function SegmentSummarizerModal(props: {
       title="Summarize segments"
       centered
       open={true}
-      onOk={() => props.onSave(
-        props.segments.filter(s => s.toSummarize).map(s => s.id),
-        {
-          id: new Date().getTime().toString(),
-          content: values.llmResponse,
-        }
-      )}
+      onOk={async () => {
+        await props.onSave(
+          props.segments.filter(s => s.toSummarize).map(s => s.id),
+          {
+            id: new Date().getTime().toString(),
+            content: values.llmResponse,
+          }
+        );
+      }}
       onCancel={() => props.onClose()}
       width={800}
     >

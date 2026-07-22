@@ -54,9 +54,9 @@ describe('buildStreamErrorTail', () => {
   });
 
   it('handles plain object throws by JSON-stringifying them', () => {
-    const tail = buildStreamErrorTail({ provider: 'mistral', status: 401 });
+    const tail = buildStreamErrorTail({ provider: 'together', status: 401 });
     const env = JSON.parse(tail.slice(STREAM_ERROR_SENTINEL.length));
-    expect(env.message).toContain('mistral');
+    expect(env.message).toContain('together');
     expect(env.message).toContain('401');
   });
 });

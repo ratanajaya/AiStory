@@ -1,8 +1,8 @@
-import { createMistral } from '@ai-sdk/mistral';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createTogetherAI } from '@ai-sdk/togetherai';
 import { generateText, streamText, ModelMessage, LanguageModel } from 'ai';
 import { getUserSettingWithFallback } from "@/auth";
+import { assertSupportedLlmConfig } from "@/lib/llmSettings";
 
 export interface AiEndpoint {
   chatCompletion: (systemMsg: string | null, userMsg: string) => Promise<string>;
@@ -75,14 +75,9 @@ const createAiSdkEndpoint = (model: LanguageModel): AiEndpoint => ({
 // Get the endpoint based on current user configuration
 export const getDynamicAiEndpoint = async (): Promise<AiEndpoint> => {
   const { selectedLlm, apiKey } = await getUserSettingWithFallback();
+  assertSupportedLlmConfig(selectedLlm);
   
-  if (selectedLlm.service === 'mistral') {
-    if (!apiKey.mistral) {
-      throw new Error('Mistral API key is not configured');
-    }
-    const mistral = createMistral({ apiKey: apiKey.mistral });
-    return createAiSdkEndpoint(mistral(selectedLlm.model));
-  } else if (selectedLlm.service === 'together') {
+  if (selectedLlm.service === 'together') {
     if (!apiKey.together) {
       throw new Error('Together API key is not configured');
     }

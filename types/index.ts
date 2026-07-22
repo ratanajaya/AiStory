@@ -50,7 +50,6 @@ export interface PromptBuilderConfig {
 }
 
 export interface ApiKeyConfig {
-  mistral: string | null;
   together: string | null;
   openAi: string | null;
 }
@@ -73,7 +72,6 @@ export interface Book {
   segmentSummaries: SegmentSummary[];
   chapters: Chapter[];
   ownerEmail: string;
-  version: number;
 }
 
 export interface DefaultValue {
@@ -83,11 +81,17 @@ export interface DefaultValue {
   apiKey: ApiKeyConfig;
 }
 
-export type LLMService = 'mistral' | 'together' | 'openAi';
+export type LLMService = 'together' | 'openAi';
 
 export interface LlmConfig {
   service: LLMService;
   model: string;
+}
+
+export interface AiModelOption {
+  id: string;
+  label: string;
+  contextLength: number | null;
 }
 
 export interface User {

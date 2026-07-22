@@ -49,8 +49,7 @@ export async function POST(request: Request) {
       storySegments: [],
       segmentSummaries: [],
       chapters: [],
-      ownerEmail,
-      version: 0
+      ownerEmail
     };
 
     const book = await BookModel.create(newBook);

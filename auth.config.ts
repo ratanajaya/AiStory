@@ -4,6 +4,7 @@ import Google from "next-auth/providers/google";
 // Edge-compatible config (no Node.js modules like MongoDB)
 // The signIn callback with DB check is in auth.ts
 export default {
+  trustHost: true,
   providers: [
     Google({
       clientId: process.env.GOOGLE_SSO_CLIENT_ID!,

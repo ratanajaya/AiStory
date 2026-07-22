@@ -3,9 +3,14 @@
 import { FormField } from '@/components/FormField';
 import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
-import { ApiKeyConfig } from '@/types';
+import { AiModelOption, ApiKeyConfig } from '@/types';
 import _constant from '@/utils/_constant';
 import _util from '@/utils/_util';
+
+interface SelectOption {
+  value: string;
+  label: string;
+}
 
 interface AiSettingsSectionProps {
   selectedService: string;
@@ -14,6 +19,10 @@ interface AiSettingsSectionProps {
   onServiceChange: (service: string) => void;
   onModelChange: (model: string) => void;
   onApiKeyChange: (key: keyof ApiKeyConfig, value: string) => void;
+  togetherModels?: AiModelOption[];
+  modelLoading?: boolean;
+  modelLoadError?: string | null;
+  llmError?: string | null;
   variant?: 'page' | 'sidebar';
   llmTitle?: string;
   apiKeyTitle?: string;
@@ -52,25 +61,53 @@ export function AiSettingsSection({
   onServiceChange,
   onModelChange,
   onApiKeyChange,
+  togetherModels = [],
+  modelLoading = false,
+  modelLoadError = null,
+  llmError = null,
   variant = 'page',
   llmTitle = 'LLM Configuration',
   apiKeyTitle = 'API Keys',
 }: AiSettingsSectionProps) {
   const isPage = variant === 'page';
+  const isSupportedService = selectedService in _constant.llmServices;
+  const isTogetherSelected = selectedService === 'together';
 
-  const availableModels = selectedService
-    ? _constant.llmServices[selectedService as keyof typeof _constant.llmServices]?.models || []
+  const availableModels = selectedService && isSupportedService
+    ? _constant.llmServices[selectedService as keyof typeof _constant.llmServices].models
     : [];
 
-  const serviceOptions = Object.entries(_constant.llmServices).map(([key, service]) => ({
+  const serviceOptions: SelectOption[] = Object.entries(_constant.llmServices).map(([key, service]) => ({
     value: key,
     label: service.label,
   }));
 
-  const modelOptions = availableModels.map((model) => ({
-    value: model,
-    label: model,
-  }));
+  if (selectedService && !isSupportedService) {
+    serviceOptions.unshift({
+      value: selectedService,
+      label: `${selectedService} (unsupported)`,
+    });
+  }
+
+  const modelOptions: SelectOption[] = isTogetherSelected
+    ? togetherModels.map((model) => ({
+        value: model.id,
+        label: model.label === model.id ? model.id : `${model.label} (${model.id})`,
+      }))
+    : availableModels.map((model) => ({
+        value: model,
+        label: model,
+      }));
+
+  if (selectedModel && !modelOptions.some((option) => option.value === selectedModel)) {
+    modelOptions.unshift({
+      value: selectedModel,
+      label: `${selectedModel} (unavailable)`,
+    });
+  }
+
+  const modelPlaceholder = modelLoading ? 'Loading models...' : 'Select a model';
+  const modelDisabled = !selectedService || !isSupportedService || modelLoading;
 
   const llmFields = (
     <>
@@ -88,24 +125,21 @@ export function AiSettingsSection({
           value={selectedModel}
           onChange={(e) => onModelChange(e.target.value)}
           options={modelOptions}
-          placeholder="Select a model"
-          disabled={!selectedService}
+          placeholder={modelPlaceholder}
+          disabled={modelDisabled}
         />
       </FormField>
+
+      {(llmError || modelLoadError) && (
+        <div className="text-sm text-red-500 -mt-2">
+          {llmError || modelLoadError}
+        </div>
+      )}
     </>
   );
 
   const apiKeyFields = (
     <>
-      <FormField label="Mistral:">
-        <Input
-          type="password"
-          value={_util.toInputString(apiKey.mistral)}
-          onChange={(e) => onApiKeyChange('mistral', e.target.value)}
-          placeholder="Mistral API key"
-        />
-      </FormField>
-
       <FormField label="Together:">
         <Input
           type="password"

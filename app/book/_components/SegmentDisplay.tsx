@@ -22,11 +22,11 @@ const colors = [
 export default function SegmentDisplay(props: {
   index: number;
   segment: StorySegment;
-  onUpdateSegment: (updatedSegment: StorySegment, shouldSave: boolean) => void;
-  onDeleteSegment: (id: string) => void;
+  onUpdateSegment: (updatedSegment: StorySegment) => Promise<boolean>;
+  onDeleteSegment: (id: string) => Promise<boolean>;
   onEnhanceClick: (chat: StorySegment) => void;
   onWrapChapter: (segmentId: string) => void;
-  onRedoNarration: (segmentId: string) => void;
+  onRedoNarration: (segmentId: string) => Promise<void>;
   isLastMessage?: boolean;
   disabled?: boolean;
   segmentSummary?: SegmentSummary | null;
@@ -38,6 +38,15 @@ export default function SegmentDisplay(props: {
   });
 
   const handleSave = async () => {
+    const saved = await props.onUpdateSegment({
+      ...props.segment,
+      content: editor.content,
+    });
+
+    if (!saved) {
+      return;
+    }
+
     if (editor.content !== props.segment.content) {
       try {
         await deleteSegmentAudio(props.segment.id);
@@ -45,11 +54,6 @@ export default function SegmentDisplay(props: {
         console.error('Failed to clear cached audio:', error);
       }
     }
-
-    props.onUpdateSegment({
-      ...props.segment,
-      content: editor.content,
-    }, true);
     setEditor(prev => ({
       ...prev,
       isEditing: false,
@@ -83,7 +87,7 @@ export default function SegmentDisplay(props: {
         <Space className="absolute bottom-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
           {props.isLastMessage && props.segment.role === 'assistant' && (
             <button
-              onClick={() => props.onRedoNarration(props.segment.id)}
+              onClick={() => void props.onRedoNarration(props.segment.id)}
               className="bg-muted/70 hover:bg-muted p-1 rounded-md mr-1"
               disabled={props.disabled}
             >
@@ -198,10 +202,10 @@ export default function SegmentDisplay(props: {
               <Checkbox
                 checked={props.segment.toSummarize}
                 onChange={(e) => {
-                  props.onUpdateSegment({
+                  void props.onUpdateSegment({
                     ...props.segment,
                     toSummarize: e.target.checked,
-                  }, false);
+                  });
                 }}
                 disabled={props.segment.segmentSummaryId != null}
               />

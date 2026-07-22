@@ -7,11 +7,10 @@ import Link from "next/link";
 import { AiSettingsSection } from "@/components/AiSettingsSection";
 import { Button } from "@/components/Button";
 import { useFetcher } from "@/components/FetcherProvider";
+import { streamAiRequest } from "@/lib/aiStreamClient";
 import _constant from "@/utils/_constant";
 import _util from "@/utils/_util";
-import type { LlmConfig, ApiKeyConfig } from "@/types";
-
-type LLMServiceKey = keyof typeof _constant.llmServices;
+import type { AiModelOption, LlmConfig, ApiKeyConfig } from "@/types";
 
 const navLinks = [
   { href: "/", label: "Library" },
@@ -57,10 +56,11 @@ export function Sidebar({
   const sidebarRef = useRef<HTMLDivElement>(null);
 
   // LLM settings
-  const [selectedService, setSelectedService] = useState<LLMServiceKey | "">(
-    ""
-  );
+  const [selectedService, setSelectedService] = useState("");
   const [selectedModel, setSelectedModel] = useState("");
+  const [togetherModels, setTogetherModels] = useState<AiModelOption[]>([]);
+  const [modelLoading, setModelLoading] = useState(false);
+  const [modelLoadError, setModelLoadError] = useState<string | null>(null);
 
   // API Keys
   const [apiKeys, setApiKeys] = useState<ApiKeyConfig>({
@@ -68,7 +68,8 @@ export function Sidebar({
   });
 
   const [saving, setSaving] = useState(false);
-  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [testing, setTesting] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [loaded, setLoaded] = useState(false);
 
   // Fetch user settings on first open
@@ -83,7 +84,7 @@ export function Sidebar({
         }>("/api/user/settings");
 
         if (data?.selectedLlm) {
-          setSelectedService(data.selectedLlm.service as LLMServiceKey);
+          setSelectedService(data.selectedLlm.service);
           setSelectedModel(data.selectedLlm.model);
         }
 
@@ -99,6 +100,55 @@ export function Sidebar({
 
     fetchSettings();
   }, [isOpen, loaded, fetcher]);
+
+  useEffect(() => {
+    if (!isOpen || selectedService !== "together") {
+      setModelLoadError(null);
+      return;
+    }
+
+    const apiKey = _util.toInputString(apiKeys.together);
+
+    let canceled = false;
+    const fetchModels = async () => {
+      try {
+        setModelLoading(true);
+        setModelLoadError(null);
+        const data = await fetcher<{ models: AiModelOption[] }>("/api/ai/models/together", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(apiKey ? { apiKey } : {}),
+          silent: true,
+        });
+        if (!canceled) {
+          setTogetherModels(data.models);
+          if (data.models.length === 0) {
+            setModelLoadError("No Together chat models were returned.");
+          }
+        }
+      } catch (err) {
+        if (!canceled) {
+          setTogetherModels([]);
+          setModelLoadError(err instanceof Error ? err.message : "Failed to load Together models.");
+        }
+      } finally {
+        if (!canceled) {
+          setModelLoading(false);
+        }
+      }
+    };
+
+    fetchModels();
+    return () => {
+      canceled = true;
+    };
+  }, [isOpen, selectedService, apiKeys.together, fetcher]);
+
+  useEffect(() => {
+    if (selectedService === "together" && !selectedModel && togetherModels.length > 0) {
+      setSelectedModel(togetherModels[0].id);
+    }
+  }, [selectedService, selectedModel, togetherModels]);
 
   // Close sidebar when clicking outside
   useEffect(() => {
@@ -117,13 +167,10 @@ export function Sidebar({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isOpen, onClose]);
 
-  const handleServiceChange = (service: LLMServiceKey | "") => {
+  const handleServiceChange = (service: string) => {
+    const serviceConfig = _constant.llmServices[service as keyof typeof _constant.llmServices];
     setSelectedService(service);
-    if (service && _constant.llmServices[service]?.models.length > 0) {
-      setSelectedModel(_constant.llmServices[service].models[0]);
-    } else {
-      setSelectedModel("");
-    }
+    setSelectedModel(service === "together" ? "" : serviceConfig?.models[0] ?? "");
   };
 
   const handleApiKeyChange = (key: keyof ApiKeyConfig, value: string) => {
@@ -133,37 +180,90 @@ export function Sidebar({
     }));
   };
 
+  const saveCurrentSettings = async () => {
+    const selectedLlm: LlmConfig | null =
+      selectedService && selectedModel
+        ? {
+            service: selectedService as LlmConfig["service"],
+            model: selectedModel,
+          }
+        : null;
+
+    await fetcher("/api/user/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        selectedLlm,
+        apiKey: _util.normalizeApiKeyConfig(apiKeys),
+      }),
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    setSaveMessage(null);
+    setStatusMessage(null);
 
     try {
-      const selectedLlm: LlmConfig | null =
-        selectedService && selectedModel
-          ? {
-              service: selectedService as LlmConfig["service"],
-              model: selectedModel,
-            }
-          : null;
+      await saveCurrentSettings();
 
-      await fetcher("/api/user/settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          selectedLlm,
-          apiKey: _util.normalizeApiKeyConfig(apiKeys),
-        }),
-      });
-
-      setSaveMessage("Settings saved!");
-      setTimeout(() => setSaveMessage(null), 3000);
+      setStatusMessage({ type: "success", text: "Settings saved!" });
+      setTimeout(() => setStatusMessage(null), 3000);
     } catch (error) {
       console.error("Failed to save settings:", error);
     } finally {
       setSaving(false);
     }
   };
+
+  const handleTestModel = async () => {
+    setTesting(true);
+    setStatusMessage(null);
+
+    try {
+      await saveCurrentSettings();
+
+      const result = await streamAiRequest(
+        {
+          systemMessage: "You are a connectivity test. Reply with exactly: OK",
+          messages: [
+            {
+              role: "user",
+              content: "Reply with exactly OK.",
+            },
+          ],
+        },
+        {
+          onChunk: () => {},
+        }
+      );
+
+      setStatusMessage({
+        type: "success",
+        text: `Model test passed: ${result.slice(0, 80)}`,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Model test failed";
+      setStatusMessage({ type: "error", text: message });
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const isSupportedService = !selectedService || selectedService in _constant.llmServices;
+  const togetherModelUnavailable =
+    selectedService === "together" &&
+    Boolean(selectedModel) &&
+    togetherModels.length > 0 &&
+    !togetherModels.some((model) => model.id === selectedModel);
+  const llmError = !isSupportedService
+    ? "Mistral is no longer supported; choose Together AI or OpenAI."
+    : togetherModelUnavailable
+      ? "The selected Together model is unavailable; choose a model from the fetched list."
+      : selectedService === "together" && !selectedModel && !modelLoading
+        ? "Select a Together AI model."
+        : null;
+  const actionDisabled = saving || testing || modelLoading || Boolean(llmError) || Boolean(modelLoadError);
 
   return (
     <>
@@ -234,21 +334,40 @@ export function Sidebar({
               selectedModel={selectedModel}
               apiKey={apiKeys}
               onServiceChange={(service) =>
-                handleServiceChange(service as LLMServiceKey | "")
+                handleServiceChange(service)
               }
               onModelChange={setSelectedModel}
               onApiKeyChange={handleApiKeyChange}
+              togetherModels={togetherModels}
+              modelLoading={modelLoading}
+              modelLoadError={modelLoadError}
+              llmError={llmError}
               variant="sidebar"
             />
 
             <div className="flex gap-2 items-center">
-              <Button type="submit" disabled={saving} variant="primary" size="small">
+              <Button type="submit" disabled={actionDisabled} variant="primary" size="small">
                 {saving ? "Saving..." : "Save"}
               </Button>
-              {saveMessage && (
-                <span className="text-green-500 text-xs">{saveMessage}</span>
-              )}
+              <Button
+                type="button"
+                disabled={actionDisabled}
+                variant="outline"
+                size="small"
+                onClick={handleTestModel}
+              >
+                {testing ? "Testing..." : "Save & Test"}
+              </Button>
             </div>
+            {statusMessage && (
+              <div
+                className={`text-xs ${
+                  statusMessage.type === "success" ? "text-green-500" : "text-red-500"
+                }`}
+              >
+                {statusMessage.text}
+              </div>
+            )}
           </form>
         </div>
 
