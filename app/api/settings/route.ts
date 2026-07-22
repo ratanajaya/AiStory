@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getCurrentUser } from '@/auth';
 import dbConnect from '@/lib/mongodb';
 import { KeyValueModel } from '@/models';
 import { DefaultValue } from '@/types';
@@ -9,8 +10,27 @@ import { errorResponse, errorResponseFromMessage } from '@/lib/apiError';
 
 const DEFAULT_KEY = 'defaultValue';
 
+async function requireAdmin() {
+  const user = await getCurrentUser();
+
+  if (!user) {
+    return errorResponseFromMessage('Unauthorized', 401);
+  }
+
+  if (!user.isAdmin) {
+    return errorResponseFromMessage('Forbidden', 403);
+  }
+
+  return null;
+}
+
 export async function GET() {
   try {
+    const adminError = await requireAdmin();
+    if (adminError) {
+      return adminError;
+    }
+
     await dbConnect();
     const doc = await KeyValueModel.findOne({ key: DEFAULT_KEY });
 
@@ -44,6 +64,11 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   try {
+    const adminError = await requireAdmin();
+    if (adminError) {
+      return adminError;
+    }
+
     await dbConnect();
     const body: DefaultValue = await request.json();
     const llmResult = validateLlmConfig(body.selectedLlm);
