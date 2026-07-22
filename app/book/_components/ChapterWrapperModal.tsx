@@ -18,7 +18,7 @@ export default function ChapterWrapperModal(props: {
   book: BookUIModel;
   segments: StorySegment[];
   onClose: () => void;
-  onSave: (segmentIds: string[], newChapter: Chapter) => void;
+  onSave: (segmentIds: string[], newChapter: Chapter) => Promise<boolean>;
 }) {
   const { template, book } = props;
   const [values, setValues] = useState({
@@ -73,13 +73,13 @@ export default function ChapterWrapperModal(props: {
       title="Wrap-Up Chapter"
       centered
       open={true}
-      onOk={() => {
+      onOk={async () => {
         if(_util.isNullOrWhitespace(values.chapterName) || _util.isNullOrWhitespace(values.summary)) {
           showAlert('Chapter Name and Chapter Summary cannot be empty.');
           return;
         }
 
-        props.onSave(
+        await props.onSave(
           props.segments.map(s => s.id),
           {
             id: new Date().getTime().toString(),

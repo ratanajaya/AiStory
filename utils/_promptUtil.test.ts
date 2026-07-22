@@ -69,7 +69,6 @@ const book: Book = {
     },
   ],
   ownerEmail: "owner@example.com",
-  version: 1,
 };
 
 describe("_promptUtil.replacePromptBuilderString", () => {

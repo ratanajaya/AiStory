@@ -8,7 +8,7 @@ import ChapterEditorModal from "./ChapterEditorModal";
 export default function ChapterDisplay(props: {
   chapter: Chapter;
   segments: StorySegment[];
-  onChapterUpdate: (updatedChapter: Chapter) => void;
+  onChapterUpdate: (updatedChapter: Chapter) => Promise<boolean>;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
@@ -74,9 +74,10 @@ export default function ChapterDisplay(props: {
         chapter={props.chapter}
         isOpen={isEditing}
         onClose={() => setIsEditing(false)}
-        onSave={(updatedChapter: Chapter) => {
-          props.onChapterUpdate(updatedChapter);
-          setIsEditing(false);
+        onSave={async (updatedChapter: Chapter) => {
+          if (await props.onChapterUpdate(updatedChapter)) {
+            setIsEditing(false);
+          }
         }}
       />
     </div>

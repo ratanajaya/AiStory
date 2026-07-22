@@ -39,9 +39,6 @@ const emptyBookModel: BookUIModel = {
   storySegments: [],
   segmentSummaries: [],
   chapters: [],
-  shouldSave: false,
-  segmentIdsToSave: [],
-  version: 0,
 }
 
 export default function BookPage({ params }: PageProps) {
@@ -88,16 +85,43 @@ export default function BookPage({ params }: PageProps) {
     onStatusChange: setSbp,
   });
 
-  const deleteSegment = async (segmentId: string) => {
+  const createSegment = async (segment: StorySegment) => {
     try {
       await fetcher(`/api/books/${bookId}/segments`, {
-        method: 'DELETE',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ segmentId }),
+        body: JSON.stringify({ segment }),
+        errorMessage: 'Failed to save segment',
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const updateSegment = async (segment: StorySegment) => {
+    try {
+      await fetcher(`/api/books/${bookId}/segments/${segment.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(segment),
+        errorMessage: 'Failed to update segment',
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const deleteSegment = async (segmentId: string) => {
+    try {
+      await fetcher(`/api/books/${bookId}/segments/${segmentId}`, {
+        method: 'DELETE',
         errorMessage: 'Failed to delete segment',
       });
+      return true;
     } catch {
-      showAlert('Failed to delete segment');
+      return false;
     }
   };
 
@@ -110,8 +134,6 @@ export default function BookPage({ params }: PageProps) {
         });
         setBookUiModel({
           ...data,
-          shouldSave: false,
-          segmentIdsToSave: [],
         });
         const templateData = await fetcher<any>(`/api/templates/${data.templateId}/merged`, {
           errorMessage: 'Failed to fetch template',
@@ -127,89 +149,6 @@ export default function BookPage({ params }: PageProps) {
       fetchBook();
     }
   }, [bookId, fetcher]);
-
-  useEffect(() => {
-    if(bookUiModel.segmentIdsToSave.length === 0)
-      return;
-
-    const segmentsToSave = bookUiModel.storySegments.filter(s => bookUiModel.segmentIdsToSave.includes(s.id));
-    
-    setBookUiModel(prev => ({
-      ...prev,
-      segmentIdsToSave: [],
-    }));
-
-    const saveSegment = async (segment: StorySegment) => {
-      await fetcher(`/api/books/${bookId}/segments`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ segment }),
-        errorMessage: 'Failed to save segment',
-      });
-    };
-
-    const saveAllSegments = async () => {
-      try {
-        await Promise.all(segmentsToSave.map(segment => saveSegment(segment)));
-      } catch (error) {
-        // Avoid unhandled promise rejections; consider surfacing this to the user if needed.
-        console.error('Failed to save one or more segments', error);
-      }
-    };
-
-    saveAllSegments();
-  }, [bookUiModel.segmentIdsToSave, bookUiModel.storySegments, fetcher, bookId]);
-
-  useEffect(() => {
-    if(!bookUiModel.shouldSave)
-      return;
-
-    const saveBook = async () => {
-      try {
-        setSbp({
-          loading: true,
-          text: 'Saving book changes...',
-        });
-
-        const updatedBook = await fetcher<Book>(`/api/books/${bookId}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            ...bookUiModel,
-            shouldSave: undefined,
-          }),
-        });
-        
-        setSbp({
-          loading: false,
-          text: 'Book saved to database.',
-        });
-        
-        setBookUiModel(prev => ({
-          ...prev,
-          version: updatedBook.version,
-          shouldSave: false,
-        }));
-      }
-      catch (error: any) {
-        showAlert(error?.message);
-        
-        setSbp({
-          loading: false,
-          text: `Failed to save book`,
-        });
-        
-        // Reset shouldSave to allow retry
-        setBookUiModel(prev => ({
-          ...prev,
-          shouldSave: false,
-        }));
-      }
-    };
-    saveBook();
-  }, [bookUiModel, bookId, fetcher, showAlert]);
 
   const bookAction = {
     _streamSegmentCandidate: async (options: {
@@ -372,10 +311,13 @@ export default function BookPage({ params }: PageProps) {
         role: 'user',
       };
 
+      if (!await createSegment(userSegment)) {
+        return;
+      }
+
       setBookUiModel(prev => ({
         ...prev,
         storySegments: [...prev.storySegments, userSegment],
-        segmentIdsToSave: [...prev.segmentIdsToSave, userSegment.id],
       }));
 
       await bookAction._streamSegmentCandidate({
@@ -407,7 +349,7 @@ export default function BookPage({ params }: PageProps) {
         contentIndex: segmentCandidate.contents.length,
       });
     },
-    acceptSegmentCandidate: () => {
+    acceptSegmentCandidate: async () => {
       if (!segmentCandidate) {
         return;
       }
@@ -425,10 +367,13 @@ export default function BookPage({ params }: PageProps) {
         role: 'assistant',
       };
 
+      if (!await createSegment(assistantSegment)) {
+        return;
+      }
+
       setBookUiModel(prev => ({
         ...prev,
         storySegments: [...prev.storySegments, assistantSegment],
-        segmentIdsToSave: [...prev.segmentIdsToSave, assistantSegment.id],
       }));
       setSegmentCandidate(null);
     },
@@ -461,87 +406,92 @@ export default function BookPage({ params }: PageProps) {
         return;
       }
       
-      // Remove the last assistant segment and previous user segment
+      const deleted = await Promise.all([
+        deleteSegment(segmentId),
+        deleteSegment(prevUserSegment.id),
+      ]);
+
+      if (deleted.some(result => !result)) {
+        return;
+      }
+
       setBookUiModel(prev => ({
         ...prev,
         storySegments: prev.storySegments.filter(seg => seg.id !== segmentId && seg.id !== prevUserSegment.id),
       }));
 
-      // Delete both segments from the database
-      deleteSegment(segmentId);
-      deleteSegment(prevUserSegment.id);
-
       await bookAction._applyNarration(prevUserSegment.content, segmentId);
     },
-    summarizeSegments: (segmentIds: string[], newSummary: SegmentSummary) => {
-      setBookUiModel(prev => {
-        prev.storySegments = prev.storySegments.map(seg =>{
-          if(!segmentIds.includes(seg.id))
-            return seg;
-
-          return {
-            ...seg,
-            segmentSummaryId: newSummary.id,
-            toSummarize: false,
-          }
+    summarizeSegments: async (segmentIds: string[], newSummary: SegmentSummary) => {
+      try {
+        await fetcher(`/api/books/${bookId}/summaries`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ segmentIds, summary: newSummary }),
+          errorMessage: 'Failed to save segment summary',
         });
+      } catch {
+        return false;
+      }
 
-        prev.segmentSummaries = [
-          ...prev.segmentSummaries,
-          newSummary,
-        ];
-
-        return {
-          ...prev,
-          shouldSave: true,
-        }
-      });
-
-      setSummarizer(prev => ({ ...prev, visible: false }) );
+      setBookUiModel(prev => ({
+        ...prev,
+        storySegments: prev.storySegments.map(seg => segmentIds.includes(seg.id)
+          ? { ...seg, segmentSummaryId: newSummary.id, toSummarize: false }
+          : seg),
+        segmentSummaries: [...prev.segmentSummaries, newSummary],
+      }));
+      setSummarizer(prev => ({ ...prev, visible: false }));
+      return true;
     },
-    wrapChapter: (segmentIds: string[], newChapter: Chapter) => {
-      setBookUiModel(prev => {
-        prev.storySegments = prev.storySegments.map(seg =>{
-          if(!segmentIds.includes(seg.id))
-            return seg;
-
-          return {
-            ...seg,
-            chapterId: newChapter.id,
-          }
+    wrapChapter: async (segmentIds: string[], newChapter: Chapter) => {
+      try {
+        await fetcher(`/api/books/${bookId}/chapters`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ segmentIds, chapter: newChapter }),
+          errorMessage: 'Failed to save chapter',
         });
+      } catch {
+        return false;
+      }
 
-        prev.chapters = [
-          ...prev.chapters,
-          newChapter,
-        ];
-
-        return {
-          ...prev,
-          shouldSave: true,
-        }
-      });
-
-      setChapterWrapper(prev => ({ ...prev, visible: false }) );
+      setBookUiModel(prev => ({
+        ...prev,
+        storySegments: prev.storySegments.map(seg => segmentIds.includes(seg.id)
+          ? { ...seg, chapterId: newChapter.id }
+          : seg),
+        chapters: [...prev.chapters, newChapter],
+      }));
+      setChapterWrapper(prev => ({ ...prev, visible: false }));
+      return true;
     }
   }
 
   const uiAction = {
-    updateStorySegment: (updatedSegment: StorySegment, shouldSave: boolean) => {
+    updateStorySegment: async (updatedSegment: StorySegment) => {
+      if (!await updateSegment(updatedSegment)) {
+        return false;
+      }
+
       setBookUiModel(prev => ({
         ...prev,
         storySegments: prev.storySegments.map(msg =>
           msg.id === updatedSegment.id ? updatedSegment : msg
         ),
-        segmentIdsToSave: shouldSave ? [...prev.segmentIdsToSave, updatedSegment.id] : prev.segmentIdsToSave,
       }));
+      return true;
     },
-    deleteStorySegment: (id: string) => {
+    deleteStorySegment: async (id: string) => {
+      if (!await deleteSegment(id)) {
+        return false;
+      }
+
       setBookUiModel(prev => ({
         ...prev,
         storySegments: prev.storySegments.filter(msg => msg.id !== id),
       }));
-      deleteSegment(id);
+      return true;
     },
     openChapterWrapper: (segmentId: string) => {
       const segmentIndex = bookUiModel.storySegments.findIndex(s => s.id === segmentId);
@@ -553,12 +503,23 @@ export default function BookPage({ params }: PageProps) {
         segments: chapterSegments,
       });
     },
-    updateChapter: (updatedChapter: Chapter) => {
+    updateChapter: async (updatedChapter: Chapter) => {
+      try {
+        await fetcher(`/api/books/${bookId}/chapters/${updatedChapter.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedChapter),
+          errorMessage: 'Failed to update chapter',
+        });
+      } catch {
+        return false;
+      }
+
       setBookUiModel(prev => ({
         ...prev,
         chapters: prev.chapters.map(c => c.id === updatedChapter.id ? updatedChapter : c),
-        shouldSave: true,
       }));
+      return true;
     },
     selectCandidateContent: (contentIndex: number) => {
       setSegmentCandidate(prev => {
@@ -757,7 +718,7 @@ export default function BookPage({ params }: PageProps) {
                           segmentId: null,
                           candidateContentIndex: 0,
                         });
-                        uiAction.updateStorySegment(segment, true);
+                        void uiAction.updateStorySegment(segment);
                       }}
                     />
                   )}

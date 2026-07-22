@@ -35,9 +35,9 @@ AiStory is a Next.js App Router application for template-driven interactive stor
 
 ### Books and Concurrency
 
-- `BookModel` uses optimistic locking through the `version` field in `app/api/books/[id]/route.ts`.
-- Preserve version checks on book updates. If you change book update flows, make sure the client still handles version conflicts cleanly.
+- The book-level `version` field and `PUT /api/books/[id]` whole-document update flow are retired. Do not reintroduce either; writes must update only their explicitly owned book data.
 - Story data is stored as embedded arrays on the book document: `storySegments`, `segmentSummaries`, and `chapters`.
+- Scoped update routes must authenticate, filter by `ownerEmail`, validate their narrow payload, and avoid overwriting unrelated embedded arrays.
 
 ### Prompt Builder Compatibility
 
