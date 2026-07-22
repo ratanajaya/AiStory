@@ -44,7 +44,7 @@ AiStory is a Next.js App Router application for template-driven interactive stor
 - Prompt rendering lives in `utils/_promptUtil.ts`. Keep changes backward compatible with existing template placeholders.
 - Existing repo data uses mixed placeholder casing such as `{background}`, `{currentChapter}`, `{Narrator}`, and `{TextboxInput}`. If you change replacement logic, prefer compatibility over strictness.
 - `narration2` prompt composition is important for user input flow. Review `app/book/[bookId]/page.tsx` and `utils/_promptUtil.test.ts` before changing it.
-- Deprecated fields still exist in active data models: `prompt.narrator` and `chapter.endState`. Do not remove them casually.
+- Legacy fields `prompt.narrator` and `chapter.endState` are intentionally retired. Do not reintroduce them; it is acceptable for normalization and save flows to drop them from older records.
 
 ### AI and TTS Boundaries
 
