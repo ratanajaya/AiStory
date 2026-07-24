@@ -39,7 +39,7 @@ const _promptUtil = {
       previousChapters,
       currentChapter,
       textboxInput: '',
-      inputTag: template.prompt.inputTag ?? '',
+      inputTag: _constant.inputTag,
     };
 
     if (extraData) {

@@ -79,15 +79,13 @@ describe("_util", () => {
           enhancer: "  ",
           segmentSummarizer: "segment",
         })
-      ).toMatchObject({
+      ).toEqual({
         narration1: "",
         narration2: "",
         enhancer: "",
         segmentSummarizer: "segment",
         chapterSummarizer: "",
         outlineIdeaGenerator: "",
-        noteInitializer: "",
-        noteUpdater: "",
       });
     });
 

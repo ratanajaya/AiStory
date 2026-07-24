@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { PromptBuilderConfig, PromptConfig, Template } from '@/types';
+import { PromptBuilderConfig, Template } from '@/types';
 import { useFetcher } from '@/components/FetcherProvider';
 import { Button } from '@/components/Button';
 import { FormField } from '@/components/FormField';
@@ -21,7 +21,6 @@ interface TemplateFormProps {
 const emptyTemplate: TemplateSafeModel = {
   templateId: null,
   name: '',
-  prompt: { ..._constant.emptyPrompt },
   promptBuilder: { ..._constant.emptyPromptBuilder },
   storyBackground: '',
   imageUrl: null,
@@ -75,7 +74,6 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
         setFormData({
           templateId: data.templateId,
           name: _util.toInputString(data.name),
-          prompt: _util.normalizePromptConfig(data.prompt),
           promptBuilder: _util.normalizePromptBuilderConfig(data.promptBuilder),
           storyBackground: _util.toInputString(data.storyBackground),
           imageUrl: data.imageUrl ?? null,
@@ -122,16 +120,6 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
     }));
   };
 
-  const handlePromptChange = (field: keyof PromptConfig, value: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      prompt: {
-        ...prev.prompt,
-        [field]: value,
-      },
-    }));
-  };
-
   const handlePromptBuilderChange = (field: keyof PromptBuilderConfig, value: string) => {
     setFormData((prev) => ({
       ...prev,
@@ -172,9 +160,7 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
         </FormField>
 
         <PromptEditorSection
-          prompt={formData.prompt}
           promptBuilder={formData.promptBuilder}
-          onPromptChange={handlePromptChange}
           onPromptBuilderChange={handlePromptBuilderChange}
         />
 

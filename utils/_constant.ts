@@ -1,8 +1,4 @@
-import { ApiKeyConfig, LlmConfig, PromptBuilderConfig, PromptConfig } from '@/types';
-
-const emptyPrompt: PromptConfig = {
-  inputTag: '',
-};
+import { ApiKeyConfig, LlmConfig, PromptBuilderConfig } from '@/types';
 
 const emptyPromptBuilder: PromptBuilderConfig = {
   narration1: '',
@@ -11,8 +7,6 @@ const emptyPromptBuilder: PromptBuilderConfig = {
   segmentSummarizer: '',
   chapterSummarizer: '',
   outlineIdeaGenerator: '',
-  noteInitializer: '',
-  noteUpdater: '',
 };
 
 const emptyApiKey: ApiKeyConfig = {
@@ -28,7 +22,7 @@ const defaultSelectedLlm: LlmConfig = {
 const _constant = {
   newLine: '\n',
   newLine2: '\n\n',
-  emptyPrompt,
+  inputTag: 'OUTLINE:',
   emptyPromptBuilder,
   emptyApiKey,
   defaultSelectedLlm,

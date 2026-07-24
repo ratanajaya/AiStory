@@ -1,16 +1,10 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import { TemplateModel, KeyValueModel } from '@/models';
-import { DefaultValue, KeyValue, PromptBuilderConfig, PromptConfig } from '@/types';
+import { DefaultValue, KeyValue, PromptBuilderConfig } from '@/types';
 import { auth } from '@/auth';
 import _util from '@/utils/_util';
 import { errorResponse, errorResponseFromMessage } from '@/lib/apiError';
-
-function mergePromptWithDefaults(prompt: PromptConfig, defaultPrompt: PromptConfig): PromptConfig {
-  return {
-    inputTag: _util.mergeNormalizedString(prompt.inputTag, defaultPrompt.inputTag),
-  };
-}
 
 function mergePromptBuilderWithDefaults(
   promptBuilder: PromptBuilderConfig,
@@ -32,11 +26,6 @@ function mergePromptBuilderWithDefaults(
       promptBuilder.outlineIdeaGenerator,
       defaultPromptBuilder.outlineIdeaGenerator
     ),
-    noteInitializer: _util.mergeNormalizedString(
-      promptBuilder.noteInitializer,
-      defaultPromptBuilder.noteInitializer
-    ),
-    noteUpdater: _util.mergeNormalizedString(promptBuilder.noteUpdater, defaultPromptBuilder.noteUpdater),
   };
 }
 
@@ -58,11 +47,10 @@ export async function GET(
       return errorResponseFromMessage('Template not found', 404);
     }
 
-    // Fetch default values and merge prompts
+    // Fetch default values and merge prompt builder values.
     const defaultDoc = await KeyValueModel.findOne<KeyValue>({ key: 'defaultValue' });
     if (defaultDoc?.value) {
       const defaultValue = defaultDoc.value as DefaultValue;
-      const mergedPrompt = mergePromptWithDefaults(template.prompt, defaultValue.prompt);
       const mergedPromptBuilder = mergePromptBuilderWithDefaults(
         template.promptBuilder,
         defaultValue.promptBuilder
@@ -71,7 +59,6 @@ export async function GET(
       const templateObj = template.toObject();
       return NextResponse.json({
         ...templateObj,
-        prompt: mergedPrompt,
         promptBuilder: mergedPromptBuilder,
       });
     }

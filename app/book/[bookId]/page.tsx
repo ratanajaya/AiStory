@@ -79,7 +79,7 @@ export default function BookPage({ params }: PageProps) {
   });
 
   const { element: inputPanelElement, getUserInput } = useInputPanel({
-    inputTag: template?.prompt.inputTag ?? 'Enter your input here...',
+    inputTag: _constant.inputTag,
     template,
     book: bookUiModel,
     onStatusChange: setSbp,
@@ -386,8 +386,11 @@ export default function BookPage({ params }: PageProps) {
       }
 
       const userInput = getUserInput();
-      
-      const inputSegment = `${_util.conditionalString(userInput.input1, template?.prompt.inputTag + _constant.newLine + userInput.input1)}`;
+
+      const inputSegment = _util.conditionalString(
+        userInput.input1,
+        _constant.inputTag + _constant.newLine + userInput.input1
+      );
 
       await bookAction._applyNarration(inputSegment, null);
     },

@@ -1,7 +1,6 @@
 import type {
   ApiKeyConfig,
   PromptBuilderConfig,
-  PromptConfig,
   SegmentSummary,
   StorySegment,
 } from "@/types";
@@ -29,11 +28,6 @@ const _util = {
   mergeNormalizedString: (input: string | null | undefined, fallback: string | null | undefined): string => {
     return _util.toInputString(_util.altString(input, _util.toInputString(fallback)));
   },
-  normalizePromptConfig: (prompt: Partial<PromptConfig> | null | undefined): PromptConfig => {
-    return {
-      inputTag: _util.toInputString(prompt?.inputTag),
-    };
-  },
   normalizePromptBuilderConfig: (
     promptBuilder: Partial<PromptBuilderConfig> | null | undefined
   ): PromptBuilderConfig => {
@@ -44,8 +38,6 @@ const _util = {
       segmentSummarizer: _util.toInputString(promptBuilder?.segmentSummarizer),
       chapterSummarizer: _util.toInputString(promptBuilder?.chapterSummarizer),
       outlineIdeaGenerator: _util.toInputString(promptBuilder?.outlineIdeaGenerator),
-      noteInitializer: _util.toInputString(promptBuilder?.noteInitializer),
-      noteUpdater: _util.toInputString(promptBuilder?.noteUpdater),
     };
   },
   normalizeApiKeyConfig: (apiKey: Partial<ApiKeyConfig> | null | undefined): ApiKeyConfig => {
