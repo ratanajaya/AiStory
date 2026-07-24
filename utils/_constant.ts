@@ -11,8 +11,6 @@ const emptyPromptBuilder: PromptBuilderConfig = {
   segmentSummarizer: '',
   chapterSummarizer: '',
   outlineIdeaGenerator: '',
-  noteInitializer: '',
-  noteUpdater: '',
 };
 
 const emptyApiKey: ApiKeyConfig = {

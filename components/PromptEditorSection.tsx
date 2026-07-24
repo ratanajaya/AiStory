@@ -86,22 +86,6 @@ export function PromptEditorSection({
             rows={4}
           />
         </FormField>
-
-        <FormField label="Note Initializer:">
-          <Textarea
-            value={_util.toInputString(promptBuilder.noteInitializer)}
-            onChange={(e) => onPromptBuilderChange('noteInitializer', e.target.value)}
-            rows={4}
-          />
-        </FormField>
-
-        <FormField label="Note Updater:">
-          <Textarea
-            value={_util.toInputString(promptBuilder.noteUpdater)}
-            onChange={(e) => onPromptBuilderChange('noteUpdater', e.target.value)}
-            rows={4}
-          />
-        </FormField>
       </fieldset>
     </>
   );

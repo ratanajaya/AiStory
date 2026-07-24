@@ -45,8 +45,6 @@ export interface PromptBuilderConfig {
   segmentSummarizer: string | null;
   chapterSummarizer: string | null;
   outlineIdeaGenerator: string | null;
-  noteInitializer: string | null;
-  noteUpdater: string | null;
 }
 
 export interface ApiKeyConfig {

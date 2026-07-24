@@ -15,8 +15,6 @@ const template: Template = {
     segmentSummarizer: null,
     chapterSummarizer: null,
     outlineIdeaGenerator: null,
-    noteInitializer: null,
-    noteUpdater: null,
   },
   storyBackground: "A storm is coming.",
   imageUrl: null,

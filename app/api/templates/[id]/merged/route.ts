@@ -32,11 +32,6 @@ function mergePromptBuilderWithDefaults(
       promptBuilder.outlineIdeaGenerator,
       defaultPromptBuilder.outlineIdeaGenerator
     ),
-    noteInitializer: _util.mergeNormalizedString(
-      promptBuilder.noteInitializer,
-      defaultPromptBuilder.noteInitializer
-    ),
-    noteUpdater: _util.mergeNormalizedString(promptBuilder.noteUpdater, defaultPromptBuilder.noteUpdater),
   };
 }
 
