@@ -28,9 +28,6 @@ const ChapterSchema = new Schema<Chapter>({
 const TemplateSchema = new Schema<Template>({
   templateId: { type: String, required: true, unique: true },
   name: { type: String, required: true },
-  prompt: {
-    inputTag: { type: String, default: null }
-  },
   promptBuilder: {
     narration1: { type: String, default: null },
     narration2: { type: String, default: null },

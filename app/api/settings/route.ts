@@ -37,7 +37,6 @@ export async function GET() {
     if (!doc) {
       // This should never happen in practice, but keep a safe fallback for unset data.
       const emptyDefaultValue: DefaultValue = {
-        prompt: { ..._constant.emptyPrompt },
         promptBuilder: { ..._constant.emptyPromptBuilder },
         apiKey: { ..._constant.emptyApiKey },
         selectedLlm: { ..._constant.defaultSelectedLlm },
@@ -47,16 +46,16 @@ export async function GET() {
 
     const value = doc.value as DefaultValue;
 
-    return NextResponse.json({
-      ...value,
-      prompt: _util.normalizePromptConfig(value.prompt),
+    const responseValue: DefaultValue = {
       promptBuilder: _util.normalizePromptBuilderConfig(value.promptBuilder),
       apiKey: _util.normalizeApiKeyConfig(value.apiKey),
       selectedLlm: {
         service: value.selectedLlm?.service || _constant.defaultSelectedLlm.service,
         model: value.selectedLlm?.model || _constant.defaultSelectedLlm.model,
       },
-    });
+    };
+
+    return NextResponse.json(responseValue);
   } catch (err) {
     return errorResponse(err);
   }
@@ -80,7 +79,6 @@ export async function PUT(request: Request) {
     }
 
     const normalizedValue: DefaultValue = {
-      prompt: _util.normalizePromptConfig(body.prompt),
       promptBuilder: _util.normalizePromptBuilderConfig(body.promptBuilder),
       apiKey: _util.normalizeApiKeyConfig(body.apiKey),
       selectedLlm: llmResult.value,

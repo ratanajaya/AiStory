@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { AiModelOption, DefaultValue, PromptBuilderConfig, PromptConfig } from '@/types';
+import { AiModelOption, DefaultValue, PromptBuilderConfig } from '@/types';
 import { AiSettingsSection } from '@/components/AiSettingsSection';
 import { useFetcher } from '@/components/FetcherProvider';
 import { Button } from '@/components/Button';
@@ -17,7 +17,6 @@ type SettingsFormData = Omit<DefaultValue, 'selectedLlm'> & {
 };
 
 const emptyDefaultValue: SettingsFormData = {
-  prompt: { ..._constant.emptyPrompt },
   promptBuilder: { ..._constant.emptyPromptBuilder },
   apiKey: { ..._constant.emptyApiKey },
   selectedLlm: { ..._constant.defaultSelectedLlm },
@@ -42,7 +41,6 @@ export default function SettingPage() {
           errorMessage: 'Failed to fetch settings',
         });
         setFormData({
-          prompt: _util.normalizePromptConfig(data.prompt),
           promptBuilder: _util.normalizePromptBuilderConfig(data.promptBuilder),
           apiKey: _util.normalizeApiKeyConfig(data.apiKey),
           selectedLlm: {
@@ -131,7 +129,6 @@ export default function SettingPage() {
         },
         body: JSON.stringify({
           ...formData,
-          prompt: _util.normalizePromptConfig(formData.prompt),
           promptBuilder: _util.normalizePromptBuilderConfig(formData.promptBuilder),
           apiKey: _util.normalizeApiKeyConfig(formData.apiKey),
         }),
@@ -143,16 +140,6 @@ export default function SettingPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handlePromptChange = (field: keyof PromptConfig, value: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      prompt: {
-        ...prev.prompt,
-        [field]: value,
-      },
-    }));
   };
 
   const handleSelectedServiceChange = (service: string) => {
@@ -230,11 +217,8 @@ export default function SettingPage() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <PromptEditorSection
-          prompt={formData.prompt}
           promptBuilder={formData.promptBuilder}
-          onPromptChange={handlePromptChange}
           onPromptBuilderChange={handlePromptBuilderChange}
-          promptLegend="Default Prompts"
           promptBuilderLegend="Default Prompt Builder"
         />
 

@@ -25,7 +25,6 @@ export async function GET(
     const templateObj = template.toObject();
     return NextResponse.json({
       ...templateObj,
-      prompt: _util.normalizePromptConfig(templateObj.prompt),
       promptBuilder: _util.normalizePromptBuilderConfig(templateObj.promptBuilder),
     });
   } catch (err) {
@@ -46,7 +45,6 @@ export async function PUT(
     const body = await request.json();
     const normalizedBody = {
       ...body,
-      prompt: _util.normalizePromptConfig(body.prompt),
       promptBuilder: _util.normalizePromptBuilderConfig(body.promptBuilder),
     };
     const template = await TemplateModel.findOneAndUpdate(

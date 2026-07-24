@@ -1,13 +1,11 @@
 import { describe, expect, it } from "vitest";
 import _promptUtil from "./_promptUtil";
 import { Book, Template } from "@/types";
+import _constant from "./_constant";
 
 const template: Template = {
   templateId: "template-1",
   name: "Template",
-  prompt: {
-    inputTag: "Action",
-  },
   promptBuilder: {
     narration1: null,
     narration2: null,
@@ -139,5 +137,11 @@ describe("_promptUtil.craftBookPrompt", () => {
     const result = _promptUtil.craftBookPrompt("{currentChapter}", template, emptyBook, null, true);
 
     expect(result).toBe("[THIS IS THE START OF A NEW CHAPTER]\n\n");
+  });
+
+  it("uses the hardcoded input tag placeholder", () => {
+    const result = _promptUtil.craftBookPrompt("{inputTag}", template, book, null, true);
+
+    expect(result).toBe(_constant.inputTag);
   });
 });

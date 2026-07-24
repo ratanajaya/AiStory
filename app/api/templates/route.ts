@@ -29,7 +29,6 @@ export async function POST(request: Request) {
     const templateId = shortid.generate();
     const normalizedBody = {
       ...body,
-      prompt: _util.normalizePromptConfig(body.prompt),
       promptBuilder: _util.normalizePromptBuilderConfig(body.promptBuilder),
     };
     const template = await TemplateModel.create({

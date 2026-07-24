@@ -34,10 +34,6 @@ export interface DebugLog {
   content: string;
 }
 
-export interface PromptConfig {
-  inputTag: string | null;
-}
-
 export interface PromptBuilderConfig {
   narration1: string | null;
   narration2: string | null;
@@ -55,7 +51,6 @@ export interface ApiKeyConfig {
 export interface Template {
   templateId: string | null;
   name: string;
-  prompt: PromptConfig;
   promptBuilder: PromptBuilderConfig;
   storyBackground: string;
   imageUrl: string | null;
@@ -73,7 +68,6 @@ export interface Book {
 }
 
 export interface DefaultValue {
-  prompt: PromptConfig;
   promptBuilder: PromptBuilderConfig;
   selectedLlm: LlmConfig;
   apiKey: ApiKeyConfig;
