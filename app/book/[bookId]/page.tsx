@@ -223,6 +223,7 @@ export default function BookPage({ params }: PageProps) {
               { role: 'user', content: userMessage1 },
               { role: 'user', content: userMessage2 },
             ],
+            logContext: { feature: 'Narration', bookId: bookUiModel.bookId, bookName: bookUiModel.name },
           },
           {
             onChunk: (chunk) => {
@@ -641,6 +642,8 @@ export default function BookPage({ params }: PageProps) {
                                 key={chapterId}
                                 chapter={chapter}
                                 segments={segments}
+                                bookId={bookUiModel.bookId}
+                                bookName={bookUiModel.name}
                                 onChapterUpdate={uiAction.updateChapter}
                               />
                             );
@@ -659,6 +662,8 @@ export default function BookPage({ params }: PageProps) {
                                 key={seg.id}
                                 index={index}
                                 segment={seg}
+                                bookId={bookUiModel.bookId}
+                                bookName={bookUiModel.name}
                                 segmentSummary={segmentSummary}
                                 segmentSummaryIndex={segmentSummaryIndex >= 0 ? segmentSummaryIndex : undefined}
                                 onUpdateSegment={uiAction.updateStorySegment}
@@ -751,6 +756,8 @@ export default function BookPage({ params }: PageProps) {
                   {template && summarizer.visible && (
                     <SegmentSummarizerModal
                       template={template}
+                      bookId={bookUiModel.bookId}
+                      bookName={bookUiModel.name}
                       segments={bookUiModel.storySegments}
                       segmentSummaries={bookUiModel.segmentSummaries}
                       onClose={() => setSummarizer(prev => ({ ...prev, visible: false }))}
@@ -785,6 +792,8 @@ export default function BookPage({ params }: PageProps) {
         <BookAudioControl
           segments={bookUiModel.storySegments}
           chapters={bookUiModel.chapters}
+          bookId={bookUiModel.bookId}
+          bookName={bookUiModel.name}
           disabled={loading}
         />
         {debugPanel.element}

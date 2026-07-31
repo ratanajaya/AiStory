@@ -14,6 +14,8 @@ import { formatErrorDetail } from '@/lib/errorClient';
 
 export default function SegmentSummarizerModal(props: {
   template: Template;
+  bookId: string;
+  bookName: string | null;
   segments: StorySegment[];
   segmentSummaries: SegmentSummary[];
   onClose: () => void;
@@ -49,6 +51,7 @@ export default function SegmentSummarizerModal(props: {
       const cleaned = await streamAiRequest(
         {
           messages: [{ role: 'user', content: userMessage }],
+          logContext: { feature: 'Segment summarizer', bookId: props.bookId, bookName: props.bookName },
         },
         {
           onChunk: (chunk) => {

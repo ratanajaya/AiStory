@@ -74,6 +74,7 @@ export default function useInputPanel(props:{
             { role: 'user', content: contextMessage },
             { role: 'user', content: instructionMessage },
           ],
+          logContext: { feature: 'Outline generator', bookId: props.book.bookId, bookName: props.book.name },
         },
         {
           onChunk: (chunk) => {

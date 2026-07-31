@@ -10,6 +10,7 @@ const hasCachedValue = (key: string) => {
 
 const keys = {
   uiState: "ai-story:ui-state",
+  aiApiLogs: "ai-story:ai-api-logs",
 };
 
 const _ls = {

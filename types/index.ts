@@ -99,3 +99,36 @@ export interface KeyValue {
   key: string;
   value: any;
 }
+
+export type JsonLogValue = string | number | boolean | null | JsonLogValue[] | {
+  [key: string]: JsonLogValue;
+};
+
+export interface AiApiLogContext {
+  feature: string;
+  bookId?: string;
+  bookName?: string | null;
+}
+
+export interface AiApiLogAudioReference {
+  segmentId: string;
+  mimeType: string;
+  byteSize: number;
+  configId: string;
+}
+
+export interface AiApiLogEntry {
+  id: string;
+  createdAt: number;
+  kind: 'llm' | 'tts';
+  status: 'success' | 'error';
+  feature: string;
+  bookId?: string;
+  bookName?: string | null;
+  payload: JsonLogValue;
+  response?: JsonLogValue;
+  error?: JsonLogValue;
+  httpStatus?: number;
+  durationMs: number;
+  audio?: AiApiLogAudioReference;
+}
