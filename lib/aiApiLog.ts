@@ -2,6 +2,7 @@ import type { AiApiLogEntry, JsonLogValue } from '@/types';
 import _ls from '@/utils/_ls';
 
 export const AI_API_LOG_LIMIT = 100;
+export const AI_API_LOG_RESPONSE_PREVIEW_LIMIT = 160;
 
 type NewAiApiLogEntry = Omit<AiApiLogEntry, 'id' | 'createdAt'> & Partial<Pick<AiApiLogEntry, 'id' | 'createdAt'>>;
 
@@ -78,4 +79,60 @@ export const createLogError = (error: unknown): JsonLogValue => {
   }
 
   return { message: typeof error === 'string' ? error : 'Unknown error' };
+};
+
+const normalizeResponseText = (value: string) => {
+  const normalized = value.replace(/\s+/g, ' ').trim();
+  return normalized || null;
+};
+
+export const getAiApiLogResponseText = (entry: AiApiLogEntry): string | null => {
+  if (entry.status !== 'success' || entry.response === undefined) return null;
+
+  if (typeof entry.response === 'string') return normalizeResponseText(entry.response);
+  if (!entry.response || typeof entry.response !== 'object' || Array.isArray(entry.response)) return null;
+
+  const content = entry.response.content;
+  return typeof content === 'string' ? normalizeResponseText(content) : null;
+};
+
+export const getAiApiLogResponsePreview = (entry: AiApiLogEntry): string | null => {
+  const text = getAiApiLogResponseText(entry);
+  if (!text) return null;
+  if (text.length <= AI_API_LOG_RESPONSE_PREVIEW_LIMIT) return text;
+
+  return `${text.slice(0, AI_API_LOG_RESPONSE_PREVIEW_LIMIT - 1)}…`;
+};
+
+const toFilenamePart = (value: string) => {
+  const normalized = value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  return normalized || 'llm-call';
+};
+
+const toFilenameTimestamp = (timestamp: number) => {
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return 'unknown-time';
+  return date.toISOString().replace(/[:.]/g, '-');
+};
+
+export const createAiApiLogDownload = (entry: AiApiLogEntry) => {
+  const record = {
+    id: entry.id,
+    createdAt: entry.createdAt,
+    kind: entry.kind,
+    status: entry.status,
+    feature: entry.feature,
+    bookId: entry.bookId,
+    bookName: entry.bookName,
+    httpStatus: entry.httpStatus,
+    durationMs: entry.durationMs,
+    payload: entry.payload,
+    response: entry.response,
+    error: entry.error,
+  };
+
+  return {
+    filename: `ai-api-log-${toFilenamePart(entry.feature)}-${toFilenameTimestamp(entry.createdAt)}.json`,
+    content: JSON.stringify(record, null, 2),
+  };
 };
