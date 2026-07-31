@@ -23,6 +23,8 @@ type PrefetchedAudioResult = {
 export default function BookAudioControl(props: {
   segments: StorySegment[];
   chapters: Chapter[];
+  bookId: string;
+  bookName: string | null;
   disabled?: boolean;
 }) {
   const { showAlert } = useAlert();
@@ -96,7 +98,11 @@ export default function BookAudioControl(props: {
   }, [chapterTitleById, playableSegments]);
 
   const createPrefetchTask = (segment: StorySegment): Promise<PrefetchedAudioResult> => {
-    return ensureSegmentAudioBlob(segment.id, segment.content)
+    return ensureSegmentAudioBlob(segment.id, segment.content, {
+      feature: 'Book audio playback',
+      bookId: props.bookId,
+      bookName: props.bookName,
+    })
       .then((audioBlob) => ({ audioBlob, error: null }))
       .catch((error) => ({
         audioBlob: null,

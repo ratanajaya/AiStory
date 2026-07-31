@@ -89,6 +89,7 @@ export default function SegmentEnhancerModal(props: SegmentEnhancerModalProps) {
         {
           systemMessage: 'Follow the instruction specified after the PROMPT:',
           messages: [{ role: 'user', content: fullUserPrompt }],
+          logContext: { feature: 'Segment enhancer', bookId: props.book.bookId, bookName: props.book.name },
         },
         {
           onChunk: (chunk) => {

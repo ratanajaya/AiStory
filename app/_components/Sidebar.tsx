@@ -47,9 +47,11 @@ export function HamburgerButton({ onClick }: { onClick: () => void }) {
 export function Sidebar({
   isOpen,
   onClose,
+  onOpenAiApiLogs,
 }: {
   isOpen: boolean;
   onClose: () => void;
+  onOpenAiApiLogs: () => void;
 }) {
   const pathname = usePathname();
   const { fetcher } = useFetcher();
@@ -322,6 +324,13 @@ export function Sidebar({
                 {link.label}
               </Link>
             ))}
+            <button
+              type="button"
+              onClick={onOpenAiApiLogs}
+              className="block w-full rounded-md px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted"
+            >
+              AI API Logs
+            </button>
           </nav>
 
           {/* Divider */}

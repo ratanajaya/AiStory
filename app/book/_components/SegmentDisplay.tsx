@@ -22,6 +22,8 @@ const colors = [
 export default function SegmentDisplay(props: {
   index: number;
   segment: StorySegment;
+  bookId: string;
+  bookName: string | null;
   onUpdateSegment: (updatedSegment: StorySegment) => Promise<boolean>;
   onDeleteSegment: (id: string) => Promise<boolean>;
   onEnhanceClick: (chat: StorySegment) => void;
@@ -193,6 +195,8 @@ export default function SegmentDisplay(props: {
             <SegmentAudioControl
               segmentId={props.segment.id}
               content={props.segment.content}
+              bookId={props.bookId}
+              bookName={props.bookName}
               disabled={props.disabled}
             />
             <Tooltip

@@ -8,6 +8,8 @@ import ChapterEditorModal from "./ChapterEditorModal";
 export default function ChapterDisplay(props: {
   chapter: Chapter;
   segments: StorySegment[];
+  bookId: string;
+  bookName: string | null;
   onChapterUpdate: (updatedChapter: Chapter) => Promise<boolean>;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -51,6 +53,8 @@ export default function ChapterDisplay(props: {
               <SegmentAudioControl
                 segmentId={segment.id}
                 content={segment.content}
+                bookId={props.bookId}
+                bookName={props.bookName}
                 className="mb-2 flex items-center gap-1"
               />
               <div className="text-foreground">

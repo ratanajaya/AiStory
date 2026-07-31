@@ -13,6 +13,8 @@ import {
 export default function SegmentAudioControl(props: {
   segmentId: string;
   content: string;
+  bookId: string;
+  bookName: string | null;
   disabled?: boolean;
   className?: string;
 }) {
@@ -52,7 +54,11 @@ export default function SegmentAudioControl(props: {
     setIsGeneratingTts(true);
 
     try {
-      const audioBlob = await ensureSegmentAudioBlob(props.segmentId, props.content);
+      const audioBlob = await ensureSegmentAudioBlob(props.segmentId, props.content, {
+        feature: 'Segment audio playback',
+        bookId: props.bookId,
+        bookName: props.bookName,
+      });
 
       await playAudioBlob(props.segmentId, audioBlob);
     } catch (error) {
