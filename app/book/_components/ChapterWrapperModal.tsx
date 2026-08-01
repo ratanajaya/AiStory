@@ -43,7 +43,8 @@ export default function ChapterWrapperModal(props: {
     try {
       const cleaned = await streamAiRequest(
         {
-          systemMessage: null,
+          feature: 'chapterSummarizer',
+          systemMessage: template.promptBuilder.chapterSummarizerSystem,
           messages: [{ role: 'user', content: userMessage }],
           logContext: { feature: 'Chapter summarizer', bookId: book.bookId, bookName: book.name },
         },

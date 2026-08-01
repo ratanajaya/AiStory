@@ -20,6 +20,7 @@ const _promptUtil = {
     extraData?: Record<string, string | null | undefined>
   ){
     const background = template.storyBackground;
+    const writingStyle = _util.toInputString(template.writingStyle);
 
     let previousChapters = '';
     if (includePrevChapters) {
@@ -36,6 +37,7 @@ const _promptUtil = {
 
     const promptData: Record<string, string> = {
       background,
+      writingStyle,
       previousChapters,
       currentChapter,
       textboxInput: '',

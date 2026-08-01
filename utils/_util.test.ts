@@ -76,16 +76,22 @@ describe("_util", () => {
         _util.normalizePromptBuilderConfig({
           narration1: undefined,
           narration2: null,
+          narrationSystem: undefined,
           enhancer: "  ",
           segmentSummarizer: "segment",
         })
       ).toEqual({
-        narration1: "",
-        narration2: "",
-        enhancer: "",
-        segmentSummarizer: "segment",
-        chapterSummarizer: "",
-        outlineIdeaGenerator: "",
+          narration1: "",
+          narration2: "",
+          narrationSystem: "",
+          enhancer: "",
+          enhancerSystem: "",
+          segmentSummarizer: "segment",
+          segmentSummarizerSystem: "",
+          chapterSummarizer: "",
+          chapterSummarizerSystem: "",
+          outlineIdeaGenerator: "",
+          outlineIdeaGeneratorSystem: "",
       });
     });
 

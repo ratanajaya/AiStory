@@ -7,6 +7,7 @@ import { Template } from "@/types";
 import { BookUIModel } from "@/types/extendedTypes";
 import _promptUtil from "@/utils/_promptUtil";
 import _constant from "@/utils/_constant";
+import _util from "@/utils/_util";
 import { streamAiRequest, AiStreamError } from "@/lib/aiStreamClient";
 import { formatErrorDetail } from "@/lib/errorClient";
 import { StatusBarProps } from "./StatusBar";
@@ -47,6 +48,8 @@ export default function useInputPanel(props:{
       inputRef.current.value = prefix;
     }
 
+    let generatedContent = '';
+
     try {
       // Context message — same shape as the main narration call
       const contextMessage = _promptUtil.craftBookPrompt(
@@ -66,18 +69,18 @@ export default function useInputPanel(props:{
         true,
         { textboxInput: ideaText },
       );
+      const userMessage = [contextMessage, instructionMessage].filter(Boolean).join(_constant.newLine2);
 
       const cleaned = await streamAiRequest(
         {
-          systemMessage: null,
-          messages: [
-            { role: 'user', content: contextMessage },
-            { role: 'user', content: instructionMessage },
-          ],
+          feature: 'outlineIdeaGenerator',
+          systemMessage: props.template.promptBuilder.outlineIdeaGeneratorSystem,
+          messages: [{ role: 'user', content: userMessage }],
           logContext: { feature: 'Outline generator', bookId: props.book.bookId, bookName: props.book.name },
         },
         {
           onChunk: (chunk) => {
+            generatedContent += chunk;
             if (inputRef.current) {
               inputRef.current.value = inputRef.current.value + chunk;
             }
@@ -95,6 +98,9 @@ export default function useInputPanel(props:{
     } catch (err) {
       const envelope = err instanceof AiStreamError ? err.envelope : undefined;
       const message = err instanceof Error ? err.message : 'Outline generation failed';
+      if (_util.isNullOrWhitespace(generatedContent) && inputRef.current) {
+        inputRef.current.value = prefix;
+      }
       showAlert(message, { type: 'error', detail: formatErrorDetail(envelope) });
       props.onStatusChange({
         loading: false,

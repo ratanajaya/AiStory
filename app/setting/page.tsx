@@ -6,6 +6,8 @@ import { AiSettingsSection } from '@/components/AiSettingsSection';
 import { useFetcher } from '@/components/FetcherProvider';
 import { Button } from '@/components/Button';
 import { PromptEditorSection } from '@/components/PromptEditorSection';
+import { GenerationProfilesSection } from '@/components/GenerationProfilesSection';
+import { normalizeGenerationProfileConfig } from '@/lib/generationProfiles';
 import _constant from '@/utils/_constant';
 import _util from '@/utils/_util';
 
@@ -18,6 +20,7 @@ type SettingsFormData = Omit<DefaultValue, 'selectedLlm'> & {
 
 const emptyDefaultValue: SettingsFormData = {
   promptBuilder: { ..._constant.emptyPromptBuilder },
+  generationProfiles: normalizeGenerationProfileConfig(null),
   apiKey: { ..._constant.emptyApiKey },
   selectedLlm: { ..._constant.defaultSelectedLlm },
 };
@@ -42,6 +45,7 @@ export default function SettingPage() {
         });
         setFormData({
           promptBuilder: _util.normalizePromptBuilderConfig(data.promptBuilder),
+          generationProfiles: normalizeGenerationProfileConfig(data.generationProfiles),
           apiKey: _util.normalizeApiKeyConfig(data.apiKey),
           selectedLlm: {
             service: data.selectedLlm?.service || _constant.defaultSelectedLlm.service,
@@ -130,6 +134,7 @@ export default function SettingPage() {
         body: JSON.stringify({
           ...formData,
           promptBuilder: _util.normalizePromptBuilderConfig(formData.promptBuilder),
+          generationProfiles: normalizeGenerationProfileConfig(formData.generationProfiles),
           apiKey: _util.normalizeApiKeyConfig(formData.apiKey),
         }),
         errorMessage: 'Failed to update settings',
@@ -220,6 +225,11 @@ export default function SettingPage() {
           promptBuilder={formData.promptBuilder}
           onPromptBuilderChange={handlePromptBuilderChange}
           promptBuilderLegend="Default Prompt Builder"
+        />
+
+        <GenerationProfilesSection
+          generationProfiles={formData.generationProfiles}
+          onChange={(generationProfiles) => setFormData((prev) => ({ ...prev, generationProfiles }))}
         />
 
         <AiSettingsSection

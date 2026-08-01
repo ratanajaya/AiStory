@@ -3,16 +3,18 @@ import { createTogetherAI } from '@ai-sdk/togetherai';
 import { generateText, streamText, ModelMessage, LanguageModel } from 'ai';
 import { getUserSettingWithFallback } from "@/auth";
 import { assertSupportedLlmConfig } from "@/lib/llmSettings";
+import type { GenerationProfile, GenerationProfileConfig } from '@/types';
+import { toAiSdkGenerationOptions } from '@/lib/generationProfiles';
 
 export interface AiEndpoint {
-  chatCompletion: (systemMsg: string | null, userMsg: string) => Promise<string>;
-  chatCompletionFull: (systemMsg: string | null, messages: any[]) => Promise<string>;
-  chatStream: (systemMsg: string | null, userMsg: string, onReceiveChunk: (content: string) => void) => Promise<void>;
-  chatStreamFull: (systemMsg: string | null, messages: any[], onReceiveChunk: (content: string) => void) => Promise<void>;
+  chatCompletion: (systemMsg: string | null, userMsg: string, profile: GenerationProfile) => Promise<string>;
+  chatCompletionFull: (systemMsg: string | null, messages: unknown[], profile: GenerationProfile) => Promise<string>;
+  chatStream: (systemMsg: string | null, userMsg: string, profile: GenerationProfile, onReceiveChunk: (content: string) => void) => Promise<void>;
+  chatStreamFull: (systemMsg: string | null, messages: unknown[], profile: GenerationProfile, onReceiveChunk: (content: string) => void) => Promise<void>;
 }
 
 const createAiSdkEndpoint = (model: LanguageModel): AiEndpoint => ({
-  chatCompletionFull: async (systemMsg: string | null, messages: any[]) => {
+  chatCompletionFull: async (systemMsg: string | null, messages: unknown[], profile: GenerationProfile) => {
     const systemPrompt: ModelMessage[] = systemMsg ? [{ role: 'system', content: systemMsg }] : [];
 
     const { text } = await generateText({
@@ -21,6 +23,7 @@ const createAiSdkEndpoint = (model: LanguageModel): AiEndpoint => ({
         ...systemPrompt,
         ...messages,
       ] as ModelMessage[],
+      ...toAiSdkGenerationOptions(profile),
     });
 
     if (!text || !text.trim()) {
@@ -29,12 +32,12 @@ const createAiSdkEndpoint = (model: LanguageModel): AiEndpoint => ({
 
     return text;
   },
-  chatCompletion: async (systemMsg: string | null, userMsg: string) => {
+  chatCompletion: async (systemMsg: string | null, userMsg: string, profile: GenerationProfile) => {
     return createAiSdkEndpoint(model).chatCompletionFull(systemMsg, [
       { role: 'user', content: userMsg }
-    ]);
+    ], profile);
   },
-  chatStreamFull: async (systemMsg: string | null, messages: any[], onReceiveChunk: (content: string) => void) => {
+  chatStreamFull: async (systemMsg: string | null, messages: unknown[], profile: GenerationProfile, onReceiveChunk: (content: string) => void) => {
     const systemPrompt: ModelMessage[] = systemMsg ? [{ role: 'system', content: systemMsg }] : [];
 
     let streamError: unknown = null;
@@ -44,6 +47,7 @@ const createAiSdkEndpoint = (model: LanguageModel): AiEndpoint => ({
         ...systemPrompt,
         ...messages,
       ] as ModelMessage[],
+      ...toAiSdkGenerationOptions(profile),
       onError: ({ error }) => {
         streamError = error;
       },
@@ -63,18 +67,22 @@ const createAiSdkEndpoint = (model: LanguageModel): AiEndpoint => ({
       throw new Error('LLM returned no content (empty stream)');
     }
   },
-  chatStream: async (systemMsg: string | null, userMsg: string, onReceiveChunk: (content: string) => void) => {
+  chatStream: async (systemMsg: string | null, userMsg: string, profile: GenerationProfile, onReceiveChunk: (content: string) => void) => {
       return createAiSdkEndpoint(model).chatStreamFull(
           systemMsg,
           [{ role: 'user', content: userMsg }],
+          profile,
           onReceiveChunk
       );
   }
 });
 
 // Get the endpoint based on current user configuration
-export const getDynamicAiEndpoint = async (): Promise<AiEndpoint> => {
-  const { selectedLlm, apiKey } = await getUserSettingWithFallback();
+export const getDynamicAiEndpoint = async (): Promise<{
+  endpoint: AiEndpoint;
+  generationProfiles: GenerationProfileConfig;
+}> => {
+  const { selectedLlm, apiKey, generationProfiles } = await getUserSettingWithFallback();
   assertSupportedLlmConfig(selectedLlm);
   
   if (selectedLlm.service === 'together') {
@@ -82,13 +90,13 @@ export const getDynamicAiEndpoint = async (): Promise<AiEndpoint> => {
       throw new Error('Together API key is not configured');
     }
     const together = createTogetherAI({ apiKey: apiKey.together });
-    return createAiSdkEndpoint(together(selectedLlm.model));
+    return { endpoint: createAiSdkEndpoint(together(selectedLlm.model)), generationProfiles };
   } else if (selectedLlm.service === 'openAi') {
     if (!apiKey.openAi) {
       throw new Error('OpenAI API key is not configured');
     }
     const openai = createOpenAI({ apiKey: apiKey.openAi });
-    return createAiSdkEndpoint(openai(selectedLlm.model));
+    return { endpoint: createAiSdkEndpoint(openai(selectedLlm.model)), generationProfiles };
   }
 
   throw new Error('Unsupported LLM service configured');

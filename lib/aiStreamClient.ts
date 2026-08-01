@@ -2,9 +2,10 @@ import _util from '@/utils/_util';
 import { STREAM_ERROR_SENTINEL, splitStreamPayload } from './streamProtocol';
 import { formatErrorDetail, type ErrorEnvelope } from './errorClient';
 import { appendAiApiLog, createLogError } from './aiApiLog';
-import type { AiApiLogContext } from '@/types';
+import type { AiApiLogContext, AiGenerationFeature } from '@/types';
 
 export interface AiStreamRequest {
+  feature: AiGenerationFeature;
   systemMessage?: string | null;
   messages: { role: string; content: string }[];
   logContext?: AiApiLogContext;
@@ -48,6 +49,7 @@ export async function streamAiRequest(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        feature: req.feature,
         systemMessage: req.systemMessage ?? null,
         messages: req.messages,
         stream: true,

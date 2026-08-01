@@ -4,6 +4,7 @@ import dbConnect from '@/lib/mongodb';
 import { KeyValueModel } from '@/models';
 import { DefaultValue } from '@/types';
 import { validateLlmConfig } from '@/lib/llmSettings';
+import { normalizeGenerationProfileConfig, validateGenerationProfileConfig } from '@/lib/generationProfiles';
 import _constant from '@/utils/_constant';
 import _util from '@/utils/_util';
 import { errorResponse, errorResponseFromMessage } from '@/lib/apiError';
@@ -38,6 +39,7 @@ export async function GET() {
       // This should never happen in practice, but keep a safe fallback for unset data.
       const emptyDefaultValue: DefaultValue = {
         promptBuilder: { ..._constant.emptyPromptBuilder },
+        generationProfiles: normalizeGenerationProfileConfig(null),
         apiKey: { ..._constant.emptyApiKey },
         selectedLlm: { ..._constant.defaultSelectedLlm },
       };
@@ -48,6 +50,7 @@ export async function GET() {
 
     const responseValue: DefaultValue = {
       promptBuilder: _util.normalizePromptBuilderConfig(value.promptBuilder),
+      generationProfiles: normalizeGenerationProfileConfig(value.generationProfiles),
       apiKey: _util.normalizeApiKeyConfig(value.apiKey),
       selectedLlm: {
         service: value.selectedLlm?.service || _constant.defaultSelectedLlm.service,
@@ -77,9 +80,14 @@ export async function PUT(request: Request) {
     if (!llmResult.value) {
       return errorResponseFromMessage("LLM provider and model are required.", 400);
     }
+    const generationProfileResult = validateGenerationProfileConfig(body.generationProfiles);
+    if (!generationProfileResult.ok) {
+      return errorResponseFromMessage(generationProfileResult.message, 400);
+    }
 
     const normalizedValue: DefaultValue = {
       promptBuilder: _util.normalizePromptBuilderConfig(body.promptBuilder),
+      generationProfiles: generationProfileResult.value,
       apiKey: _util.normalizeApiKeyConfig(body.apiKey),
       selectedLlm: llmResult.value,
     };

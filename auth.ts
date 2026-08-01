@@ -4,7 +4,8 @@ import authConfig from "./auth.config";
 import dbConnect from "@/lib/mongodb";
 import { getAuthSessionOverrideUser } from "@/lib/authSessionOverride";
 import { KeyValueModel, UserModel } from "@/models";
-import { ApiKeyConfig, DefaultValue, LlmConfig, LLMService, User } from "@/types";
+import { ApiKeyConfig, DefaultValue, GenerationProfileConfig, LlmConfig, LLMService, User } from "@/types";
+import { normalizeGenerationProfileConfig } from "@/lib/generationProfiles";
 import _util from "./utils/_util";
 
 const { handlers, signIn, signOut, auth: baseAuth } = NextAuth({
@@ -88,6 +89,7 @@ async function getCurrentUser(): Promise<User | null> {
 async function getUserSettingWithFallback(): Promise<{
   selectedLlm: LlmConfig;
   apiKey: ApiKeyConfig;
+  generationProfiles: GenerationProfileConfig;
 }> {
   const session = await auth();
 
@@ -108,7 +110,11 @@ async function getUserSettingWithFallback(): Promise<{
     openAi: _util.altString(user?.apiKey?.openAi, defaultValue.apiKey.openAi)!,
   };
 
-  return { selectedLlm, apiKey };
+  return {
+    selectedLlm,
+    apiKey,
+    generationProfiles: normalizeGenerationProfileConfig(defaultValue.generationProfiles),
+  };
 }
 
 export { handlers, signIn, signOut, auth, getCurrentUser, getUserSettingWithFallback };

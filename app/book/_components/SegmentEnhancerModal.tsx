@@ -81,13 +81,15 @@ export default function SegmentEnhancerModal(props: SegmentEnhancerModalProps) {
       values.includePrevChapters,
       {
         textboxInput: values.userInput.trim(),
+        selectedSegment: values.content,
       }
     );
 
     try {
       const cleaned = await streamAiRequest(
         {
-          systemMessage: 'Follow the instruction specified after the PROMPT:',
+          feature: 'enhancer',
+          systemMessage: props.template.promptBuilder.enhancerSystem,
           messages: [{ role: 'user', content: fullUserPrompt }],
           logContext: { feature: 'Segment enhancer', bookId: props.book.bookId, bookName: props.book.name },
         },

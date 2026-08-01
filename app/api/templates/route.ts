@@ -4,7 +4,8 @@ import dbConnect from '@/lib/mongodb';
 import { TemplateModel } from '@/models';
 import { auth } from '@/auth';
 import _util from '@/utils/_util';
-import { errorResponse } from '@/lib/apiError';
+import { errorResponse, errorResponseFromMessage } from '@/lib/apiError';
+import { validateTemplateNarrativeFields } from '@/lib/templateValidation';
 
 export async function GET() {
   try {
@@ -24,11 +25,17 @@ export async function POST(request: Request) {
     const session = await auth();
     const ownerEmail = session!.user!.email!;
 
-    await dbConnect();
     const body = await request.json();
+    const narrativeFieldsResult = validateTemplateNarrativeFields(body);
+    if (!narrativeFieldsResult.ok) {
+      return errorResponseFromMessage(narrativeFieldsResult.message, 400);
+    }
+
+    await dbConnect();
     const templateId = shortid.generate();
     const normalizedBody = {
       ...body,
+      ...narrativeFieldsResult.value,
       promptBuilder: _util.normalizePromptBuilderConfig(body.promptBuilder),
     };
     const template = await TemplateModel.create({
