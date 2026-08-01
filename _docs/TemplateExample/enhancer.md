@@ -1,7 +1,0 @@
-{previousChapters}
-
-{currentChapter}
-
-TASK:
-
-{textboxInput}

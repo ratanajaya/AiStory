@@ -1,1 +1,0 @@
-Low fantasy medieval setting. The protagonist is Prince Leo, a young ruler of a small fief.
