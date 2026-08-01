@@ -34,10 +34,15 @@ const _util = {
     return {
       narration1: _util.toInputString(promptBuilder?.narration1),
       narration2: _util.toInputString(promptBuilder?.narration2),
+      narrationSystem: _util.toInputString(promptBuilder?.narrationSystem),
       enhancer: _util.toInputString(promptBuilder?.enhancer),
+      enhancerSystem: _util.toInputString(promptBuilder?.enhancerSystem),
       segmentSummarizer: _util.toInputString(promptBuilder?.segmentSummarizer),
+      segmentSummarizerSystem: _util.toInputString(promptBuilder?.segmentSummarizerSystem),
       chapterSummarizer: _util.toInputString(promptBuilder?.chapterSummarizer),
+      chapterSummarizerSystem: _util.toInputString(promptBuilder?.chapterSummarizerSystem),
       outlineIdeaGenerator: _util.toInputString(promptBuilder?.outlineIdeaGenerator),
+      outlineIdeaGeneratorSystem: _util.toInputString(promptBuilder?.outlineIdeaGeneratorSystem),
     };
   },
   normalizeApiKeyConfig: (apiKey: Partial<ApiKeyConfig> | null | undefined): ApiKeyConfig => {

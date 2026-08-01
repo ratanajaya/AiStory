@@ -4,6 +4,7 @@ import { TemplateModel } from '@/models';
 import { auth } from '@/auth';
 import _util from '@/utils/_util';
 import { errorResponse, errorResponseFromMessage } from '@/lib/apiError';
+import { validateTemplateNarrativeFields } from '@/lib/templateValidation';
 
 export async function GET(
   request: Request,
@@ -40,11 +41,17 @@ export async function PUT(
     const session = await auth();
     const ownerEmail = session!.user!.email!;
 
-    await dbConnect();
     const { id } = await params;
     const body = await request.json();
+    const narrativeFieldsResult = validateTemplateNarrativeFields(body);
+    if (!narrativeFieldsResult.ok) {
+      return errorResponseFromMessage(narrativeFieldsResult.message, 400);
+    }
+
+    await dbConnect();
     const normalizedBody = {
       ...body,
+      ...narrativeFieldsResult.value,
       promptBuilder: _util.normalizePromptBuilderConfig(body.promptBuilder),
     };
     const template = await TemplateModel.findOneAndUpdate(

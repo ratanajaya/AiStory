@@ -37,10 +37,15 @@ export interface DebugLog {
 export interface PromptBuilderConfig {
   narration1: string | null;
   narration2: string | null;
+  narrationSystem: string | null;
   enhancer: string | null;
+  enhancerSystem: string | null;
   segmentSummarizer: string | null;
+  segmentSummarizerSystem: string | null;
   chapterSummarizer: string | null;
+  chapterSummarizerSystem: string | null;
   outlineIdeaGenerator: string | null;
+  outlineIdeaGeneratorSystem: string | null;
 }
 
 export interface ApiKeyConfig {
@@ -53,6 +58,7 @@ export interface Template {
   name: string;
   promptBuilder: PromptBuilderConfig;
   storyBackground: string;
+  writingStyle: string;
   imageUrl: string | null;
   ownerEmail: string;
 }
@@ -69,9 +75,27 @@ export interface Book {
 
 export interface DefaultValue {
   promptBuilder: PromptBuilderConfig;
+  generationProfiles: GenerationProfileConfig;
   selectedLlm: LlmConfig;
   apiKey: ApiKeyConfig;
 }
+
+export type AiGenerationFeature =
+  | 'default'
+  | 'narration'
+  | 'outlineIdeaGenerator'
+  | 'enhancer'
+  | 'segmentSummarizer'
+  | 'chapterSummarizer';
+
+export interface GenerationProfile {
+  temperature: number | null;
+  maxOutputTokens: number;
+  timeoutMs: number;
+  maxRetries: number;
+}
+
+export type GenerationProfileConfig = Record<AiGenerationFeature, GenerationProfile>;
 
 export type LLMService = 'together' | 'openAi';
 

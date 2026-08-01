@@ -32,6 +32,8 @@ const replaceCandidateContent = (contents: string[], contentIndex: number, nextC
   return contents.map((content, index) => index === contentIndex ? nextContent : content);
 };
 
+const normalizeStoredOutline = (content: string) => content.replace(/^OUTLINE:\s*/i, '').trim();
+
 const emptyBookModel: BookUIModel = {
   bookId: '',
   templateId: '',
@@ -188,6 +190,7 @@ export default function BookPage({ params }: PageProps) {
           textboxInput: options.userSegmentContent,
         },
       );
+      const userMessage = [userMessage1, userMessage2].filter(Boolean).join(_constant.newLine2);
 
       const candidateId = options.candidateId ?? new Date().getTime().toString();
       const contentIndex = options.appendToExisting ? options.contentIndex ?? 0 : 0;
@@ -218,11 +221,9 @@ export default function BookPage({ params }: PageProps) {
       try {
         const finalContent = await streamAiRequest(
           {
-            systemMessage: null,
-            messages: [
-              { role: 'user', content: userMessage1 },
-              { role: 'user', content: userMessage2 },
-            ],
+            feature: 'narration',
+            systemMessage: template.promptBuilder.narrationSystem,
+            messages: [{ role: 'user', content: userMessage }],
             logContext: { feature: 'Narration', bookId: bookUiModel.bookId, bookName: bookUiModel.name },
           },
           {
@@ -342,7 +343,7 @@ export default function BookPage({ params }: PageProps) {
 
       await bookAction._streamSegmentCandidate({
         promptBook: bookUiModel,
-        userSegmentContent: sourceUserSegment.content,
+        userSegmentContent: normalizeStoredOutline(sourceUserSegment.content),
         userSegmentId: sourceUserSegment.id,
         idLimitExclusive: null,
         appendToExisting: true,
@@ -388,12 +389,13 @@ export default function BookPage({ params }: PageProps) {
 
       const userInput = getUserInput();
 
-      const inputSegment = _util.conditionalString(
-        userInput.input1,
-        _constant.inputTag + _constant.newLine + userInput.input1
-      );
+      const outline = userInput.input1.trim();
+      if (!outline) {
+        showAlert('Provide an outline, or use Generate to create one.');
+        return;
+      }
 
-      await bookAction._applyNarration(inputSegment, null);
+      await bookAction._applyNarration(outline, null);
     },
     redoNarration: async (segmentId: string) => {
       const segmentIndex = bookUiModel.storySegments.findIndex(seg => seg.id === segmentId);
@@ -424,7 +426,7 @@ export default function BookPage({ params }: PageProps) {
         storySegments: prev.storySegments.filter(seg => seg.id !== segmentId && seg.id !== prevUserSegment.id),
       }));
 
-      await bookAction._applyNarration(prevUserSegment.content, segmentId);
+      await bookAction._applyNarration(normalizeStoredOutline(prevUserSegment.content), segmentId);
     },
     summarizeSegments: async (segmentIds: string[], newSummary: SegmentSummary) => {
       try {

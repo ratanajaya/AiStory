@@ -23,6 +23,7 @@ const emptyTemplate: TemplateSafeModel = {
   name: '',
   promptBuilder: { ..._constant.emptyPromptBuilder },
   storyBackground: '',
+  writingStyle: '',
   imageUrl: null,
 };
 
@@ -76,6 +77,7 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
           name: _util.toInputString(data.name),
           promptBuilder: _util.normalizePromptBuilderConfig(data.promptBuilder),
           storyBackground: _util.toInputString(data.storyBackground),
+          writingStyle: _util.toInputString(data.writingStyle),
           imageUrl: data.imageUrl ?? null,
         });
       } catch {
@@ -169,6 +171,16 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
             value={formData.storyBackground}
             onChange={(e) => handleInputChange('storyBackground', e.target.value)}
             rows={6}
+            required
+          />
+        </FormField>
+
+        <FormField label="Writing Style:">
+          <Textarea
+            value={formData.writingStyle}
+            onChange={(e) => handleInputChange('writingStyle', e.target.value)}
+            rows={8}
+            required
           />
         </FormField>
 

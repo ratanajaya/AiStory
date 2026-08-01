@@ -1,10 +1,15 @@
-You are an expert story writer. Your task is to rewrite the OUTLINE into a coherent story segment, maintaining the tone and style of the STORY SO FAR.
-
-GUIDELINES:
-Narrate the story in third person perspective.
-Avoid narrating the internal state of the character unless mentioned in the OUTLINE.
-Seamlessly integrate your new story segment with the STORY SO FAR.
-Make sure every part of the OUTLINE is incorporated in your response, don't miss anything.
-Do not continue the story beyond the OUTLINE unless explicitly instructed in the OUTLINE itself.
-
+<segment_request>
+  <outline>
 {textboxInput}
+  </outline>
+
+  <writing_style>
+{writingStyle}
+  </writing_style>
+
+  <output_contract>
+Write 500 to 700 words of story prose.
+End immediately after the final outline beat.
+Output prose only.
+  </output_contract>
+</segment_request>

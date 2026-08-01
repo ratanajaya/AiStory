@@ -227,6 +227,7 @@ export function Sidebar({
 
       const result = await streamAiRequest(
         {
+          feature: "default",
           systemMessage: "You are a connectivity test. Reply with exactly: OK",
           messages: [
             {

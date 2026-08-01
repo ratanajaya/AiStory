@@ -9,12 +9,18 @@ const template: Template = {
   promptBuilder: {
     narration1: null,
     narration2: null,
+    narrationSystem: null,
     enhancer: null,
+    enhancerSystem: null,
     segmentSummarizer: null,
+    segmentSummarizerSystem: null,
     chapterSummarizer: null,
+    chapterSummarizerSystem: null,
     outlineIdeaGenerator: null,
+    outlineIdeaGeneratorSystem: null,
   },
   storyBackground: "A storm is coming.",
+  writingStyle: "Use close third-person narration.",
   imageUrl: null,
   ownerEmail: "owner@example.com",
 };
@@ -137,6 +143,18 @@ describe("_promptUtil.craftBookPrompt", () => {
     const result = _promptUtil.craftBookPrompt("{currentChapter}", template, emptyBook, null, true);
 
     expect(result).toBe("[THIS IS THE START OF A NEW CHAPTER]\n\n");
+  });
+
+  it("renders template-level writing style data", () => {
+    const result = _promptUtil.craftBookPrompt(
+      "<writing_style>{writingStyle}</writing_style>",
+      template,
+      book,
+      null,
+      true,
+    );
+
+    expect(result).toBe("<writing_style>Use close third-person narration.</writing_style>");
   });
 
   it("uses the hardcoded input tag placeholder", () => {

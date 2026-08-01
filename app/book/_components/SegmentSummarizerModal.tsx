@@ -50,6 +50,8 @@ export default function SegmentSummarizerModal(props: {
     try {
       const cleaned = await streamAiRequest(
         {
+          feature: 'segmentSummarizer',
+          systemMessage: template.promptBuilder.segmentSummarizerSystem,
           messages: [{ role: 'user', content: userMessage }],
           logContext: { feature: 'Segment summarizer', bookId: props.bookId, bookName: props.bookName },
         },

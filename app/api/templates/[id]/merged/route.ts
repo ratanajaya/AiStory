@@ -13,18 +13,32 @@ function mergePromptBuilderWithDefaults(
   return {
     narration1: _util.mergeNormalizedString(promptBuilder.narration1, defaultPromptBuilder.narration1),
     narration2: _util.mergeNormalizedString(promptBuilder.narration2, defaultPromptBuilder.narration2),
+    narrationSystem: _util.mergeNormalizedString(promptBuilder.narrationSystem, defaultPromptBuilder.narrationSystem),
     enhancer: _util.mergeNormalizedString(promptBuilder.enhancer, defaultPromptBuilder.enhancer),
+    enhancerSystem: _util.mergeNormalizedString(promptBuilder.enhancerSystem, defaultPromptBuilder.enhancerSystem),
     segmentSummarizer: _util.mergeNormalizedString(
       promptBuilder.segmentSummarizer,
       defaultPromptBuilder.segmentSummarizer
+    ),
+    segmentSummarizerSystem: _util.mergeNormalizedString(
+      promptBuilder.segmentSummarizerSystem,
+      defaultPromptBuilder.segmentSummarizerSystem
     ),
     chapterSummarizer: _util.mergeNormalizedString(
       promptBuilder.chapterSummarizer,
       defaultPromptBuilder.chapterSummarizer
     ),
+    chapterSummarizerSystem: _util.mergeNormalizedString(
+      promptBuilder.chapterSummarizerSystem,
+      defaultPromptBuilder.chapterSummarizerSystem
+    ),
     outlineIdeaGenerator: _util.mergeNormalizedString(
       promptBuilder.outlineIdeaGenerator,
       defaultPromptBuilder.outlineIdeaGenerator
+    ),
+    outlineIdeaGeneratorSystem: _util.mergeNormalizedString(
+      promptBuilder.outlineIdeaGeneratorSystem,
+      defaultPromptBuilder.outlineIdeaGeneratorSystem
     ),
   };
 }
