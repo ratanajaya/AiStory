@@ -1,97 +1,56 @@
 # AiStory Agent Guide
 
-## Purpose
+AiStory is a Next.js 16 App Router app for creating template-driven stories, grouping generated segments into chapters, and generating audio. It uses React 19, strict TypeScript, MongoDB/Mongoose, NextAuth v5, the Vercel AI SDK (Together AI/OpenAI), Together AI TTS, Ant Design, and Tailwind CSS v4.
 
-AiStory is a Next.js App Router application for template-driven interactive story generation. Users create templates, generate story segments with an LLM, summarize and group those segments into chapters, and play audio generated from story text.
+## Map
 
-## Stack
+- `app/book/[bookId]/page.tsx`: main generation/editor flow; keep changes focused and extract substantial new logic.
+- `app/api/**`: authenticated books, templates, AI, TTS, and settings routes.
+- `models/index.ts`, `types/index.ts`: persistence and shared contracts.
+- `utils/_promptUtil.ts`: backward-compatible prompt rendering.
+- `lib/aiStreamClient.ts`, `lib/ttsAudioClient.ts`: clients for streaming text and binary audio.
+- `components/FetcherProvider.tsx`: JSON API client; do not use it for streams or blobs.
 
-- Next.js 16 App Router with React 19 and TypeScript strict mode
-- MongoDB with Mongoose models in `models/index.ts`
-- NextAuth v5 with Google SSO
-- Vercel AI SDK with Together AI and OpenAI wiring in `lib/aiEndpointDynamic.ts`
-- Together AI TTS in `lib/ttsEndpointDynamic.ts`
-- Ant Design, Tailwind CSS v4, and `react-resizable-panels`
-- Vitest for unit tests, ESLint for linting
+## Invariants
 
-## Main Areas
+### Auth and data ownership
 
-- `app/page.tsx`: template library landing page
-- `app/book/[bookId]/page.tsx`: main reader/editor flow for story generation, editing, chaptering, and audio playback
-- `app/templates/**`: template CRUD UI
-- `app/setting/page.tsx`: user LLM and API key settings UI
-- `app/api/**`: authenticated route handlers for books, templates, AI, TTS, and settings
-- `components/**`: reusable UI primitives and `FetcherProvider`
-- `utils/**`: prompt-building and story-formatting helpers with the current unit tests
+- `middleware.ts` protects everything except `/login` and `/api/auth/*`, but route handlers must still authenticate with `auth()` (or `getCurrentUser()`) and return explicit 401/403 errors.
+- Scope user-owned book/template reads and writes by `ownerEmail`; never trust an owner supplied by the client.
+- Google sign-in is restricted to emails already in the `users` collection. Preserve the local/test override in `lib/authSessionOverride.ts`.
+- `/api/settings` manages global defaults and is admin-only; `/api/user/settings` may update only the current user's LLM selection and API keys.
 
-## Required Invariants
+### Book mutations
 
-### Auth and Ownership
+- `Book` embeds `storySegments`, `segmentSummaries`, and `chapters`.
+- The old book `version` field and whole-document `PUT /api/books/[id]` flow are retired. Use the narrow subresource routes and update only the array/field they own.
+- Validate book mutation payloads with `lib/bookMutationValidation.ts`. Include `ownerEmail` in the atomic query and do not overwrite unrelated embedded arrays.
 
-- Treat the app as authenticated by default. `middleware.ts` protects everything except `/login` and `/api/auth/*`.
-- Server routes should continue to use `auth()` from `auth.ts` and scope reads and writes by `ownerEmail` where applicable.
-- Login is allowed only for users already present in the `users` collection. Do not weaken that behavior unless explicitly asked.
-- There is an auth override path in `lib/authSessionOverride.ts` for local/testing scenarios. Preserve it.
+### Prompts, AI, and TTS
 
-### Books and Concurrency
+- Keep prompt placeholders backward compatible, including mixed casing such as `{background}`, `{currentChapter}`, `{Narrator}`, and `{TextboxInput}`. Preserve `narration2` user-input behavior; check its book-page consumer and `_promptUtil.test.ts` together.
+- `/api/ai` returns plain-text chunks when `stream: true` and `{ content }` JSON otherwise. Streaming failures are appended with the sentinel protocol in `lib/streamProtocol.ts`; clients should use `streamAiRequest()` so split sentinels and error envelopes are handled correctly.
+- `/api/ai/tts` returns raw audio bytes. Fetch it as a `Blob` through `lib/ttsAudioClient.ts`; preserve its content-type handling and IndexedDB invalidation rules in `lib/ttsIndexedDb.ts`/`lib/ttsConfig.ts`.
+- Use `lib/apiError.ts` for route error envelopes. Validate request bodies early and avoid exposing credentials or provider internals in errors/logs.
+- User AI credentials and LLM selection come from `getUserSettingWithFallback()`; unset values fall back to the `keyvalues.defaultValue` document.
+- Provider or generation-feature changes must stay synchronized across types, Mongoose schemas, constants/defaults, validators, settings routes/UI, and AI endpoint wiring. Add tests for validators and endpoint behavior.
 
-- The book-level `version` field and `PUT /api/books/[id]` whole-document update flow are retired. Do not reintroduce either; writes must update only their explicitly owned book data.
-- Story data is stored as embedded arrays on the book document: `storySegments`, `segmentSummaries`, and `chapters`.
-- Scoped update routes must authenticate, filter by `ownerEmail`, validate their narrow payload, and avoid overwriting unrelated embedded arrays.
+### Data normalization
 
-### Prompt Builder Compatibility
+- For user-facing config, treat `null`, `undefined`, empty, and whitespace-only strings as unset unless the field explicitly differs.
+- Normalize controlled inputs and persisted config to stable strings using helpers in `utils/_util.ts`; do not scatter ad hoc `|| ''`, `?? null`, or trim checks.
 
-- Prompt rendering lives in `utils/_promptUtil.ts`. Keep changes backward compatible with existing template placeholders.
-- Existing repo data uses mixed placeholder casing such as `{background}`, `{currentChapter}`, `{Narrator}`, and `{TextboxInput}`. If you change replacement logic, prefer compatibility over strictness.
-- `narration2` prompt composition is important for user input flow. Review `app/book/[bookId]/page.tsx` and `utils/_promptUtil.test.ts` before changing it.
+## Working conventions
 
-### AI and TTS Boundaries
-
-- `/api/ai` can return streaming plain text or JSON depending on the `stream` flag.
-- `/api/ai/tts` returns raw audio bytes, not JSON. Client code should fetch it directly as a `Blob`; do not route TTS through `FetcherProvider`.
-- User-specific AI and TTS credentials come from `getUserSettingWithFallback()` in `auth.ts`, which falls back to the `defaultValue` document in `keyvalues`.
-- If you add or change providers, update all relevant layers together: `types/index.ts`, `models/index.ts`, settings routes, defaults, UI, and `lib/aiEndpointDynamic.ts`.
-- Keep provider support in sync across `types/index.ts`, `models/index.ts`, `utils/_constant.ts`, settings UI, and `lib/aiEndpointDynamic.ts`.
-
-## Coding Patterns To Preserve
-
-- Use the `@/*` path alias instead of deep relative imports.
-- Reusable helpers are typically exported as default utility objects, for example `utils/_util.ts` and `utils/_promptUtil.ts`.
-- Client components use `FetcherProvider` for JSON APIs and local `fetch` for streaming or binary responses.
-- Keep changes minimal in `app/book/[bookId]/page.tsx`; it is already a large stateful client page. Prefer extracting logic into focused hooks or components if the change is substantial.
-- Continue using the existing style in route handlers: validate inputs early, return `NextResponse.json(...)` for JSON errors, and log server-side failures.
-
-### String Normalization Boundary
-
-- Treat empty strings, null, undefined, and whitespace-only strings as equivalent unset values for user-facing config fields unless a field explicitly needs different semantics.
-- Normalize to empty strings at controlled-input boundaries so React form components receive stable string values.
-- Normalize to empty strings at persistence boundaries so database writes do not depend on ad hoc `|| ''`, `|| null`, or `?? null` checks.
-- Reuse shared helpers from `utils/_util.ts` for config normalization and fallback merging instead of scattering inline string guards or field-by-field null handling.
+- Use the `@/*` alias. Read both a route and its caller before changing a request/response contract.
+- Use local `fetch` for streaming/binary endpoints and `FetcherProvider` for JSON APIs.
+- Keep secrets server-side. Relevant env vars are documented in `README.md`; uploads additionally use `GCS_PROJECT_ID`, `GCS_CREDENTIALS`, and `GCS_BUCKET_NAME`.
+- The local server runs on port `7002`.
 
 ## Validation
 
-Run the narrowest useful checks for the files you touched:
+Run the narrowest relevant checks, then broaden for cross-cutting changes:
 
-- `npm run lint`
-- `npm test`
-- `npm run build` for route, auth, middleware, or app-router changes
-
-Current tests only cover utility modules under `utils/**`. If you change prompt composition, story formatting, or text cleanup, add or update Vitest coverage.
-
-## Environment Notes
-
-Expected environment variables include:
-
-- `MONGO_URI`
-- `MONGO_DB_NAME`
-- `GOOGLE_SSO_CLIENT_ID`
-- `GOOGLE_SSO_CLIENT_SECRET`
-
-The local app runs on port `7002`.
-
-## Practical Editing Advice
-
-- Read the touched route and its paired client caller before changing request or response shapes.
-- For prompt-related changes, inspect both the utility tests and the real consumers in the book flow.
-- For TTS changes, verify both server response headers and the IndexedDB cache behavior in `lib/ttsIndexedDb.ts`.
-- For template changes, check both CRUD routes and merged-template consumers.
+- `npm test` for utility, validation, stream, endpoint, or client logic; add/update focused Vitest coverage.
+- `npm run lint` for code changes.
+- `npm run build` for routes, auth, middleware, app-router boundaries, or shared contracts.
