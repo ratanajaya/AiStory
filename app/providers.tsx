@@ -5,30 +5,14 @@ import { FetcherProvider } from '@/components/FetcherProvider';
 import { UiStateProvider } from '@/components/UiStateProvider';
 import { SessionProvider } from 'next-auth/react';
 
-import { ConfigProvider, theme } from 'antd'
-
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider>
-      <ConfigProvider
-        theme={{
-          algorithm: theme.darkAlgorithm,
-          token: {
-            colorPrimary: '#585e68',
-            colorBgBase: '#101318',
-            colorTextBase: '#ededed',
-            colorBorder: '#2e3238',
-            colorBgContainer: '#16191e',
-            colorBgElevated: '#1c2026',
-          },
-        }}
-      >
-        <AlertProvider>
-          <FetcherProvider>
-            <UiStateProvider>{children}</UiStateProvider>
-          </FetcherProvider>
-        </AlertProvider>
-      </ConfigProvider>
+      <AlertProvider>
+        <FetcherProvider>
+          <UiStateProvider>{children}</UiStateProvider>
+        </FetcherProvider>
+      </AlertProvider>
     </SessionProvider>
   );
 }

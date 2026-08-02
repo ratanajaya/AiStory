@@ -1,4 +1,3 @@
-import { Popconfirm, Space, Tooltip } from "antd";
 import { useState } from "react";
 import SegmentAudioControl from "./SegmentAudioControl";
 import { Button } from "@/components/Button";
@@ -7,6 +6,8 @@ import { Textarea } from "@/components/Textarea";
 import { deleteSegmentAudio } from "@/lib/ttsIndexedDb";
 import Markdown from "react-markdown";
 import { SegmentSummary, StorySegment } from "@/types";
+import { ConfirmPopover } from "@/components/ConfirmPopover";
+import { Tooltip } from "@/components/Tooltip";
 
 const colors = [
   'border-blue-500',
@@ -89,11 +90,11 @@ export default function SegmentDisplay(props: {
   return (
     <div className={` pb-2 relative group`}>
       {!editor.isEditing && (
-        <Space className="absolute bottom-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+        <div className="absolute bottom-1 right-1 z-10 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
           {props.isLastMessage && props.segment.role === 'assistant' && (
             <button
               onClick={() => void props.onRedoNarration(props.segment.id)}
-              className="bg-muted/70 hover:bg-muted p-1 rounded-md mr-1"
+              className="rounded-md bg-muted/70 p-1 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               disabled={props.disabled}
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-muted-foreground" viewBox="0 0 20 20" fill="currentColor">
@@ -106,7 +107,7 @@ export default function SegmentDisplay(props: {
               isEditing: true,
               content: props.segment.content,
             })}
-            className="bg-muted/70 hover:bg-muted p-1 rounded-md mr-1"
+            className="rounded-md bg-muted/70 p-1 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             disabled={editingDisabled}
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-muted-foreground" viewBox="0 0 20 20" fill="currentColor">
@@ -115,29 +116,29 @@ export default function SegmentDisplay(props: {
           </button>
           <button
             onClick={() => props.onEnhanceClick(props.segment)}
-            className="bg-muted/70 hover:bg-muted p-1 rounded-md mr-1"
+            className="rounded-md bg-muted/70 p-1 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             disabled={props.disabled}
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-muted-foreground" viewBox="0 0 20 20" fill="currentColor">
               <path d="M10 2a8 8 0 100 16 8 8 0 000-16zm1 11.414V15a1 1 0 11-2 0v-1.586l-.707-.707a1 1 0 011.414-1.414L11 12.586zM10 4a6 6 0 100 12A6 6 0 0010 4z" />
             </svg>
           </button>
-          <Popconfirm
-            title={deleteConfirmationTitle}
+          <ConfirmPopover
+            message={deleteConfirmationTitle}
             onConfirm={() => props.onDeleteSegment(props.segment.id)}
-            okText="Yes"
-            cancelText="No"
+            confirmLabel="Yes"
+            cancelLabel="No"
           >
             <button
-              className="bg-muted/70 hover:bg-muted p-1 rounded-md"
+              className="rounded-md bg-muted/70 p-1 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               disabled={props.disabled}
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-muted-foreground" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
               </svg>
             </button>
-          </Popconfirm>
-        </Space>
+          </ConfirmPopover>
+        </div>
       )}
 
       {editor.isEditing ? (
@@ -180,15 +181,12 @@ export default function SegmentDisplay(props: {
         </div>
       ) : props.segment.role !== 'assistant' ? (
         <Tooltip
-          title={props.segment.content}
+          content={props.segment.content}
           placement="top"
-          styles={{
-            root: {
-              maxWidth: 500,
-            }
-          }}
+          maxWidth={500}
+          triggerClassName="flex w-full"
         >
-          <div className='w-full h-4 flex items-center text-muted-foreground text-sm'>
+          <div className='flex h-4 w-full items-center text-sm text-muted-foreground' tabIndex={0}>
             <div className='flex-grow border-t border-border'></div>
             <span className='mx-2'>{props.index}</span>
             <div className='flex-grow border-t border-border'></div>
@@ -205,7 +203,7 @@ export default function SegmentDisplay(props: {
               disabled={props.disabled}
             />
             <Tooltip
-              title="To be summarized"
+              content="To be summarized"
               placement="top"
             >
               <Checkbox
@@ -232,7 +230,7 @@ export default function SegmentDisplay(props: {
             {segmentWithSummary && (
               <div className="absolute left-0 top-0 bottom-0 w-1 group/summary cursor-help">
                 <Tooltip
-                  title={
+                  content={
                     <div className="max-w-md">
                       <div className="font-semibold mb-2 text-sm">Summary:</div>
                       <Markdown
@@ -245,9 +243,10 @@ export default function SegmentDisplay(props: {
                     </div>
                   }
                   placement="left"
-                  overlayStyle={{ maxWidth: '500px' }}
+                  maxWidth={500}
+                  triggerClassName="block h-full w-full"
                 >
-                  <div className="h-full w-full" />
+                  <div className="h-full w-full" tabIndex={0} aria-label="Show segment summary" />
                 </Tooltip>
               </div>
             )}

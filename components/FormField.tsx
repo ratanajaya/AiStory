@@ -5,6 +5,9 @@ interface FormFieldProps {
   children: React.ReactNode;
   className?: string;
   labelClassName?: string;
+  htmlFor?: string;
+  required?: boolean;
+  error?: string;
 }
 
 export function FormField({
@@ -12,13 +15,21 @@ export function FormField({
   children,
   className = '',
   labelClassName = 'text-foreground',
+  htmlFor,
+  required = false,
+  error,
 }: FormFieldProps) {
   return (
     <div className={`mb-4 ${className}`}>
-      <label className={`block mb-1 ${labelClassName}`}>
-        {label}
+      <label htmlFor={htmlFor} className={`mb-1.5 block text-sm font-medium ${labelClassName}`}>
+        {label}{required && <span className="ml-1 text-destructive" aria-hidden="true">*</span>}
       </label>
       {children}
+      {error && (
+        <p id={htmlFor ? `${htmlFor}-error` : undefined} className="mt-1.5 text-xs text-destructive" role="alert">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

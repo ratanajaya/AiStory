@@ -1,4 +1,3 @@
-import { Col, Row } from 'antd';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/Button';
 import { FormField } from '@/components/FormField';
@@ -96,8 +95,8 @@ export default function SegmentSummarizerModal(props: {
       onCancel={() => props.onClose()}
       width={800}
     >
-      <Row gutter={8}>
-        <Col span={24}>
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+        <div className="md:col-span-2">
           <FormField label="Paragraph Count">
             <InputNumber
               min={1}
@@ -111,25 +110,26 @@ export default function SegmentSummarizerModal(props: {
               className="bg-muted text-foreground"
             />
           </FormField>
-        </Col>
-        <Col md={12} sm={24} xs={24}>
+        </div>
+        <div>
           <Textarea
-            className="w-full bg-muted text-foreground p-2 rounded-md mb-2"
+            className="w-full"
             value={values.content}
             rows={20}
+            readOnly
           />
-        </Col>
-        <Col md={12} sm={24} xs={24}>
+        </div>
+        <div>
           <Textarea
             disabled={values.isLoading}
-            className="w-full bg-muted text-foreground p-2 rounded-md mb-2"
+            className="w-full"
             value={values.llmResponse}
             onChange={(e) => setValues(prev => ({ ...prev, llmResponse: e.target.value }))}
             rows={20}
           />
-        </Col>
-        <Col span={24}>
-          <div className='w-full flex space-x-2'>
+        </div>
+        <div className="md:col-span-2">
+          <div className='flex w-full gap-2'>
             <Button
               disabled={values.isLoading}
               onClick={handleSubmit}
@@ -139,8 +139,8 @@ export default function SegmentSummarizerModal(props: {
               {values.isLoading ? 'Loading...' : 'SEND'}
             </Button>
           </div>
-        </Col>
-      </Row>
+        </div>
+      </div>
     </Modal>
   )
 }

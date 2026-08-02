@@ -16,50 +16,66 @@
   --color-muted-foreground: var(--muted-foreground);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
+  --color-elevated: var(--elevated);
+  --color-elevated-foreground: var(--elevated-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
 }
 
 :root {
   /* Graphite Gray Theme — Modern & Sleek */
 
   /* Background: Deep charcoal */
-  --background: hsl(220 10% 7%);
+  color-scheme: dark;
+  --background: hsl(220 12% 6%);
   /* Foreground: Crisp near-white */
-  --foreground: hsl(0 0% 93%);
+  --foreground: hsl(210 15% 94%);
 
   /* Primary: Graphite Gray */
-  --primary: hsl(220 6% 38%);
+  --primary: hsl(215 9% 48%);
   --primary-foreground: hsl(0 0% 98%);
 
   /* Secondary: Soft silver */
-  --secondary: hsl(220 5% 62%);
-  --secondary-foreground: hsl(220 10% 7%);
+  --secondary: hsl(215 7% 72%);
+  --secondary-foreground: hsl(220 12% 8%);
 
   /* Accent: Clean white */
-  --accent: hsl(0 0% 100%);
-  --accent-foreground: hsl(220 10% 10%);
+  --accent: hsl(210 15% 96%);
+  --accent-foreground: hsl(220 12% 9%);
 
   /* Highlight: Mid graphite */
-  --highlight: hsl(220 6% 48%);
+  --highlight: hsl(215 8% 55%);
   --highlight-foreground: hsl(0 0% 98%);
 
   /* Muted: Dark graphite */
-  --muted: hsl(220 8% 14%);
-  --muted-foreground: hsl(220 5% 55%);
+  --muted: hsl(220 10% 13%);
+  --muted-foreground: hsl(215 8% 62%);
 
   /* Card: Slightly lifted surface */
-  --card: hsl(220 8% 11%);
-  --card-foreground: hsl(0 0% 93%);
+  --card: hsl(220 11% 9%);
+  --card-foreground: hsl(210 15% 94%);
+  --elevated: hsl(220 10% 12%);
+  --elevated-foreground: hsl(210 15% 96%);
 
   /* Border & Input */
-  --border: hsl(220 6% 20%);
-  --input: hsl(220 6% 20%);
-  --ring: hsl(220 6% 45%);
+  --border: hsl(218 9% 22%);
+  --input: hsl(218 9% 25%);
+  --ring: hsl(213 12% 66%);
+  --destructive: hsl(0 62% 47%);
+  --destructive-foreground: hsl(0 0% 100%);
+  --success: hsl(151 55% 45%);
+  --warning: hsl(39 86% 55%);
+  --info: hsl(201 78% 57%);
 }
 
 body {
+  min-height: 100vh;
   background-color: var(--background);
   color: var(--foreground);
 }

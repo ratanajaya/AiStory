@@ -1,4 +1,3 @@
-import { Col, Row } from 'antd';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/Button';
 import { Textarea } from '@/components/Textarea';
@@ -136,29 +135,29 @@ export default function SegmentEnhancerModal(props: SegmentEnhancerModalProps) {
       >
         Include prev chapters
       </Checkbox>
-      <Row gutter={8}>
-        <Col md={12} sm={24} xs={24}>
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+        <div>
           <Textarea
-            className="w-full text-foreground p-2 rounded-md mb-2"
+            className="w-full"
             value={values.content}
             onChange={(e) => setValues(prev => ({ ...prev, content: e.target.value }))}
             rows={20}
           />
-        </Col>
-        <Col md={12} sm={24} xs={24}>
+        </div>
+        <div>
           <Textarea
             disabled={values.isLoading}
-            className="w-full text-foreground p-2 rounded-md mb-2"
+            className="w-full"
             value={values.llmResponse}
             onChange={(e) => setValues(prev => ({ ...prev, llmResponse: e.target.value }))}
             rows={20}
           />
-        </Col>
-        <Col span={24}>
-          <div className='w-full flex space-x-2'>
+        </div>
+        <div className="md:col-span-2">
+          <div className='flex w-full gap-2'>
             <Textarea
               style={{ fontSize: 'inherit' }}
-              className="flex-1 text-foreground p-2 rounded-md mb-2"
+              className="flex-1"
               value={values.userInput}
               onChange={(e) => setValues(prev => ({ ...prev, userInput: e.target.value }))}
               rows={6}
@@ -172,8 +171,8 @@ export default function SegmentEnhancerModal(props: SegmentEnhancerModalProps) {
               {values.isLoading ? 'Loading...' : 'SEND'}
             </Button>
           </div>
-        </Col>
-      </Row>
+        </div>
+      </div>
     </Modal>
   );
 }

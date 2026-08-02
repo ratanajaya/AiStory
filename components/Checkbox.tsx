@@ -7,23 +7,14 @@ interface CheckboxProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'typ
 export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
   ({ className = '', children, ...props }, ref) => {
     return (
-      <label className={`inline-flex items-center cursor-pointer ${props.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
+      <label className={`inline-flex cursor-pointer items-center gap-2 text-sm text-foreground ${props.disabled ? 'cursor-not-allowed opacity-50' : ''}`}>
         <input
           type="checkbox"
           ref={ref}
-          className={`
-            w-4 h-4 rounded border-2 border-gray-500
-            bg-transparent
-            checked:bg-gray-500 checked:border-gray-400
-            focus:ring-2 focus:ring-gray-500 focus:ring-offset-0
-            disabled:cursor-not-allowed
-            transition-colors
-            cursor-pointer
-            ${className}
-          `}
+          className={`h-4 w-4 cursor-pointer rounded border border-input bg-background accent-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed ${className}`}
           {...props}
         />
-        {children && <span className="ml-2 select-none">{children}</span>}
+        {children && <span className="select-none">{children}</span>}
       </label>
     );
   }
