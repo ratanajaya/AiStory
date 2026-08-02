@@ -4,13 +4,17 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { Template, Book } from '@/types';
 import { useFetcher } from '@/components/FetcherProvider';
 import { Card } from '@/components/Card';
+import {
+  HomepageBook,
+  HomepageTemplate,
+  sortTemplatesByBookActivity,
+} from './templateCardActivity';
 
 export default function TemplateCardGrid() {
-  const [templates, setTemplates] = useState<Template[]>([]);
-  const [books, setBooks] = useState<Book[]>([]);
+  const [templates, setTemplates] = useState<HomepageTemplate[]>([]);
+  const [books, setBooks] = useState<HomepageBook[]>([]);
   const [loading, setLoading] = useState(true);
   const { fetcher } = useFetcher();
   const router = useRouter();
@@ -22,10 +26,10 @@ export default function TemplateCardGrid() {
       try {
         setLoading(true);
         const [templatesData, booksData] = await Promise.all([
-          fetcher<Template[]>('/api/templates', {
+          fetcher<HomepageTemplate[]>('/api/templates', {
             errorMessage: 'Failed to fetch templates',
           }),
-          fetcher<Book[]>('/api/books?select=bookId,name,templateId', {
+          fetcher<HomepageBook[]>('/api/books?select=bookId,name,templateId,updatedAt,storySegments.id', {
             errorMessage: 'Failed to fetch books',
           }),
         ]);
@@ -60,6 +64,8 @@ export default function TemplateCardGrid() {
 
   const getBooksForTemplate = (templateId: string | null) =>
     books.filter((b) => b.templateId === templateId);
+
+  const sortedTemplates = sortTemplatesByBookActivity(templates, books);
 
   if (loading) {
     return (
@@ -98,10 +104,10 @@ export default function TemplateCardGrid() {
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-      {templates.map((template) => {
+      {sortedTemplates.map((template) => {
         const templateBooks = getBooksForTemplate(template.templateId);
         return (
-          <Card key={template.templateId} hoverable className="flex flex-col overflow-hidden">
+          <Card key={template.templateId} hoverable className="group flex flex-col overflow-hidden">
             {/* Image */}
             <div className="aspect-3/2 relative bg-muted overflow-hidden rounded-t-lg">
               {template.imageUrl ? (
@@ -131,6 +137,14 @@ export default function TemplateCardGrid() {
                     <path d="M8 11h6" />
                   </svg>
                 </div>
+              )}
+              {template.templateId && (
+                <Link
+                  href={`/templates/${template.templateId}`}
+                  className="absolute right-3 top-3 rounded-md bg-background/90 px-3 py-1.5 text-xs font-medium text-foreground opacity-0 shadow-sm transition-opacity hover:bg-background group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  Edit template
+                </Link>
               )}
             </div>
 

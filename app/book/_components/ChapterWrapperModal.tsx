@@ -1,4 +1,3 @@
-import { Col, Row } from 'antd';
 import { useEffect, useState } from 'react';
 import _constant from '@/utils/_constant';
 import { Button } from '@/components/Button';
@@ -104,25 +103,26 @@ export default function ChapterWrapperModal(props: {
           }))}
         />
       </div>
-      <Row gutter={8}>
-        <Col md={12} sm={24} xs={24}>
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+        <div>
           <Textarea
-            className="w-full bg-muted text-foreground p-2 rounded-md mb-2"
+            className="w-full"
             value={values.content}
             rows={20}
+            readOnly
           />
-        </Col>
-        <Col md={12} sm={24} xs={24}>
+        </div>
+        <div>
           <Textarea
             disabled={values.summaryLoading}
-            className="w-full bg-muted text-foreground p-2 rounded-md mb-2"
+            className="w-full"
             value={values.summary}
             onChange={(e) => setValues(prev => ({ ...prev, summary: e.target.value }))}
             rows={20}
           />
-        </Col>
-        <Col span={24}>
-          <div className='w-full flex space-x-2'>
+        </div>
+        <div className="md:col-span-2">
+          <div className='flex w-full gap-2'>
             <Button
               disabled={values.summaryLoading}
               onClick={handleGenerateSummary}
@@ -132,8 +132,8 @@ export default function ChapterWrapperModal(props: {
               {values.summaryLoading ? 'Loading...' : 'Generate Summary'}
             </Button>
           </div>
-        </Col>
-      </Row>
+        </div>
+      </div>
     </Modal>
   )
 }

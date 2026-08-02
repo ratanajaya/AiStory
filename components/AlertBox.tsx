@@ -74,17 +74,17 @@ export function AlertProvider({ children }: AlertProviderProps) {
   }, [alert.detail]);
 
   const accentColors: Record<AlertType, string> = {
-    error: 'border-l-red-500',
-    success: 'border-l-emerald-500',
-    warning: 'border-l-amber-500',
-    info: 'border-l-sky-500',
+    error: 'border-l-destructive',
+    success: 'border-l-success',
+    warning: 'border-l-warning',
+    info: 'border-l-info',
   };
 
   const iconColors: Record<AlertType, string> = {
-    error: 'text-red-400',
-    success: 'text-emerald-400',
-    warning: 'text-amber-400',
-    info: 'text-sky-400',
+    error: 'text-destructive',
+    success: 'text-success',
+    warning: 'text-warning',
+    info: 'text-info',
   };
 
   const widthClass = alert.detail ? 'max-w-xl' : 'max-w-sm';
@@ -100,7 +100,8 @@ export function AlertProvider({ children }: AlertProviderProps) {
           }`}
         >
           <div
-            className={`flex flex-col gap-2 rounded-md border border-border border-l-[3px] ${accentColors[alert.type]} bg-card px-3.5 py-3 shadow-lg max-h-[80vh] overflow-auto`}
+            className={`flex max-h-[80vh] flex-col gap-2 overflow-auto rounded-lg border border-border border-l-[3px] ${accentColors[alert.type]} bg-elevated px-3.5 py-3 shadow-2xl`}
+            role={alert.type === 'error' ? 'alert' : 'status'}
           >
             <div className="flex items-start gap-2.5">
               <span className={`text-sm mt-0.5 shrink-0 ${iconColors[alert.type]}`}>{icons[alert.type]}</span>

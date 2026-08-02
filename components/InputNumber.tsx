@@ -28,7 +28,7 @@ export const InputNumber = React.forwardRef<HTMLInputElement, InputNumberProps>(
       <Input
         ref={ref}
         type="number"
-        className={className}
+        className={`tabular-nums ${className}`}
         value={value}
         onChange={handleChange}
         {...props}

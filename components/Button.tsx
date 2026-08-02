@@ -5,15 +5,15 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   size?: 'small' | 'default' | 'large';
 }
 
-const baseStyles = 'inline-flex items-center justify-center rounded-md font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 cursor-pointer';
+const baseStyles = 'inline-flex cursor-pointer items-center justify-center rounded-md border border-transparent font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-45';
 
 const variantStyles = {
-  primary: 'bg-primary text-primary-foreground hover:brightness-125 shadow-sm',
-  secondary: 'bg-secondary text-secondary-foreground hover:brightness-125 shadow-sm',
-  accent: 'bg-accent text-accent-foreground hover:brightness-125 shadow-sm',
-  outline: 'border border-input bg-background hover:brightness-125',
-  ghost: 'hover:bg-muted hover:brightness-110',
-  danger: 'bg-red-600 text-white hover:bg-red-700 shadow-sm',
+  primary: 'border-primary/80 bg-primary text-primary-foreground shadow-sm hover:bg-highlight',
+  secondary: 'border-secondary/70 bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/85',
+  accent: 'border-accent bg-accent text-accent-foreground shadow-sm hover:bg-accent/85',
+  outline: 'border-input bg-background text-foreground hover:border-ring hover:bg-muted',
+  ghost: 'text-foreground hover:bg-muted',
+  danger: 'border-destructive bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/85',
 };
 
 const sizeStyles = {
