@@ -31,6 +31,7 @@ export default function SegmentDisplay(props: {
   onRedoNarration: (segmentId: string) => Promise<void>;
   isLastMessage?: boolean;
   disabled?: boolean;
+  allowEditingWhenDisabled?: boolean;
   segmentSummary?: SegmentSummary | null;
   segmentSummaryIndex?: number;
 }) {
@@ -82,6 +83,8 @@ export default function SegmentDisplay(props: {
     : '';
 
   const segmentWithSummary = props.segment.role === 'assistant' && props.segmentSummary;
+  const editingDisabled = props.disabled && !props.allowEditingWhenDisabled;
+  const deleteConfirmationTitle = `Are you sure you want to delete this ${props.segment.role} segment?`;
 
   return (
     <div className={` pb-2 relative group`}>
@@ -104,7 +107,7 @@ export default function SegmentDisplay(props: {
               content: props.segment.content,
             })}
             className="bg-muted/70 hover:bg-muted p-1 rounded-md mr-1"
-            disabled={props.disabled}
+            disabled={editingDisabled}
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-muted-foreground" viewBox="0 0 20 20" fill="currentColor">
               <path d="M13.586 3.586a2 2 0 112.828 2.828l-1.414 1.414L12 4.828l1.586-1.242zm-2.172 2.172L3 14.172V17h2.828l8.414-8.414L11.414 5.758z" />
@@ -120,7 +123,7 @@ export default function SegmentDisplay(props: {
             </svg>
           </button>
           <Popconfirm
-            title="Are you sure you want to delete this segment?"
+            title={deleteConfirmationTitle}
             onConfirm={() => props.onDeleteSegment(props.segment.id)}
             okText="Yes"
             cancelText="No"
@@ -152,6 +155,7 @@ export default function SegmentDisplay(props: {
               size='small'
               className=' w-24'
               onClick={handleWrapChapter}
+              disabled={props.disabled}
             >
               Wrap Ch
             </Button>
@@ -160,6 +164,7 @@ export default function SegmentDisplay(props: {
               size='small'
               className=' w-24'
               onClick={handleSave}
+              disabled={editingDisabled}
             >
               Save
             </Button>
@@ -211,7 +216,7 @@ export default function SegmentDisplay(props: {
                     toSummarize: e.target.checked,
                   });
                 }}
-                disabled={props.segment.segmentSummaryId != null}
+                disabled={props.disabled || props.segment.segmentSummaryId != null}
               />
             </Tooltip>
           </div>

@@ -379,8 +379,21 @@ export default function BookPage({ params }: PageProps) {
       }));
       setSegmentCandidate(null);
     },
-    rejectSegmentCandidate: () => {
-      setSegmentCandidate(null);
+    rejectSegmentCandidate: async () => {
+      if (!segmentCandidate) {
+        return;
+      }
+
+      const sourceUserSegmentId = segmentCandidate.userSegmentId;
+      if (!await deleteSegment(sourceUserSegmentId)) {
+        return;
+      }
+
+      setBookUiModel(prev => ({
+        ...prev,
+        storySegments: prev.storySegments.filter(segment => segment.id !== sourceUserSegmentId),
+      }));
+      setSegmentCandidate(prev => prev?.id === segmentCandidate.id ? null : prev);
     },
     narration: async () => {
       if (segmentCandidate) {
@@ -682,6 +695,7 @@ export default function BookPage({ params }: PageProps) {
                                 onRedoNarration={bookAction.redoNarration}
                                 isLastMessage={index === segmentsWithoutChapter.length - 1}
                                 disabled={disableStoryAction}
+                                allowEditingWhenDisabled={segmentCandidate?.userSegmentId === seg.id && seg.role === 'user'}
                               />
                             );
                           })}
@@ -701,7 +715,7 @@ export default function BookPage({ params }: PageProps) {
                                 });
                               }}
                               onAccept={bookAction.acceptSegmentCandidate}
-                              onReject={bookAction.rejectSegmentCandidate}
+                              onReject={() => void bookAction.rejectSegmentCandidate()}
                               disabled={disableCandidateAction}
                             />
                           )}
