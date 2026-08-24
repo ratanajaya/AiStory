@@ -31,6 +31,7 @@ const defaultGenerationProfiles: GenerationProfileConfig = {
   enhancer: { temperature: null, maxOutputTokens: 1_200, timeoutMs: 60_000, maxRetries: 1 },
   segmentSummarizer: { temperature: null, maxOutputTokens: 500, timeoutMs: 60_000, maxRetries: 1 },
   chapterSummarizer: { temperature: null, maxOutputTokens: 700, timeoutMs: 60_000, maxRetries: 1 },
+  longTermMemory: { temperature: null, maxOutputTokens: 4_096, timeoutMs: 120_000, maxRetries: 1 },
 };
 
 const _constant = {
