@@ -25,6 +25,15 @@ Use the following values in the Generation Profiles section. Leave **Use provide
 | Enhancer | `null` | 1,200 | 60,000 ms | 1 |
 | Segment summarizer | `null` | 500 | 60,000 ms | 1 |
 | Chapter summarizer | `null` | 700 | 60,000 ms | 1 |
+| Long-term memory | `null` | 4,096 | 120,000 ms | 1 |
+
+## Long-term memory updater
+
+The long-term-memory updater uses an application-owned, schema-versioned structured-output prompt rather than a Prompt Builder field. This keeps its sparse JSON Patch contract synchronized with server validation. Users trigger incremental updates or full rescans from the book Memory dialog, review and edit the proposed patch, and explicitly accept it before anything is persisted.
+
+Generated memory is limited to compact, stable character profiles: identity, durable appearance, demonstrated personality, habitual speech style, and distinctive enduring abilities. Every attribute is optional, and characters without supported profile facts may be omitted. The updater uses accepted assistant prose and the template story background as evidence, but it does not receive the template writing style. Incremental proposals also clean previously generated non-character entries and transient or plot-tracking attributes; full rescans rebuild entirely under the narrow profile contract.
+
+Accepted nonempty memory is automatically appended to narration context. It is not injected into outline generation, enhancement, or summary prompts.
 
 ## Narration system prompt (`narrationSystem`)
 

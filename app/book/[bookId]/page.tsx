@@ -23,6 +23,13 @@ import _constant from '@/utils/_constant';
 import { BookUIModel } from '@/types/extendedTypes';
 import _promptUtil from '@/utils/_promptUtil';
 import SegmentCandidateDisplay from '@/app/book/_components/SegmentCandidateDisplay';
+import LongTermMemoryModal from '../_components/LongTermMemoryModal';
+import {
+  appendLongTermMemorySystemInstruction,
+  appendLongTermMemoryToNarrationContext,
+  createEmptyLongTermMemoryState,
+  normalizeLongTermMemoryState,
+} from '@/lib/bookMemory';
 
 interface PageProps {
   params: Promise<{ bookId: string }>;
@@ -41,6 +48,7 @@ const emptyBookModel: BookUIModel = {
   storySegments: [],
   segmentSummaries: [],
   chapters: [],
+  longTermMemory: createEmptyLongTermMemoryState(),
 }
 
 export default function BookPage({ params }: PageProps) {
@@ -74,6 +82,7 @@ export default function BookPage({ params }: PageProps) {
     visible: false,
     segments: [] as StorySegment[],
   });
+  const [memoryVisible, setMemoryVisible] = useState(false);
   //#endregion
   
   const debugPanel = useDebugPanel({
@@ -136,6 +145,7 @@ export default function BookPage({ params }: PageProps) {
         });
         setBookUiModel({
           ...data,
+          longTermMemory: normalizeLongTermMemoryState(data.longTermMemory),
         });
         const templateData = await fetcher<any>(`/api/templates/${data.templateId}/merged`, {
           errorMessage: 'Failed to fetch template',
@@ -172,12 +182,16 @@ export default function BookPage({ params }: PageProps) {
         text: 'Making call to LLM api...',
       });
 
-      const userMessage1 = _promptUtil.craftBookPrompt(
+      const narrationContext = _promptUtil.craftBookPrompt(
         template.promptBuilder.narration1,
         template,
         options.promptBook,
         options.idLimitExclusive,
         true,
+      );
+      const userMessage1 = appendLongTermMemoryToNarrationContext(
+        narrationContext,
+        options.promptBook.longTermMemory,
       );
 
       const userMessage2 = _promptUtil.craftBookPrompt(
@@ -222,7 +236,10 @@ export default function BookPage({ params }: PageProps) {
         const finalContent = await streamAiRequest(
           {
             feature: 'narration',
-            systemMessage: template.promptBuilder.narrationSystem,
+            systemMessage: appendLongTermMemorySystemInstruction(
+              template.promptBuilder.narrationSystem,
+              options.promptBook.longTermMemory,
+            ),
             messages: [{ role: 'user', content: userMessage }],
             logContext: { feature: 'Narration', bookId: bookUiModel.bookId, bookName: bookUiModel.name },
           },
@@ -599,6 +616,24 @@ export default function BookPage({ params }: PageProps) {
                 }}
                 onStatusChange={setSbp}
               />
+              <div className="mb-2 flex justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="small"
+                  onClick={() => setMemoryVisible(true)}
+                  disabled={loading || segmentCandidate !== null}
+                >
+                  Memory ({Object.keys(bookUiModel.longTermMemory.content.entries).length} entries,{' '}
+                  {(() => {
+                    const assistant = bookUiModel.storySegments.filter((segment) => segment.role === 'assistant');
+                    const checkpointIndex = bookUiModel.longTermMemory.checkpoint.throughSegmentId
+                      ? assistant.findIndex((segment) => segment.id === bookUiModel.longTermMemory.checkpoint.throughSegmentId)
+                      : -1;
+                    return Math.max(0, assistant.length - checkpointIndex - 1);
+                  })()} new)
+                </Button>
+              </div>
               <PanelGroup 
                 direction="vertical"
                 className='flex-1'
@@ -813,6 +848,15 @@ export default function BookPage({ params }: PageProps) {
           disabled={loading}
         />
         {debugPanel.element}
+        <LongTermMemoryModal
+          open={memoryVisible}
+          bookId={bookUiModel.bookId}
+          memory={bookUiModel.longTermMemory}
+          onClose={() => setMemoryVisible(false)}
+          onMemoryChange={(longTermMemory) => {
+            setBookUiModel((previous) => ({ ...previous, longTermMemory }));
+          }}
+        />
       </div>
     </div>
   );

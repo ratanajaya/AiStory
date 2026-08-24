@@ -1,6 +1,6 @@
 import { KeyValue } from './../types/index';
 import mongoose, { Schema } from 'mongoose';
-import { StorySegment, SegmentSummary, Chapter, Template, Book, User, ApiKeyConfig, LlmConfig } from '@/types';
+import { StorySegment, SegmentSummary, Chapter, Template, Book, User, ApiKeyConfig, LlmConfig, LongTermMemoryState } from '@/types';
 
 // Sub-schemas for Book components
 const StorySegmentSchema = new Schema<StorySegment>({
@@ -23,6 +23,19 @@ const ChapterSchema = new Schema<Chapter>({
   id: { type: String, required: true },
   title: { type: String, required: true },
   summary: { type: String, required: true }
+}, { _id: false });
+
+const LongTermMemorySchema = new Schema<LongTermMemoryState>({
+  content: {
+    schemaVersion: { type: Number, default: 1, required: true },
+    entries: { type: Schema.Types.Mixed, default: () => ({}) },
+  },
+  revision: { type: Number, default: 0, required: true },
+  checkpoint: {
+    throughSegmentId: { type: String, default: null },
+    fingerprint: { type: String, default: null },
+  },
+  updatedAt: { type: String, default: null },
 }, { _id: false });
 
 const TemplateSchema = new Schema<Template>({
@@ -58,6 +71,15 @@ const BookSchema = new Schema<Book>({
   storySegments: [StorySegmentSchema],
   segmentSummaries: [SegmentSummarySchema],
   chapters: [ChapterSchema],
+  longTermMemory: {
+    type: LongTermMemorySchema,
+    default: () => ({
+      content: { schemaVersion: 1, entries: {} },
+      revision: 0,
+      checkpoint: { throughSegmentId: null, fingerprint: null },
+      updatedAt: null,
+    }),
+  },
   ownerEmail: { type: String, required: true }
 }, {
   timestamps: true,

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import _promptUtil from "./_promptUtil";
 import { Book, Template } from "@/types";
 import _constant from "./_constant";
+import { createEmptyLongTermMemoryState } from "@/lib/bookMemory";
 
 const template: Template = {
   templateId: "template-1",
@@ -70,6 +71,7 @@ const book: Book = {
       summary: "The hero wakes.",
     },
   ],
+  longTermMemory: createEmptyLongTermMemoryState(),
   ownerEmail: "owner@example.com",
 };
 

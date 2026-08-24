@@ -12,6 +12,7 @@ export const aiGenerationFeatures = [
   'enhancer',
   'segmentSummarizer',
   'chapterSummarizer',
+  'longTermMemory',
 ] as const satisfies readonly AiGenerationFeature[];
 
 export function isAiGenerationFeature(value: unknown): value is AiGenerationFeature {

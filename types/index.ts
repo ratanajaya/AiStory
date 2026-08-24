@@ -28,6 +28,52 @@ export interface Chapter {
   summary: string;
 }
 
+export type JsonValue = string | number | boolean | null | JsonValue[] | {
+  [key: string]: JsonValue;
+};
+
+export interface LongTermMemoryEntry {
+  category: string;
+  title: string;
+  attributes: Record<string, JsonValue>;
+}
+
+export interface LongTermMemoryContent {
+  schemaVersion: 1;
+  entries: Record<string, LongTermMemoryEntry>;
+}
+
+export interface LongTermMemoryCheckpoint {
+  throughSegmentId: string | null;
+  fingerprint: string | null;
+}
+
+export interface LongTermMemoryState {
+  content: LongTermMemoryContent;
+  revision: number;
+  checkpoint: LongTermMemoryCheckpoint;
+  updatedAt: string | null;
+}
+
+export type MemoryPatchOperation =
+  | { op: 'add' | 'replace'; path: string; value: JsonValue }
+  | { op: 'remove'; path: string };
+
+export type MemoryProposalMode = 'incremental' | 'full';
+
+export interface MemoryProposalSource {
+  mode: MemoryProposalMode;
+  previousThroughSegmentId: string | null;
+  throughSegmentId: string;
+  fingerprint: string;
+}
+
+export interface LongTermMemoryProposal {
+  baseRevision: number;
+  operations: MemoryPatchOperation[];
+  source: MemoryProposalSource;
+}
+
 export interface DebugLog {
   id: string;
   type: 'info' | 'error' | 'warning';
@@ -70,6 +116,7 @@ export interface Book {
   storySegments: StorySegment[];
   segmentSummaries: SegmentSummary[];
   chapters: Chapter[];
+  longTermMemory: LongTermMemoryState;
   ownerEmail: string;
 }
 
@@ -86,7 +133,8 @@ export type AiGenerationFeature =
   | 'outlineIdeaGenerator'
   | 'enhancer'
   | 'segmentSummarizer'
-  | 'chapterSummarizer';
+  | 'chapterSummarizer'
+  | 'longTermMemory';
 
 export interface GenerationProfile {
   temperature: number | null;
@@ -124,9 +172,7 @@ export interface KeyValue {
   value: any;
 }
 
-export type JsonLogValue = string | number | boolean | null | JsonLogValue[] | {
-  [key: string]: JsonLogValue;
-};
+export type JsonLogValue = JsonValue;
 
 export interface AiApiLogContext {
   feature: string;

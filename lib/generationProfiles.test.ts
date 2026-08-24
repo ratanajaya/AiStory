@@ -19,11 +19,18 @@ describe('generationProfiles', () => {
     });
     expect(first).not.toBe(second);
     expect(first.narration).not.toBe(second.narration);
+    expect(first.longTermMemory).toEqual({
+      temperature: null,
+      maxOutputTokens: 4096,
+      timeoutMs: 120000,
+      maxRetries: 1,
+    });
   });
 
   it('recognizes supported request features only', () => {
     expect(isAiGenerationFeature('narration')).toBe(true);
     expect(isAiGenerationFeature('default')).toBe(true);
+    expect(isAiGenerationFeature('longTermMemory')).toBe(true);
     expect(isAiGenerationFeature('unknown')).toBe(false);
   });
 

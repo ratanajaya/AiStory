@@ -49,6 +49,12 @@ export async function POST(request: Request) {
       storySegments: [],
       segmentSummaries: [],
       chapters: [],
+      longTermMemory: {
+        content: { schemaVersion: 1, entries: {} },
+        revision: 0,
+        checkpoint: { throughSegmentId: null, fingerprint: null },
+        updatedAt: null,
+      },
       ownerEmail
     };
 

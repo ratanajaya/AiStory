@@ -11,6 +11,7 @@ const profileLabels: Record<AiGenerationFeature, string> = {
   enhancer: 'Enhancer',
   segmentSummarizer: 'Segment summarizer',
   chapterSummarizer: 'Chapter summarizer',
+  longTermMemory: 'Long-term memory',
 };
 
 const profileFeatures = Object.keys(profileLabels) as AiGenerationFeature[];

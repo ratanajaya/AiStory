@@ -3,6 +3,7 @@ import dbConnect from '@/lib/mongodb';
 import { BookModel } from '@/models';
 import { auth } from '@/auth';
 import { errorResponse, errorResponseFromMessage } from '@/lib/apiError';
+import { normalizeLongTermMemoryState } from '@/lib/bookMemory';
 
 export async function GET(
   request: Request,
@@ -10,7 +11,10 @@ export async function GET(
 ) {
   try {
     const session = await auth();
-    const ownerEmail = session!.user!.email!;
+    const ownerEmail = session?.user?.email;
+    if (!ownerEmail) {
+      return errorResponseFromMessage('Unauthorized', 401);
+    }
 
     await dbConnect();
     const { id } = await params;
@@ -21,7 +25,9 @@ export async function GET(
     if (!book) {
       return errorResponseFromMessage('Book not found', 404);
     }
-    return NextResponse.json(book);
+    const responseBook = book.toObject();
+    responseBook.longTermMemory = normalizeLongTermMemoryState(responseBook.longTermMemory);
+    return NextResponse.json(responseBook);
   } catch (err) {
     return errorResponse(err);
   }
