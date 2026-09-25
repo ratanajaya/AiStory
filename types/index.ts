@@ -7,12 +7,19 @@ export interface StorySegment {
   toSummarize?: boolean;
   segmentSummaryId?: string;
   chapterId?: string;
+  narrationModel?: LlmConfig;
+}
+
+export interface StorySegmentCandidateVersion {
+  content: string;
+  narrationModel: LlmConfig | null;
 }
 
 export interface StorySegmentCandidate {
   id: string;
   userSegmentId: string;
-  contents: string[];
+  replacesSegmentId?: string;
+  versions: StorySegmentCandidateVersion[];
   selectedContentIndex: number;
   isLoading: boolean;
 }

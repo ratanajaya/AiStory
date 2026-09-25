@@ -2,7 +2,8 @@ import _util from '@/utils/_util';
 import { STREAM_ERROR_SENTINEL, splitStreamPayload } from './streamProtocol';
 import { formatErrorDetail, type ErrorEnvelope } from './errorClient';
 import { appendAiApiLog, createLogError } from './aiApiLog';
-import type { AiApiLogContext, AiGenerationFeature } from '@/types';
+import type { AiApiLogContext, AiGenerationFeature, LlmConfig } from '@/types';
+import { validateLlmConfig } from '@/lib/llmSettings';
 
 export interface AiStreamRequest {
   feature: AiGenerationFeature;
@@ -13,6 +14,7 @@ export interface AiStreamRequest {
 
 export interface AiStreamHandlers {
   onChunk: (text: string) => void;
+  onModel?: (model: LlmConfig | null) => void;
   signal?: AbortSignal;
 }
 
@@ -80,6 +82,20 @@ export async function streamAiRequest(
         response.status,
       );
     }
+    const encodedModel = response.headers.get('X-AI-Model');
+    let model: LlmConfig | null = null;
+    if (encodedModel) {
+      try {
+        const parsed = validateLlmConfig({
+          service: response.headers.get('X-AI-Service'),
+          model: decodeURIComponent(encodedModel),
+        });
+        if (parsed.ok) model = parsed.value;
+      } catch {
+        // Older servers or malformed headers leave model provenance unavailable.
+      }
+    }
+    handlers.onModel?.(model);
     if (!response.body) {
       throw new AiStreamError('Server returned no response body');
     }

@@ -31,7 +31,7 @@ type SegmentEnhancerModalProps = {
 export default function SegmentEnhancerModal(props: SegmentEnhancerModalProps) {
   const { showAlert } = useAlert();
   const selectedCandidateContent = props.candidate
-    ? props.candidate.contents[props.candidateContentIndex] ?? ''
+    ? props.candidate.versions[props.candidateContentIndex]?.content ?? ''
     : '';
   const [values, setValues] = useState({
     content: '',
@@ -62,7 +62,7 @@ export default function SegmentEnhancerModal(props: SegmentEnhancerModalProps) {
       ? {
           ...props.book,
           storySegments: [
-            ...props.book.storySegments,
+            ...props.book.storySegments.filter(segment => segment.id !== props.candidate.replacesSegmentId),
             {
               id: props.candidate.id,
               day: 0,

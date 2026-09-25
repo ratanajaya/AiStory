@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, use } from 'react';
-import { Book, Chapter, SegmentSummary, StorySegment, StorySegmentCandidate, Template } from '@/types';
+import { Book, Chapter, SegmentSummary, StorySegment, StorySegmentCandidate, StorySegmentCandidateVersion, Template } from '@/types';
 import { useFetcher } from '@/components/FetcherProvider';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { Button } from '@/components/Button';
@@ -35,8 +35,12 @@ interface PageProps {
   params: Promise<{ bookId: string }>;
 }
 
-const replaceCandidateContent = (contents: string[], contentIndex: number, nextContent: string) => {
-  return contents.map((content, index) => index === contentIndex ? nextContent : content);
+const replaceCandidateVersion = (
+  versions: StorySegmentCandidateVersion[],
+  contentIndex: number,
+  updates: Partial<StorySegmentCandidateVersion>,
+) => {
+  return versions.map((version, index) => index === contentIndex ? { ...version, ...updates } : version);
 };
 
 const normalizeStoredOutline = (content: string) => content.replace(/^OUTLINE:\s*/i, '').trim();
@@ -65,6 +69,7 @@ export default function BookPage({ params }: PageProps) {
     text: '',
   });
   const [segmentCandidate, setSegmentCandidate] = useState<StorySegmentCandidate | null>(null);
+  const [candidateSaving, setCandidateSaving] = useState(false);
 
   const [enhancer, setEnhancer] = useState({
     visible: false,
@@ -169,6 +174,7 @@ export default function BookPage({ params }: PageProps) {
       userSegmentId: string;
       idLimitExclusive: string | null;
       appendToExisting: boolean;
+      replacesSegmentId?: string;
       candidateId?: string;
       contentIndex?: number;
     }) => {
@@ -217,7 +223,7 @@ export default function BookPage({ params }: PageProps) {
 
           return {
             ...prev,
-            contents: [...prev.contents, ''],
+            versions: [...prev.versions, { content: '', narrationModel: null }],
             selectedContentIndex: contentIndex,
             isLoading: true,
           };
@@ -226,7 +232,8 @@ export default function BookPage({ params }: PageProps) {
         setSegmentCandidate({
           id: candidateId,
           userSegmentId: options.userSegmentId,
-          contents: [''],
+          replacesSegmentId: options.replacesSegmentId,
+          versions: [{ content: '', narrationModel: null }],
           selectedContentIndex: 0,
           isLoading: true,
         });
@@ -244,17 +251,23 @@ export default function BookPage({ params }: PageProps) {
             logContext: { feature: 'Narration', bookId: bookUiModel.bookId, bookName: bookUiModel.name },
           },
           {
+            onModel: (narrationModel) => {
+              setSegmentCandidate(prev => prev?.id === candidateId ? {
+                ...prev,
+                versions: replaceCandidateVersion(prev.versions, contentIndex, { narrationModel }),
+              } : prev);
+            },
             onChunk: (chunk) => {
               setSegmentCandidate(prev => {
                 if (!prev || prev.id !== candidateId) {
                   return prev;
                 }
 
-                const currentContent = prev.contents[contentIndex] ?? '';
+                const currentContent = prev.versions[contentIndex]?.content ?? '';
 
                 return {
                   ...prev,
-                  contents: replaceCandidateContent(prev.contents, contentIndex, currentContent + chunk),
+                  versions: replaceCandidateVersion(prev.versions, contentIndex, { content: currentContent + chunk }),
                 };
               });
             },
@@ -273,7 +286,7 @@ export default function BookPage({ params }: PageProps) {
 
           return {
             ...prev,
-            contents: replaceCandidateContent(prev.contents, contentIndex, finalContent),
+            versions: replaceCandidateVersion(prev.versions, contentIndex, { content: finalContent }),
             selectedContentIndex: contentIndex,
             isLoading: false,
           };
@@ -293,7 +306,7 @@ export default function BookPage({ params }: PageProps) {
             return prev;
           }
 
-          const currentContent = prev.contents[contentIndex] ?? '';
+          const currentContent = prev.versions[contentIndex]?.content ?? '';
           if (!_util.isNullOrWhitespace(currentContent)) {
             return {
               ...prev,
@@ -302,15 +315,15 @@ export default function BookPage({ params }: PageProps) {
             };
           }
 
-          const nextContents = prev.contents.filter((_, index) => index !== contentIndex);
-          if (nextContents.length === 0) {
+          const nextVersions = prev.versions.filter((_, index) => index !== contentIndex);
+          if (nextVersions.length === 0) {
             return null;
           }
 
           return {
             ...prev,
-            contents: nextContents,
-            selectedContentIndex: Math.min(prev.selectedContentIndex, nextContents.length - 1),
+            versions: nextVersions,
+            selectedContentIndex: Math.min(prev.selectedContentIndex, nextVersions.length - 1),
             isLoading: false,
           };
         });
@@ -362,42 +375,68 @@ export default function BookPage({ params }: PageProps) {
         promptBook: bookUiModel,
         userSegmentContent: normalizeStoredOutline(sourceUserSegment.content),
         userSegmentId: sourceUserSegment.id,
-        idLimitExclusive: null,
+        idLimitExclusive: segmentCandidate.replacesSegmentId ?? null,
         appendToExisting: true,
         candidateId: segmentCandidate.id,
-        contentIndex: segmentCandidate.contents.length,
+        contentIndex: segmentCandidate.versions.length,
+        replacesSegmentId: segmentCandidate.replacesSegmentId,
       });
     },
     acceptSegmentCandidate: async () => {
-      if (!segmentCandidate) {
+      if (!segmentCandidate || candidateSaving) {
         return;
       }
 
-      const content = segmentCandidate.contents[segmentCandidate.selectedContentIndex] ?? '';
+      const selectedVersion = segmentCandidate.versions[segmentCandidate.selectedContentIndex];
+      const content = selectedVersion?.content ?? '';
       if (_util.isNullOrWhitespace(content)) {
         showAlert('Candidate response is empty');
         return;
       }
 
-      const assistantSegment: StorySegment = {
-        id: new Date().getTime().toString(),
-        day: 0,
-        content,
-        role: 'assistant',
-      };
-
-      if (!await createSegment(assistantSegment)) {
+      const originalSegment = segmentCandidate.replacesSegmentId
+        ? bookUiModel.storySegments.find(segment => segment.id === segmentCandidate.replacesSegmentId)
+        : null;
+      if (segmentCandidate.replacesSegmentId && !originalSegment) {
+        showAlert('Original segment not found');
         return;
       }
 
-      setBookUiModel(prev => ({
-        ...prev,
-        storySegments: [...prev.storySegments, assistantSegment],
-      }));
-      setSegmentCandidate(null);
+      const assistantSegment: StorySegment = originalSegment
+        ? { ...originalSegment, content, narrationModel: selectedVersion?.narrationModel ?? undefined }
+        : {
+            id: new Date().getTime().toString(),
+            day: 0,
+            content,
+            role: 'assistant',
+            ...(selectedVersion?.narrationModel && { narrationModel: selectedVersion.narrationModel }),
+          };
+
+      setCandidateSaving(true);
+      try {
+        const saved = originalSegment
+          ? await updateSegment(assistantSegment)
+          : await createSegment(assistantSegment);
+        if (!saved) return;
+
+        setBookUiModel(prev => ({
+          ...prev,
+          storySegments: originalSegment
+            ? prev.storySegments.map(segment => segment.id === originalSegment.id ? assistantSegment : segment)
+            : [...prev.storySegments, assistantSegment],
+        }));
+        setSegmentCandidate(prev => prev?.id === segmentCandidate.id ? null : prev);
+      } finally {
+        setCandidateSaving(false);
+      }
     },
     rejectSegmentCandidate: async () => {
-      if (!segmentCandidate) {
+      if (!segmentCandidate || candidateSaving) {
+        return;
+      }
+
+      if (segmentCandidate.replacesSegmentId) {
+        setSegmentCandidate(prev => prev?.id === segmentCandidate.id ? null : prev);
         return;
       }
 
@@ -442,21 +481,14 @@ export default function BookPage({ params }: PageProps) {
         return;
       }
       
-      const deleted = await Promise.all([
-        deleteSegment(segmentId),
-        deleteSegment(prevUserSegment.id),
-      ]);
-
-      if (deleted.some(result => !result)) {
-        return;
-      }
-
-      setBookUiModel(prev => ({
-        ...prev,
-        storySegments: prev.storySegments.filter(seg => seg.id !== segmentId && seg.id !== prevUserSegment.id),
-      }));
-
-      await bookAction._applyNarration(normalizeStoredOutline(prevUserSegment.content), segmentId);
+      await bookAction._streamSegmentCandidate({
+        promptBook: bookUiModel,
+        userSegmentContent: normalizeStoredOutline(prevUserSegment.content),
+        userSegmentId: prevUserSegment.id,
+        idLimitExclusive: segmentId,
+        appendToExisting: false,
+        replacesSegmentId: segmentId,
+      });
     },
     summarizeSegments: async (segmentIds: string[], newSummary: SegmentSummary) => {
       try {
@@ -559,7 +591,7 @@ export default function BookPage({ params }: PageProps) {
     },
     selectCandidateContent: (contentIndex: number) => {
       setSegmentCandidate(prev => {
-        if (!prev || contentIndex < 0 || contentIndex >= prev.contents.length) {
+        if (!prev || contentIndex < 0 || contentIndex >= prev.versions.length) {
           return prev;
         }
 
@@ -571,13 +603,13 @@ export default function BookPage({ params }: PageProps) {
     },
     updateCandidateContent: (contentIndex: number, content: string) => {
       setSegmentCandidate(prev => {
-        if (!prev || contentIndex < 0 || contentIndex >= prev.contents.length) {
+        if (!prev || contentIndex < 0 || contentIndex >= prev.versions.length) {
           return prev;
         }
 
         return {
           ...prev,
-          contents: replaceCandidateContent(prev.contents, contentIndex, content),
+          versions: replaceCandidateVersion(prev.versions, contentIndex, { content }),
           selectedContentIndex: contentIndex,
         };
       });
@@ -597,7 +629,7 @@ export default function BookPage({ params }: PageProps) {
   }
 
   const disableStoryAction = loading || segmentCandidate !== null;
-  const disableCandidateAction = loading || (segmentCandidate?.isLoading ?? false);
+  const disableCandidateAction = loading || candidateSaving || (segmentCandidate?.isLoading ?? false);
 
   return (
     <div className="h-screen bg-background">

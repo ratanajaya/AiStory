@@ -54,6 +54,31 @@ describe('streamAiRequest', () => {
     }));
   });
 
+  it('reports the resolved provider and model from streaming headers', async () => {
+    const onModel = vi.fn();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('Generated text', {
+      headers: {
+        'X-AI-Service': 'together',
+        'X-AI-Model': encodeURIComponent('org/model-v2'),
+      },
+    })));
+
+    await streamAiRequest(request, { onChunk: vi.fn(), onModel });
+
+    expect(onModel).toHaveBeenCalledWith({ service: 'together', model: 'org/model-v2' });
+  });
+
+  it('reports unavailable provenance when streaming headers are missing or invalid', async () => {
+    const onModel = vi.fn();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('Generated text', {
+      headers: { 'X-AI-Service': 'other', 'X-AI-Model': 'bad-model' },
+    })));
+
+    await streamAiRequest(request, { onChunk: vi.fn(), onModel });
+
+    expect(onModel).toHaveBeenCalledWith(null);
+  });
+
   it('keeps a split error sentinel out of visible chunks and preserves its envelope', async () => {
     const payload = `Partial story${STREAM_ERROR_SENTINEL}${JSON.stringify({ message: 'Provider failed', name: 'UpstreamError' })}`;
     const split = payload.indexOf(STREAM_ERROR_SENTINEL) + 4;
