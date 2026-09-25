@@ -7,10 +7,13 @@ import Link from "next/link";
 import { AiSettingsSection } from "@/components/AiSettingsSection";
 import { Button } from "@/components/Button";
 import { useFetcher } from "@/components/FetcherProvider";
+import { useAiModelCatalog } from "@/components/AiModelCatalogProvider";
 import { streamAiRequest } from "@/lib/aiStreamClient";
 import _constant from "@/utils/_constant";
 import _util from "@/utils/_util";
-import type { AiModelOption, LlmConfig, ApiKeyConfig } from "@/types";
+import type { AiModelOption, LlmConfig, ApiKeyConfig, LLMService } from "@/types";
+
+const emptyModels: AiModelOption[] = [];
 
 const navLinks = [
   { href: "/", label: "Library" },
@@ -55,14 +58,14 @@ export function Sidebar({
 }) {
   const pathname = usePathname();
   const { fetcher } = useFetcher();
+  const { getEntry, loadModels } = useAiModelCatalog();
   const sidebarRef = useRef<HTMLDivElement>(null);
 
   // LLM settings
-  const [selectedService, setSelectedService] = useState("");
-  const [selectedModel, setSelectedModel] = useState("");
-  const [togetherModels, setTogetherModels] = useState<AiModelOption[]>([]);
-  const [modelLoading, setModelLoading] = useState(false);
-  const [modelLoadError, setModelLoadError] = useState<string | null>(null);
+  const [selectedService, setSelectedService] = useState<string>(_constant.defaultSelectedLlm.service);
+  const [selectedModel, setSelectedModel] = useState(_constant.defaultSelectedLlm.model);
+  const [modelKeys, setModelKeys] = useState<ApiKeyConfig>({ ..._constant.emptyApiKey });
+  const [dirtyApiKeys, setDirtyApiKeys] = useState<Record<LLMService, boolean>>({ together: false, openAi: false });
 
   // API Keys
   const [apiKeys, setApiKeys] = useState<ApiKeyConfig>({
@@ -74,9 +77,9 @@ export function Sidebar({
   const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [loaded, setLoaded] = useState(false);
 
-  // Fetch user settings on first open
+  // Load user settings in the background with the model catalogs.
   useEffect(() => {
-    if (!isOpen || loaded) return;
+    if (loaded) return;
 
     const fetchSettings = async () => {
       try {
@@ -101,56 +104,20 @@ export function Sidebar({
     };
 
     fetchSettings();
-  }, [isOpen, loaded, fetcher]);
+  }, [loaded, fetcher]);
+
+  const catalog = selectedService === 'together' || selectedService === 'openAi'
+    ? getEntry(selectedService, modelKeys[selectedService])
+    : null;
+  const models = catalog?.models ?? emptyModels;
+  const modelLoading = catalog?.loading ?? false;
+  const modelLoadError = catalog?.error ?? null;
 
   useEffect(() => {
-    if (!isOpen || selectedService !== "together") {
-      setModelLoadError(null);
-      return;
+    if (selectedService === "together" && !selectedModel && models.length > 0) {
+      setSelectedModel(models[0].id);
     }
-
-    const apiKey = _util.toInputString(apiKeys.together);
-
-    let canceled = false;
-    const fetchModels = async () => {
-      try {
-        setModelLoading(true);
-        setModelLoadError(null);
-        const data = await fetcher<{ models: AiModelOption[] }>("/api/ai/models/together", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(apiKey ? { apiKey } : {}),
-          silent: true,
-        });
-        if (!canceled) {
-          setTogetherModels(data.models);
-          if (data.models.length === 0) {
-            setModelLoadError("No Together chat models were returned.");
-          }
-        }
-      } catch (err) {
-        if (!canceled) {
-          setTogetherModels([]);
-          setModelLoadError(err instanceof Error ? err.message : "Failed to load Together models.");
-        }
-      } finally {
-        if (!canceled) {
-          setModelLoading(false);
-        }
-      }
-    };
-
-    fetchModels();
-    return () => {
-      canceled = true;
-    };
-  }, [isOpen, selectedService, apiKeys.together, fetcher]);
-
-  useEffect(() => {
-    if (selectedService === "together" && !selectedModel && togetherModels.length > 0) {
-      setSelectedModel(togetherModels[0].id);
-    }
-  }, [selectedService, selectedModel, togetherModels]);
+  }, [selectedService, selectedModel, models]);
 
   // Close sidebar when clicking outside
   useEffect(() => {
@@ -170,9 +137,8 @@ export function Sidebar({
   }, [isOpen, onClose]);
 
   const handleServiceChange = (service: string) => {
-    const serviceConfig = _constant.llmServices[service as keyof typeof _constant.llmServices];
     setSelectedService(service);
-    setSelectedModel(service === "together" ? "" : serviceConfig?.models[0] ?? "");
+    setSelectedModel(service === "openAi" ? _constant.defaultSelectedLlm.model : "");
   };
 
   const handleApiKeyChange = (key: keyof ApiKeyConfig, value: string) => {
@@ -180,6 +146,7 @@ export function Sidebar({
       ...prev,
       [key]: value,
     }));
+    setDirtyApiKeys((prev) => ({ ...prev, [key]: true }));
   };
 
   const saveCurrentSettings = async () => {
@@ -199,6 +166,14 @@ export function Sidebar({
         apiKey: _util.normalizeApiKeyConfig(apiKeys),
       }),
     });
+  };
+
+  const handleApiKeyBlur = (service: LLMService) => {
+    if (!dirtyApiKeys[service]) return;
+    const apiKey = _util.toInputString(apiKeys[service]);
+    setDirtyApiKeys((prev) => ({ ...prev, [service]: false }));
+    setModelKeys((prev) => ({ ...prev, [service]: apiKey }));
+    void loadModels(service, apiKey, true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -254,17 +229,17 @@ export function Sidebar({
   };
 
   const isSupportedService = !selectedService || selectedService in _constant.llmServices;
-  const togetherModelUnavailable =
-    selectedService === "together" &&
+  const modelUnavailable =
+    (selectedService === "together" || selectedService === "openAi") &&
     Boolean(selectedModel) &&
-    togetherModels.length > 0 &&
-    !togetherModels.some((model) => model.id === selectedModel);
+    models.length > 0 &&
+    !models.some((model) => model.id === selectedModel);
   const llmError = !isSupportedService
     ? "Mistral is no longer supported; choose Together AI or OpenAI."
-    : togetherModelUnavailable
-      ? "The selected Together model is unavailable; choose a model from the fetched list."
-      : selectedService === "together" && !selectedModel && !modelLoading
-        ? "Select a Together AI model."
+    : modelUnavailable
+      ? "The selected model is unavailable; choose a model from the fetched list."
+      : (selectedService === "together" || selectedService === "openAi") && !selectedModel && !modelLoading
+        ? "Select a model."
         : null;
   const actionDisabled = saving || testing || modelLoading || Boolean(llmError) || Boolean(modelLoadError);
 
@@ -348,7 +323,8 @@ export function Sidebar({
               }
               onModelChange={setSelectedModel}
               onApiKeyChange={handleApiKeyChange}
-              togetherModels={togetherModels}
+              onApiKeyBlur={handleApiKeyBlur}
+              models={models}
               modelLoading={modelLoading}
               modelLoadError={modelLoadError}
               llmError={llmError}

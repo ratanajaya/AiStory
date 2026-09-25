@@ -5,6 +5,7 @@ import { HamburgerButton, Sidebar } from "@/app/_components/Sidebar";
 import { AiApiLogDrawer } from "@/app/_components/AiApiLogDrawer";
 import { useUiState } from "@/components/UiStateProvider";
 import { useState } from "react";
+import { AiModelCatalogProvider } from "@/components/AiModelCatalogProvider";
 
 export function MainLayoutShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -16,7 +17,7 @@ export function MainLayoutShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <>
+    <AiModelCatalogProvider>
       <HamburgerButton onClick={() => setSidebarOpen(true)} />
       <Sidebar
         isOpen={uiState.sidebarOpen}
@@ -28,6 +29,6 @@ export function MainLayoutShell({ children }: { children: React.ReactNode }) {
       />
       <AiApiLogDrawer isOpen={aiApiLogsOpen} onClose={() => setAiApiLogsOpen(false)} />
       {children}
-    </>
+    </AiModelCatalogProvider>
   );
 }

@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { AiModelOption, DefaultValue, PromptBuilderConfig } from '@/types';
+import { AiModelOption, ApiKeyConfig, DefaultValue, LLMService, PromptBuilderConfig } from '@/types';
 import { AiSettingsSection } from '@/components/AiSettingsSection';
+import { useAiModelCatalog } from '@/components/AiModelCatalogProvider';
 import { useFetcher } from '@/components/FetcherProvider';
 import { Button } from '@/components/Button';
 import { PromptEditorSection } from '@/components/PromptEditorSection';
@@ -18,6 +19,8 @@ type SettingsFormData = Omit<DefaultValue, 'selectedLlm'> & {
   };
 };
 
+const emptyModels: AiModelOption[] = [];
+
 const emptyDefaultValue: SettingsFormData = {
   promptBuilder: { ..._constant.emptyPromptBuilder },
   generationProfiles: normalizeGenerationProfileConfig(null),
@@ -27,11 +30,11 @@ const emptyDefaultValue: SettingsFormData = {
 
 export default function SettingPage() {
   const { fetcher } = useFetcher();
+  const { getEntry, loadModels } = useAiModelCatalog();
 
   const [formData, setFormData] = useState<SettingsFormData>(emptyDefaultValue);
-  const [togetherModels, setTogetherModels] = useState<AiModelOption[]>([]);
-  const [modelLoading, setModelLoading] = useState(false);
-  const [modelLoadError, setModelLoadError] = useState<string | null>(null);
+  const [modelKeys, setModelKeys] = useState<ApiKeyConfig>({ ..._constant.emptyApiKey });
+  const [dirtyApiKeys, setDirtyApiKeys] = useState<Record<LLMService, boolean>>({ together: false, openAi: false });
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(true);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
@@ -43,15 +46,19 @@ export default function SettingPage() {
         const data = await fetcher<DefaultValue>('/api/settings', {
           errorMessage: 'Failed to fetch settings',
         });
+        const apiKey = _util.normalizeApiKeyConfig(data.apiKey);
         setFormData({
           promptBuilder: _util.normalizePromptBuilderConfig(data.promptBuilder),
           generationProfiles: normalizeGenerationProfileConfig(data.generationProfiles),
-          apiKey: _util.normalizeApiKeyConfig(data.apiKey),
+          apiKey,
           selectedLlm: {
             service: data.selectedLlm?.service || _constant.defaultSelectedLlm.service,
             model: data.selectedLlm?.model || _constant.defaultSelectedLlm.model,
           },
         });
+        setModelKeys(apiKey);
+        void loadModels('together', apiKey.together);
+        void loadModels('openAi', apiKey.openAi);
       } catch {
       } finally {
         setFetchLoading(false);
@@ -59,66 +66,30 @@ export default function SettingPage() {
     };
 
     fetchSettings();
-  }, [fetcher]);
+  }, [fetcher, loadModels]);
 
-  useEffect(() => {
-    if (formData.selectedLlm.service !== 'together') {
-      setModelLoadError(null);
-      return;
-    }
-
-    const apiKey = _util.toInputString(formData.apiKey.together);
-
-    let canceled = false;
-    const fetchModels = async () => {
-      try {
-        setModelLoading(true);
-        setModelLoadError(null);
-        const data = await fetcher<{ models: AiModelOption[] }>('/api/ai/models/together', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(apiKey ? { apiKey } : {}),
-          silent: true,
-        });
-        if (!canceled) {
-          setTogetherModels(data.models);
-          if (data.models.length === 0) {
-            setModelLoadError('No Together chat models were returned.');
-          }
-        }
-      } catch (err) {
-        if (!canceled) {
-          setTogetherModels([]);
-          setModelLoadError(err instanceof Error ? err.message : 'Failed to load Together models.');
-        }
-      } finally {
-        if (!canceled) {
-          setModelLoading(false);
-        }
-      }
-    };
-
-    fetchModels();
-    return () => {
-      canceled = true;
-    };
-  }, [formData.selectedLlm.service, formData.apiKey.together, fetcher]);
+  const catalog = formData.selectedLlm.service === 'together' || formData.selectedLlm.service === 'openAi'
+    ? getEntry(formData.selectedLlm.service, modelKeys[formData.selectedLlm.service])
+    : null;
+  const models = catalog?.models ?? emptyModels;
+  const modelLoading = catalog?.loading ?? false;
+  const modelLoadError = catalog?.error ?? null;
 
   useEffect(() => {
     if (
       formData.selectedLlm.service === 'together' &&
       !formData.selectedLlm.model &&
-      togetherModels.length > 0
+      models.length > 0
     ) {
       setFormData((prev) => ({
         ...prev,
         selectedLlm: {
           ...prev.selectedLlm,
-          model: togetherModels[0].id,
+          model: models[0].id,
         },
       }));
     }
-  }, [formData.selectedLlm.service, formData.selectedLlm.model, togetherModels]);
+  }, [formData.selectedLlm.service, formData.selectedLlm.model, models]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -148,14 +119,12 @@ export default function SettingPage() {
   };
 
   const handleSelectedServiceChange = (service: string) => {
-    const serviceConfig = _constant.llmServices[service as keyof typeof _constant.llmServices];
-
     setFormData((prev) => ({
       ...prev,
       selectedLlm: {
         ...prev.selectedLlm,
         service,
-        model: service === 'together' ? '' : serviceConfig?.models[0] ?? '',
+        model: service === 'openAi' ? _constant.defaultSelectedLlm.model : '',
       },
     }));
   };
@@ -188,6 +157,17 @@ export default function SettingPage() {
         [field]: value,
       },
     }));
+    if (field === 'together' || field === 'openAi') {
+      setDirtyApiKeys((prev) => ({ ...prev, [field]: true }));
+    }
+  };
+
+  const handleApiKeyBlur = (service: LLMService) => {
+    if (!dirtyApiKeys[service]) return;
+    const apiKey = _util.toInputString(formData.apiKey[service]);
+    setDirtyApiKeys((prev) => ({ ...prev, [service]: false }));
+    setModelKeys((prev) => ({ ...prev, [service]: apiKey }));
+    void loadModels(service, apiKey, true);
   };
 
   if (fetchLoading) {
@@ -200,19 +180,19 @@ export default function SettingPage() {
   }
 
   const isSupportedService = !formData.selectedLlm.service || formData.selectedLlm.service in _constant.llmServices;
-  const togetherModelUnavailable =
-    formData.selectedLlm.service === 'together' &&
+  const modelUnavailable =
+    (formData.selectedLlm.service === 'together' || formData.selectedLlm.service === 'openAi') &&
     Boolean(formData.selectedLlm.model) &&
-    togetherModels.length > 0 &&
-    !togetherModels.some((model) => model.id === formData.selectedLlm.model);
+    models.length > 0 &&
+    !models.some((model) => model.id === formData.selectedLlm.model);
   const llmError = !formData.selectedLlm.service
     ? 'Select a provider.'
     : !isSupportedService
     ? 'Mistral is no longer supported; choose Together AI or OpenAI.'
-    : togetherModelUnavailable
-      ? 'The selected Together model is unavailable; choose a model from the fetched list.'
-      : formData.selectedLlm.service === 'together' && !formData.selectedLlm.model && !modelLoading
-        ? 'Select a Together AI model.'
+    : modelUnavailable
+      ? 'The selected model is unavailable; choose a model from the fetched list.'
+      : (formData.selectedLlm.service === 'together' || formData.selectedLlm.service === 'openAi') && !formData.selectedLlm.model && !modelLoading
+        ? 'Select a model.'
         : null;
   const saveDisabled = loading || modelLoading || Boolean(llmError) || Boolean(modelLoadError);
 
@@ -239,7 +219,8 @@ export default function SettingPage() {
           onServiceChange={handleSelectedServiceChange}
           onModelChange={handleSelectedModelChange}
           onApiKeyChange={handleApiKeyChange}
-          togetherModels={togetherModels}
+          onApiKeyBlur={handleApiKeyBlur}
+          models={models}
           modelLoading={modelLoading}
           modelLoadError={modelLoadError}
           llmError={llmError}
