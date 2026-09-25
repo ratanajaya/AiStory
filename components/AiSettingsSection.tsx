@@ -3,7 +3,7 @@
 import { FormField } from '@/components/FormField';
 import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
-import { AiModelOption, ApiKeyConfig } from '@/types';
+import { AiModelOption, ApiKeyConfig, LLMService } from '@/types';
 import _constant from '@/utils/_constant';
 import _util from '@/utils/_util';
 
@@ -19,7 +19,8 @@ interface AiSettingsSectionProps {
   onServiceChange: (service: string) => void;
   onModelChange: (model: string) => void;
   onApiKeyChange: (key: keyof ApiKeyConfig, value: string) => void;
-  togetherModels?: AiModelOption[];
+  onApiKeyBlur?: (service: LLMService) => void;
+  models?: AiModelOption[];
   modelLoading?: boolean;
   modelLoadError?: string | null;
   llmError?: string | null;
@@ -61,7 +62,8 @@ export function AiSettingsSection({
   onServiceChange,
   onModelChange,
   onApiKeyChange,
-  togetherModels = [],
+  onApiKeyBlur,
+  models = [],
   modelLoading = false,
   modelLoadError = null,
   llmError = null,
@@ -71,11 +73,6 @@ export function AiSettingsSection({
 }: AiSettingsSectionProps) {
   const isPage = variant === 'page';
   const isSupportedService = selectedService in _constant.llmServices;
-  const isTogetherSelected = selectedService === 'together';
-
-  const availableModels = selectedService && isSupportedService
-    ? _constant.llmServices[selectedService as keyof typeof _constant.llmServices].models
-    : [];
 
   const serviceOptions: SelectOption[] = Object.entries(_constant.llmServices).map(([key, service]) => ({
     value: key,
@@ -89,14 +86,9 @@ export function AiSettingsSection({
     });
   }
 
-  const modelOptions: SelectOption[] = isTogetherSelected
-    ? togetherModels.map((model) => ({
+  const modelOptions: SelectOption[] = models.map((model) => ({
         value: model.id,
         label: model.label === model.id ? model.id : `${model.label} (${model.id})`,
-      }))
-    : availableModels.map((model) => ({
-        value: model,
-        label: model,
       }));
 
   if (selectedModel && !modelOptions.some((option) => option.value === selectedModel)) {
@@ -145,6 +137,7 @@ export function AiSettingsSection({
           type="password"
           value={_util.toInputString(apiKey.together)}
           onChange={(e) => onApiKeyChange('together', e.target.value)}
+          onBlur={() => onApiKeyBlur?.('together')}
           placeholder="Together API key"
         />
       </FormField>
@@ -154,6 +147,7 @@ export function AiSettingsSection({
           type="password"
           value={_util.toInputString(apiKey.openAi)}
           onChange={(e) => onApiKeyChange('openAi', e.target.value)}
+          onBlur={() => onApiKeyBlur?.('openAi')}
           placeholder="OpenAI API key"
         />
       </FormField>

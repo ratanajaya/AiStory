@@ -4,7 +4,7 @@ import { createTogetherAI } from '@ai-sdk/togetherai';
 import { generateText, streamText, ModelMessage, LanguageModel, Output, jsonSchema } from 'ai';
 import { getUserSettingWithFallback } from "@/auth";
 import { assertSupportedLlmConfig } from "@/lib/llmSettings";
-import type { GenerationProfile, GenerationProfileConfig } from '@/types';
+import type { GenerationProfile, GenerationProfileConfig, LlmConfig } from '@/types';
 import { toAiSdkGenerationOptions } from '@/lib/generationProfiles';
 
 export interface AiEndpoint {
@@ -215,6 +215,7 @@ const createAiSdkEndpoint = (model: LanguageModel, structuredOutputModel: Langua
 export const getDynamicAiEndpoint = async (): Promise<{
   endpoint: AiEndpoint;
   generationProfiles: GenerationProfileConfig;
+  selectedLlm: LlmConfig;
 }> => {
   const { selectedLlm, apiKey, generationProfiles } = await getUserSettingWithFallback();
   assertSupportedLlmConfig(selectedLlm);
@@ -240,13 +241,14 @@ export const getDynamicAiEndpoint = async (): Promise<{
         togetherStructured(selectedLlm.model),
       ),
       generationProfiles,
+      selectedLlm,
     };
   } else if (selectedLlm.service === 'openAi') {
     if (!apiKey.openAi) {
       throw new Error('OpenAI API key is not configured');
     }
     const openai = createOpenAI({ apiKey: apiKey.openAi });
-    return { endpoint: createAiSdkEndpoint(openai(selectedLlm.model)), generationProfiles };
+    return { endpoint: createAiSdkEndpoint(openai(selectedLlm.model)), generationProfiles, selectedLlm };
   }
 
   throw new Error('Unsupported LLM service configured');

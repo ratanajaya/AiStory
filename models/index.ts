@@ -11,7 +11,14 @@ const StorySegmentSchema = new Schema<StorySegment>({
   excludeFromPrevStory: { type: Boolean },
   toSummarize: { type: Boolean },
   segmentSummaryId: { type: String },
-  chapterId: { type: String }
+  chapterId: { type: String },
+  narrationModel: {
+    type: new Schema<LlmConfig>({
+      service: { type: String, enum: ['together', 'openAi'], required: true },
+      model: { type: String, required: true },
+    }, { _id: false }),
+    default: undefined,
+  },
 }, { _id: false });
 
 const SegmentSummarySchema = new Schema<SegmentSummary>({

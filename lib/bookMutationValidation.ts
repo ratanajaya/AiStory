@@ -1,4 +1,5 @@
 import { Chapter, SegmentSummary, StorySegment } from '@/types';
+import { validateLlmConfig } from '@/lib/llmSettings';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -23,6 +24,13 @@ export function parseStorySegment(value: unknown): StorySegment | null {
     return null;
   }
 
+  const narrationModel = value.narrationModel == null
+    ? null
+    : validateLlmConfig(value.narrationModel);
+  if (narrationModel !== null && (!narrationModel.ok || !narrationModel.value)) {
+    return null;
+  }
+
   return {
     id: value.id,
     day: value.day,
@@ -32,6 +40,7 @@ export function parseStorySegment(value: unknown): StorySegment | null {
     ...(value.toSummarize !== undefined && { toSummarize: value.toSummarize }),
     ...(value.segmentSummaryId !== undefined && { segmentSummaryId: value.segmentSummaryId }),
     ...(value.chapterId !== undefined && { chapterId: value.chapterId }),
+    ...(narrationModel !== null && narrationModel.ok && narrationModel.value && { narrationModel: narrationModel.value }),
   };
 }
 

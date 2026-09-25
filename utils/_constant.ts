@@ -20,8 +20,8 @@ const emptyApiKey: ApiKeyConfig = {
 };
 
 const defaultSelectedLlm: LlmConfig = {
-  service: 'together',
-  model: '',
+  service: 'openAi',
+  model: 'gpt-6-luna',
 };
 
 const defaultGenerationProfiles: GenerationProfileConfig = {
@@ -52,10 +52,7 @@ const _constant = {
     openAi: {
       label: 'OpenAI',
       provider: 'openAi',
-      models: [
-        'gpt-5-nano',
-        'gpt-4.1',
-      ],
+      models: [],
     },
   },
 }

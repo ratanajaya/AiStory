@@ -3,6 +3,7 @@ import SegmentAudioControl from "./SegmentAudioControl";
 import Markdown from "react-markdown";
 import { Chapter, StorySegment } from "@/types";
 import ChapterEditorModal from "./ChapterEditorModal";
+import NarrationModelLabel from "./NarrationModelLabel";
 
 const ChevronIcon = ({ expanded }: { expanded: boolean }) => (
   <svg
@@ -64,13 +65,16 @@ export default function ChapterDisplay(props: {
         <div className="border-t border-border p-3 bg-card">
           {assistantSegments.map((segment, index) => (
             <div key={segment.id} className="mb-3 last:mb-0">
-              <SegmentAudioControl
-                segmentId={segment.id}
-                content={segment.content}
-                bookId={props.bookId}
-                bookName={props.bookName}
-                className="mb-2 flex items-center gap-1"
-              />
+              <div className="mb-2 flex min-w-0 flex-wrap items-center gap-2">
+                <SegmentAudioControl
+                  segmentId={segment.id}
+                  content={segment.content}
+                  bookId={props.bookId}
+                  bookName={props.bookName}
+                  className="flex items-center gap-1"
+                />
+                <NarrationModelLabel model={segment.narrationModel} />
+              </div>
               <div className="text-foreground">
                 <Markdown
                   components={{

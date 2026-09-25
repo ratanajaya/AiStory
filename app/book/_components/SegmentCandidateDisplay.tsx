@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Button } from '@/components/Button';
 import { Textarea } from '@/components/Textarea';
 import { StorySegmentCandidate } from '@/types';
+import NarrationModelLabel from './NarrationModelLabel';
 
 export default function SegmentCandidateDisplay(props: {
   candidate: StorySegmentCandidate;
@@ -14,7 +15,8 @@ export default function SegmentCandidateDisplay(props: {
   onReject: () => void;
   disabled?: boolean;
 }) {
-  const selectedContent = props.candidate.contents[props.candidate.selectedContentIndex] ?? '';
+  const selectedVersion = props.candidate.versions[props.candidate.selectedContentIndex];
+  const selectedContent = selectedVersion?.content ?? '';
   const [editor, setEditor] = useState({
     isEditing: false,
     content: selectedContent,
@@ -44,15 +46,18 @@ export default function SegmentCandidateDisplay(props: {
 
   return (
     <div className="mb-4 rounded-md border border-dashed border-primary/50 bg-card p-3">
-      <div className="mb-3 flex items-center justify-end gap-3">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        {selectedVersion?.narrationModel
+          ? <NarrationModelLabel model={selectedVersion.narrationModel} prominent />
+          : <span className="text-sm font-medium text-muted-foreground">Narration model unavailable</span>}
         <div className="text-xs text-muted-foreground">
-          Version {props.candidate.selectedContentIndex + 1} / {props.candidate.contents.length}
+          Version {props.candidate.selectedContentIndex + 1} / {props.candidate.versions.length}
         </div>
       </div>
 
-      {props.candidate.contents.length > 1 && (
+      {props.candidate.versions.length > 1 && (
         <div className="mb-3 flex items-center justify-center gap-2">
-          {props.candidate.contents.map((_, index) => (
+          {props.candidate.versions.map((_, index) => (
             <button
               key={`${props.candidate.id}-${index}`}
               type="button"

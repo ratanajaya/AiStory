@@ -8,6 +8,7 @@ import Markdown from "react-markdown";
 import { SegmentSummary, StorySegment } from "@/types";
 import { ConfirmPopover } from "@/components/ConfirmPopover";
 import { Tooltip } from "@/components/Tooltip";
+import NarrationModelLabel from "./NarrationModelLabel";
 
 const colors = [
   'border-blue-500',
@@ -195,13 +196,16 @@ export default function SegmentDisplay(props: {
       ) : (
         <>
           <div className='w-full flex items-center justify-between mb-1'>
-            <SegmentAudioControl
-              segmentId={props.segment.id}
-              content={props.segment.content}
-              bookId={props.bookId}
-              bookName={props.bookName}
-              disabled={props.disabled}
-            />
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <SegmentAudioControl
+                segmentId={props.segment.id}
+                content={props.segment.content}
+                bookId={props.bookId}
+                bookName={props.bookName}
+                disabled={props.disabled}
+              />
+              <NarrationModelLabel model={props.segment.narrationModel} />
+            </div>
             <Tooltip
               content="To be summarized"
               placement="top"

@@ -14,18 +14,28 @@ describe('book mutation validation', () => {
       role: 'assistant',
       content: 'Story text',
       toSummarize: true,
+      narrationModel: { service: 'openAi', model: 'gpt-5' },
     })).toEqual({
       id: 'segment-1',
       day: 1,
       role: 'assistant',
       content: 'Story text',
       toSummarize: true,
+      narrationModel: { service: 'openAi', model: 'gpt-5' },
     });
   });
 
   it('rejects malformed segments and unsupported field types', () => {
     expect(parseStorySegment({ id: 'segment-1', day: '1', role: 'assistant', content: 'Story text' })).toBeNull();
     expect(parseStorySegment({ id: 'segment-1', day: 1, role: 'assistant', content: 'Story text', toSummarize: 'yes' })).toBeNull();
+    expect(parseStorySegment({ id: 'segment-1', day: 1, role: 'assistant', content: 'Story text', narrationModel: { service: 'openAi', model: ' ' } })).toBeNull();
+    expect(parseStorySegment({ id: 'segment-1', day: 1, role: 'assistant', content: 'Story text', narrationModel: { service: 'unknown', model: 'model-1' } })).toBeNull();
+  });
+
+  it('treats null model metadata as unavailable on older segments', () => {
+    expect(parseStorySegment({
+      id: 'segment-1', day: 1, role: 'assistant', content: 'Story text', narrationModel: null,
+    })).toEqual({ id: 'segment-1', day: 1, role: 'assistant', content: 'Story text' });
   });
 
   it('requires unique nonempty segment ids for atomic assignments', () => {

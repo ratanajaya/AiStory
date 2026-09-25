@@ -16,7 +16,7 @@ export async function POST(request: Request) {
       return errorResponseFromMessage('feature is required and must be supported', 400);
     }
 
-    const { endpoint: aiEndpoint, generationProfiles } = await getDynamicAiEndpoint();
+    const { endpoint: aiEndpoint, generationProfiles, selectedLlm } = await getDynamicAiEndpoint();
     const generationProfile = generationProfiles[feature];
 
     if (stream) {
@@ -45,6 +45,8 @@ export async function POST(request: Request) {
         headers: {
           'Content-Type': 'text/plain; charset=utf-8',
           'Transfer-Encoding': 'chunked',
+          'X-AI-Service': selectedLlm.service,
+          'X-AI-Model': encodeURIComponent(selectedLlm.model),
         },
       });
     }
