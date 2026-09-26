@@ -8,16 +8,25 @@ import { GET, PUT } from './route';
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.workspace.mockResolvedValue({ guestId: 'guest-one' });
-  mocks.settings.mockResolvedValue({ selectedLlm: null, apiKey: { together: 'secret', openAi: null } });
+  mocks.settings.mockResolvedValue({ guest: { selectedTts: null }, selectedLlm: null, apiKey: { together: 'secret', openAi: null } });
   mocks.update.mockResolvedValue({ matchedCount: 1 });
   mocks.encrypt.mockImplementation((key: string) => `encrypted:${key}`);
 });
 const put = (body: unknown) => PUT(new Request('http://localhost/api/guest/settings', { method: 'PUT', body: JSON.stringify(body) }));
 
 describe('guest credentials', () => {
+  it('saves and clears TTS without touching keys or text settings', async () => {
+    const config = { service: 'openAi', model: 'tts-1', voice: 'alloy' };
+    expect((await put({ selectedTts: config })).status).toBe(200);
+    expect(mocks.update.mock.calls[0][1]).toEqual({ $set: { selectedTts: config } });
+    expect((await put({ selectedTts: null })).status).toBe(200);
+    expect(mocks.update.mock.calls[1][1]).toEqual({ $set: { selectedTts: null } });
+    expect((await put({ selectedTts: { ...config, voice: '' } })).status).toBe(400);
+    expect(mocks.update).toHaveBeenCalledTimes(2);
+  });
   it('returns configured flags without saved secrets', async () => {
     const response = await GET();
-    expect(await response.json()).toEqual({ selectedLlm: null, configured: { together: true, openAi: false } });
+    expect(await response.json()).toEqual({ selectedTts: null, selectedLlm: null, configured: { together: true, openAi: false } });
   });
   it('encrypts a replacement and preserves omitted providers', async () => {
     expect((await put({ apiKey: { openAi: '  new-key  ' } })).status).toBe(200);

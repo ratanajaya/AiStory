@@ -1,3 +1,4 @@
+import { validateTtsConfig, resolveTtsConfig } from '@/lib/ttsConfig';
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/auth';
 import dbConnect from '@/lib/mongodb';
@@ -38,6 +39,7 @@ export async function GET() {
     if (!doc) {
       // This should never happen in practice, but keep a safe fallback for unset data.
       const emptyDefaultValue: DefaultValue = {
+        selectedTts: resolveTtsConfig(null),
         promptBuilder: { ..._constant.emptyPromptBuilder },
         generationProfiles: normalizeGenerationProfileConfig(null),
         apiKey: { ..._constant.emptyApiKey },
@@ -49,6 +51,7 @@ export async function GET() {
     const value = doc.value as DefaultValue;
 
     const responseValue: DefaultValue = {
+      selectedTts: resolveTtsConfig(value.selectedTts),
       promptBuilder: _util.normalizePromptBuilderConfig(value.promptBuilder),
       generationProfiles: normalizeGenerationProfileConfig(value.generationProfiles),
       apiKey: _util.normalizeApiKeyConfig(value.apiKey),
@@ -85,7 +88,11 @@ export async function PUT(request: Request) {
       return errorResponseFromMessage(generationProfileResult.message, 400);
     }
 
+    const ttsResult = validateTtsConfig(body.selectedTts);
+    if (!ttsResult.ok) return errorResponseFromMessage(ttsResult.message, 400);
+    const existing = body.selectedTts === undefined ? await KeyValueModel.findOne({ key: DEFAULT_KEY }).lean() : null;
     const normalizedValue: DefaultValue = {
+      selectedTts: resolveTtsConfig(ttsResult.value, existing?.value?.selectedTts),
       promptBuilder: _util.normalizePromptBuilderConfig(body.promptBuilder),
       generationProfiles: generationProfileResult.value,
       apiKey: _util.normalizeApiKeyConfig(body.apiKey),

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { TtsSettingsSection } from '@/components/TtsSettingsSection';
 import SignInToKeepLink from '@/app/_components/SignInToKeepLink';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
@@ -70,13 +71,14 @@ export function GuestAccess() {
       <div className="flex justify-between"><h2 className="text-xl font-semibold">Keep creating with your own API key</h2><button onClick={() => setOpen(false)} aria-label="Close API key guide">×</button></div>
       <p className="mt-3 text-sm">Add a Together AI or OpenAI API key to continue generating beyond AiStory’s free trial allowance. No AiStory sign-up is required. Usage is billed to your provider account, and provider limits still apply.</p>
       <p className="mt-2 text-sm">{viewer?.kind === 'user' ? 'Your books and templates are saved to your Google account.' : 'Your guest workspace still expires after seven days. Sign in with Google to keep your books and templates.'}</p>
-      <div className="mt-4 text-sm"><p><strong>Together AI:</strong> Story generation and audio. <a className="text-primary underline" target="_blank" rel="noreferrer" href="https://support.together.ai/articles/4999040689-where-to-find-your-api-key">Find or create a Together API key</a>.</p><p className="mt-2"><strong>OpenAI:</strong> Story generation. <a className="text-primary underline" target="_blank" rel="noreferrer" href="https://developers.openai.com/api/docs/quickstart">OpenAI API-key quickstart</a>.</p></div>
+      <div className="mt-4 text-sm"><p><strong>Together AI:</strong> Story generation and audio. <a className="text-primary underline" target="_blank" rel="noreferrer" href="https://support.together.ai/articles/4999040689-where-to-find-your-api-key">Find or create a Together API key</a>.</p><p className="mt-2"><strong>OpenAI:</strong> Story generation and audio. <a className="text-primary underline" target="_blank" rel="noreferrer" href="https://developers.openai.com/api/docs/quickstart">OpenAI API-key quickstart</a>.</p></div>
       <ol className="mt-4 list-inside list-decimal text-sm"><li>Create a provider account, set up billing or credits, and create a key.</li><li>Paste it into the matching field below.</li><li>Select a text provider/model and choose Save & test. Testing may incur a small provider charge.</li></ol>
-      <p className="mt-3 text-xs text-muted-foreground">Audio specifically requires a Together key to bypass the free audio allowance.</p>
+      <p className="mt-3 text-xs text-muted-foreground">Audio uses the key for your selected speech provider to bypass the free audio allowance.</p>
       {(['together', 'openAi'] as const).map((service) => <div key={service} className="mt-3"><label className="block text-sm">{service === 'together' ? 'Together AI' : 'OpenAI'} key {viewer?.personal?.[service] ? '(configured)' : ''}<input className="mt-1 w-full rounded border border-border bg-background p-2" type="password" autoComplete="off" value={keys[service]} onChange={(event) => setKeys((previous) => ({ ...previous, [service]: event.target.value }))} placeholder="Paste a new key to replace the current one" /></label>{viewer?.personal?.[service] && <button disabled={busy} className="mt-1 text-xs text-red-400 underline" onClick={() => remove(service)}>Remove key</button>}</div>)}
       <label className="mt-3 block text-sm">Text provider<select className="mt-1 w-full rounded border border-border bg-background p-2" value={provider} onChange={(event) => { setProvider(event.target.value as 'together' | 'openAi'); setModel(''); setModels([]); }}><option value="together">Together AI</option><option value="openAi">OpenAI</option></select></label>
       <label className="mt-3 block text-sm">Model<input list="guest-models" className="mt-1 w-full rounded border border-border bg-background p-2" value={model} onChange={(event) => setModel(event.target.value)} placeholder="Model ID" /><datalist id="guest-models">{models.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</datalist></label>
       <div className="mt-4 flex gap-3"><button disabled={busy} className="rounded bg-primary px-3 py-2 text-primary-foreground" onClick={() => save(false)}>Save</button><button disabled={busy} className="rounded border border-border px-3 py-2" onClick={() => save(true)}>Save & test</button><button disabled={busy} className="rounded border border-border px-3 py-2" onClick={() => void loadModels()}>Load models</button></div>
+      {viewer.kind !== 'visitor' && <div className="mt-5"><TtsSettingsSection actorKind={viewer.kind} credentialsDirty={Boolean(keys.together.trim() || keys.openAi.trim())} /></div>}
       {message && <p role="status" className="mt-3 text-sm">{message}</p>}
     </div></div>}
   </>;

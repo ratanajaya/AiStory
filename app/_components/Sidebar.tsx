@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import Link from "next/link";
 import SignInToKeepLink from '@/app/_components/SignInToKeepLink';
+import { TtsSettingsSection } from '@/components/TtsSettingsSection';
 import { AiSettingsSection } from "@/components/AiSettingsSection";
 import { Button } from "@/components/Button";
 import { useFetcher } from "@/components/FetcherProvider";
@@ -75,6 +76,7 @@ export function Sidebar({
     ..._constant.emptyApiKey,
   });
 
+  const [ttsKeysDirty, setTtsKeysDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -145,6 +147,7 @@ export function Sidebar({
   };
 
   const handleApiKeyChange = (key: keyof ApiKeyConfig, value: string) => {
+    setTtsKeysDirty(true);
     setApiKeys((prev) => ({
       ...prev,
       [key]: value,
@@ -169,6 +172,8 @@ export function Sidebar({
         apiKey: _util.normalizeApiKeyConfig(apiKeys),
       }),
     });
+    setTtsKeysDirty(false);
+    window.dispatchEvent(new Event("aistory:settings"));
   };
 
   const handleApiKeyBlur = (service: LLMService) => {
@@ -324,6 +329,8 @@ export function Sidebar({
 
           {/* Divider */}
           <hr className="border-border" />
+
+          {isOpen && <TtsSettingsSection credentialsDirty={ttsKeysDirty} />}
 
           {/* User Settings Form */}
           <form onSubmit={handleSubmit} className="space-y-4">

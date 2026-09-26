@@ -1,4 +1,4 @@
-import { TTS_CACHE_CONFIG_ID } from "@/lib/ttsConfig";
+
 
 const DB_NAME = 'ai-story-tts';
 const DB_VERSION = 1;
@@ -149,10 +149,11 @@ export const getSegmentAudio = async (segmentId: string): Promise<SegmentAudioRe
 export const isSegmentAudioRecordCurrent = (
   record: SegmentAudioRecord | null,
   content: string,
+  configId: string,
 ): record is SegmentAudioRecord => {
   return !!record
     && record.content === content
-    && record.configId === TTS_CACHE_CONFIG_ID;
+    && record.configId === configId;
 };
 
 export const saveSegmentAudio = async (record: SegmentAudioRecord): Promise<void> => {
@@ -295,9 +296,11 @@ export const playAudioBlob = async (segmentId: string, audioBlob: Blob | undefin
   audio.src = currentAudioUrl;
   audio.currentTime = 0;
 
+  const playbackUrl = currentAudioUrl;
   try {
     await audio.play();
   } catch (error) {
+    if (currentAudioUrl !== playbackUrl) return;
     updatePlaybackStatus({
       state: 'error',
       errorMessage: error instanceof Error ? error.message : 'Audio playback failed.',
@@ -360,6 +363,7 @@ export const resumeAudioPlayback = async (segmentId?: string): Promise<boolean> 
 };
 
 export const stopAudioPlayback = (segmentId?: string): boolean => {
+  if (!sharedAudio) return false;
   const audio = getSharedAudio();
 
   if (!playbackStatus.activeSegmentId) {

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { TTS_CACHE_CONFIG_ID } from './ttsConfig';
+import { DEFAULT_TTS_CONFIG, TTS_CACHE_CONFIG_ID, ttsCacheConfigId } from './ttsConfig';
 import type { SegmentAudioRecord } from './ttsIndexedDb';
 
 const mocks = vi.hoisted(() => ({
@@ -41,13 +41,34 @@ describe('ensureSegmentAudioBlob', () => {
   });
   afterEach(() => vi.unstubAllGlobals());
 
+  it('regenerates when the selected voice changes and records the new identity', async () => {
+    mocks.getSegmentAudio.mockResolvedValue(cachedRecord());
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(new Blob(['new']))));
+    const selectedTts = { ...DEFAULT_TTS_CONFIG, voice: 'af_heart' };
+    await ensureSegmentAudioBlob('segment-1', 'Read this', undefined, selectedTts);
+    expect(mocks.deleteSegmentAudio).toHaveBeenCalledWith('segment-1');
+    expect(mocks.saveSegmentAudio).toHaveBeenCalledWith(expect.objectContaining({ configId: ttsCacheConfigId(selectedTts) }));
+  });
+
+  it('does not cache or return stale in-flight audio after cancellation', async () => {
+    const controller = new AbortController();
+    let respond!: (value: Response) => void;
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(() => new Promise(resolve => { respond = resolve; })));
+    const pending = ensureSegmentAudioBlob('segment-1', 'Read this', undefined, DEFAULT_TTS_CONFIG, controller.signal);
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalled());
+    controller.abort();
+    respond(new Response(new Blob(['late'])));
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+    expect(mocks.saveSegmentAudio).not.toHaveBeenCalled();
+  });
+
   it('reuses audio only when both the content and synthesis config match', async () => {
     const cached = cachedRecord();
     mocks.getSegmentAudio.mockResolvedValue(cached);
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
 
-    expect(await ensureSegmentAudioBlob('segment-1', 'Read this')).toBe(cached.audioBlob);
+    expect(await ensureSegmentAudioBlob('segment-1', 'Read this', undefined, DEFAULT_TTS_CONFIG)).toBe(cached.audioBlob);
     expect(fetchMock).not.toHaveBeenCalled();
     expect(mocks.deleteSegmentAudio).not.toHaveBeenCalled();
     expect(mocks.saveSegmentAudio).not.toHaveBeenCalled();
@@ -63,12 +84,12 @@ describe('ensureSegmentAudioBlob', () => {
       headers: { 'Content-Type': 'audio/wav' },
     })));
 
-    const result = await ensureSegmentAudioBlob('segment-1', 'Read this', { feature: 'TTS playback' });
+    const result = await ensureSegmentAudioBlob('segment-1', 'Read this', { feature: 'TTS playback' }, DEFAULT_TTS_CONFIG);
 
     expect(result).toEqual(responseBlob);
     expect(mocks.deleteSegmentAudio).toHaveBeenCalledWith('segment-1');
     expect(fetch).toHaveBeenCalledWith('/api/ai/tts', expect.objectContaining({
-      method: 'POST', body: JSON.stringify({ input: 'Read this' }),
+      method: 'POST', body: JSON.stringify({ input: 'Read this', selectedTts: DEFAULT_TTS_CONFIG }),
     }));
     expect(mocks.saveSegmentAudio).toHaveBeenCalledWith(expect.objectContaining({
       segmentId: 'segment-1', content: 'Read this', configId: TTS_CACHE_CONFIG_ID,
@@ -83,7 +104,7 @@ describe('ensureSegmentAudioBlob', () => {
   it('uses the MP3 MIME fallback if the server omits Content-Type', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(new Blob(['audio']))));
 
-    await ensureSegmentAudioBlob('segment-1', 'Read this');
+    await ensureSegmentAudioBlob('segment-1', 'Read this', undefined, DEFAULT_TTS_CONFIG);
 
     expect(mocks.saveSegmentAudio).toHaveBeenCalledWith(expect.objectContaining({ mimeType: 'audio/mpeg' }));
   });
@@ -91,7 +112,7 @@ describe('ensureSegmentAudioBlob', () => {
   it('surfaces a JSON error without caching audio', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ error: 'Speech unavailable' }, { status: 503 })));
 
-    await expect(ensureSegmentAudioBlob('segment-1', 'Read this', { feature: 'TTS playback' }))
+    await expect(ensureSegmentAudioBlob('segment-1', 'Read this', { feature: 'TTS playback' }, DEFAULT_TTS_CONFIG))
       .rejects.toThrow('Speech unavailable');
     expect(mocks.saveSegmentAudio).not.toHaveBeenCalled();
     expect(mocks.appendAiApiLog).toHaveBeenCalledWith(expect.objectContaining({

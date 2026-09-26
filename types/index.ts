@@ -135,6 +135,7 @@ export interface Book {
 }
 
 export interface DefaultValue {
+  selectedTts?: TtsConfig | null;
   promptBuilder: PromptBuilderConfig;
   generationProfiles: GenerationProfileConfig;
   selectedLlm: LlmConfig;
@@ -161,6 +162,18 @@ export type GenerationProfileConfig = Record<AiGenerationFeature, GenerationProf
 
 export type LLMService = 'together' | 'openAi';
 
+export interface TtsConfig {
+  service: LLMService;
+  model: string;
+  voice: string;
+}
+export interface TtsModelOption {
+  id: string;
+  label: string;
+  voices: { id: string; label: string }[];
+  defaultVoice: string;
+}
+
 export interface LlmConfig {
   service: LLMService;
   model: string;
@@ -173,6 +186,7 @@ export interface AiModelOption {
 }
 
 export interface User {
+  selectedTts?: TtsConfig | null;
   email: string;
   isAdmin: boolean;
   registeredAt: Date;

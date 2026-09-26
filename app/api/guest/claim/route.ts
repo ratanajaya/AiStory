@@ -38,6 +38,7 @@ export async function POST(request: Request) {
         if (_util.toInputString(user.apiKey?.[provider])) preservedKeys.push(provider);
         else updates[`apiKey.${provider}`] = key;
       }
+      if (!user.selectedTts && guest.selectedTts) updates.selectedTts = guest.selectedTts;
       if (!user.selectedLlm && guest.selectedLlm) updates.selectedLlm = guest.selectedLlm;
       if (user.trialAccount) {
         updates.trialTextUsed = Math.max(user.trialTextUsed || 0, guest.trialTextUsed || 0);

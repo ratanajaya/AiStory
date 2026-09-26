@@ -25,6 +25,9 @@ const _util = {
   toInputString: (input: string | null | undefined): string => {
     return _util.isNullOrWhitespace(input) ? "" : (input as string);
   },
+  toIdentifierString: (input: string | null | undefined): string => {
+    return _util.toInputString(input).trim();
+  },
   mergeNormalizedString: (input: string | null | undefined, fallback: string | null | undefined): string => {
     return _util.toInputString(_util.altString(input, _util.toInputString(fallback)));
   },

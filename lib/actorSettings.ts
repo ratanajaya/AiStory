@@ -1,12 +1,14 @@
+import { resolveTtsConfig } from '@/lib/ttsConfig';
 import { getUserSettingWithFallback } from '@/auth';
 import dbConnect from '@/lib/mongodb';
 import { KeyValueModel, UserModel } from '@/models';
 import { getActor, guestSettings } from '@/lib/guest';
 import { normalizeGenerationProfileConfig } from '@/lib/generationProfiles';
-import type { ApiKeyConfig, DefaultValue, GenerationProfileConfig, LlmConfig, LLMService } from '@/types';
+import type { ApiKeyConfig, DefaultValue, GenerationProfileConfig, LlmConfig, LLMService, TtsConfig } from '@/types';
 import _util from '@/utils/_util';
 
 export async function getActorGenerationSettings(): Promise<{
+  selectedTts: TtsConfig;
   selectedLlm: LlmConfig; apiKey: ApiKeyConfig; generationProfiles: GenerationProfileConfig;
   personal: Record<LLMService, boolean>; trialAccount: boolean;
 }> {
@@ -31,6 +33,7 @@ export async function getActorGenerationSettings(): Promise<{
   const defaults = defaultDoc.value as DefaultValue;
   return {
     selectedLlm: guest.selectedLlm || defaults.selectedLlm,
+    selectedTts: resolveTtsConfig(guest.guest.selectedTts, defaults.selectedTts),
     apiKey: {
       together: guest.apiKey.together || defaults.apiKey.together,
       openAi: guest.apiKey.openAi || defaults.apiKey.openAi,

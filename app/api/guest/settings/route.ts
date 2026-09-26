@@ -1,3 +1,4 @@
+import { validateTtsConfig } from '@/lib/ttsConfig';
 import { NextResponse } from 'next/server';
 import { errorResponse, errorResponseFromMessage } from '@/lib/apiError';
 import { encryptGuestKey, getGuestWorkspace, guestSettings, sameOrigin } from '@/lib/guest';
@@ -9,7 +10,7 @@ export async function GET() {
   try {
     const settings = await guestSettings();
     if (!settings) return errorResponseFromMessage('Unauthorized', 401);
-    return NextResponse.json({ selectedLlm: settings.selectedLlm, configured: {
+    return NextResponse.json({ selectedTts: settings.guest.selectedTts ?? null, selectedLlm: settings.selectedLlm, configured: {
       together: Boolean(settings.apiKey.together), openAi: Boolean(settings.apiKey.openAi),
     } });
   } catch (error) { return errorResponse(error); }
@@ -23,6 +24,11 @@ export async function PUT(request: Request) {
     const body = await request.json();
     if (!body || typeof body !== 'object' || Array.isArray(body)) return errorResponseFromMessage('Invalid settings', 400);
     const updates: Record<string, unknown> = {};
+    if ('selectedTts' in body) {
+      const result = validateTtsConfig(body.selectedTts);
+      if (!result.ok) return errorResponseFromMessage(result.message, 400);
+      updates.selectedTts = result.value;
+    }
     if ('selectedLlm' in body) {
       const result = validateLlmConfig(body.selectedLlm, { allowNull: true });
       if (!result.ok) return errorResponseFromMessage(result.message, 400);

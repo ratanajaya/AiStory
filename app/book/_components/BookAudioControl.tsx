@@ -5,6 +5,8 @@ import TrialActionNotice from '@/app/_components/TrialActionNotice';
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAlert } from "@/components/AlertBox";
 import { useUiState } from "@/components/UiStateProvider";
+import { useFetcher } from '@/components/FetcherProvider';
+import type { TtsConfig } from '@/types';
 import { ensureSegmentAudioBlob, formatAudioTime } from "@/lib/ttsAudioClient";
 import {
   AudioPlaybackStatus,
@@ -30,6 +32,8 @@ export default function BookAudioControl(props: {
   disabled?: boolean;
 }) {
   const { showAlert } = useAlert();
+  const { fetcher } = useFetcher();
+  const pending = useRef<AbortController | null>(null);
   const { uiState, setBookAudioHidden } = useUiState();
   const [isQueueActive, setIsQueueActive] = useState(false);
   const [isPreparingSegment, setIsPreparingSegment] = useState(false);
@@ -60,10 +64,14 @@ export default function BookAudioControl(props: {
   }, []);
 
   useEffect(() => {
-    return () => {
-      queueRunIdRef.current += 1;
+    const cancel = () => {
+      queueRunIdRef.current += 1; pending.current?.abort();
+      setIsQueueActive(false); setIsPreparingSegment(false); setCurrentQueueIndex(null); setQueueTotal(0); setCurrentQueueSegmentId(null);
       stopAudioPlayback();
     };
+    window.addEventListener('aistory:settings', cancel);
+    window.addEventListener('aistory:audio-interrupt', cancel);
+    return () => { window.removeEventListener('aistory:settings', cancel); window.removeEventListener('aistory:audio-interrupt', cancel); queueRunIdRef.current += 1; pending.current?.abort(); stopAudioPlayback(); };
   }, []);
 
   const isCurrentQueueSegment = currentQueueSegmentId != null && playbackStatus.activeSegmentId === currentQueueSegmentId;
@@ -99,12 +107,12 @@ export default function BookAudioControl(props: {
     });
   }, [chapterTitleById, playableSegments]);
 
-  const createPrefetchTask = (segment: StorySegment): Promise<PrefetchedAudioResult> => {
+  const createPrefetchTask = (segment: StorySegment, config: TtsConfig, signal: AbortSignal): Promise<PrefetchedAudioResult> => {
     return ensureSegmentAudioBlob(segment.id, segment.content, {
       feature: 'Book audio playback',
       bookId: props.bookId,
       bookName: props.bookName,
-    })
+    }, config, signal)
       .then((audioBlob) => ({ audioBlob, error: null }))
       .catch((error) => ({
         audioBlob: null,
@@ -121,6 +129,7 @@ export default function BookAudioControl(props: {
   };
 
   const stopQueue = () => {
+    pending.current?.abort();
     queueRunIdRef.current += 1;
     resetQueueState();
     stopAudioPlayback();
@@ -128,15 +137,18 @@ export default function BookAudioControl(props: {
 
   const waitForSegmentPlayback = (segmentId: string, runId: number) => {
     return new Promise<QueuePlaybackResult>((resolve, reject) => {
-      const unsubscribe = subscribeToAudioPlayback((status) => {
+      let unsubscribe: (() => void) | undefined;
+      let settled = false;
+      const cleanup = () => { settled = true; unsubscribe?.(); };
+      unsubscribe = subscribeToAudioPlayback((status) => {
         if (queueRunIdRef.current !== runId) {
-          unsubscribe();
+          cleanup();
           resolve('stopped');
           return;
         }
 
         if (status.activeSegmentId === segmentId && status.state === 'error') {
-          unsubscribe();
+          cleanup();
           reject(new Error(status.errorMessage || 'Audio playback failed.'));
           return;
         }
@@ -146,16 +158,17 @@ export default function BookAudioControl(props: {
         }
 
         if (status.activeSegmentId == null && status.state === 'idle') {
-          unsubscribe();
+          cleanup();
           resolve('completed');
           return;
         }
 
         if (status.activeSegmentId != null && status.activeSegmentId !== segmentId) {
-          unsubscribe();
+          cleanup();
           resolve('interrupted');
         }
       });
+      if (settled) unsubscribe();
     });
   };
 
@@ -169,12 +182,17 @@ export default function BookAudioControl(props: {
       return;
     }
 
+    window.dispatchEvent(new Event('aistory:audio-interrupt'));
+    const controller = new AbortController(); pending.current = controller;
     const runId = queueRunIdRef.current + 1;
     queueRunIdRef.current = runId;
     setIsQueueActive(true);
+    setIsPreparingSegment(true);
     setQueueTotal(playableSegments.length);
 
     try {
+      const { selectedTts } = await fetcher<{ selectedTts: TtsConfig }>('/api/ai/tts', { silent: true, signal: controller.signal });
+      if (controller.signal.aborted) return;
       let prefetchedAudioTask: Promise<PrefetchedAudioResult> | null = null;
 
       for (let index = startIndex; index < playableSegments.length; index += 1) {
@@ -187,7 +205,7 @@ export default function BookAudioControl(props: {
         setCurrentQueueSegmentId(segment.id);
         setIsPreparingSegment(true);
 
-        const currentTask = prefetchedAudioTask ?? createPrefetchTask(segment);
+        const currentTask = prefetchedAudioTask ?? createPrefetchTask(segment, selectedTts, controller.signal);
         const { audioBlob, error } = await currentTask;
 
         if (queueRunIdRef.current !== runId) {
@@ -200,10 +218,11 @@ export default function BookAudioControl(props: {
 
         setIsPreparingSegment(false);
         await playAudioBlob(segment.id, audioBlob);
+        if (controller.signal.aborted || queueRunIdRef.current !== runId) return;
 
         const nextSegment = playableSegments[index + 1];
         prefetchedAudioTask = nextSegment
-          ? createPrefetchTask(nextSegment)
+          ? createPrefetchTask(nextSegment, selectedTts, controller.signal)
           : null;
 
         const result = await waitForSegmentPlayback(segment.id, runId);
@@ -213,6 +232,7 @@ export default function BookAudioControl(props: {
         }
       }
     } catch (error) {
+      if (controller.signal.aborted) return;
       console.error('Failed during book audio playback:', error);
       showAlert(error instanceof Error ? error.message : 'Failed to play book audio.');
     } finally {
@@ -303,6 +323,7 @@ export default function BookAudioControl(props: {
             <button
               type="button"
               onClick={handleMainAction}
+              aria-label={isQueuePlaying ? "Pause book audio" : "Play book audio"}
               className="bg-muted/70 hover:bg-muted p-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={!canStartQueue || isQueueLoading}
             >
@@ -324,6 +345,7 @@ export default function BookAudioControl(props: {
             <button
               type="button"
               onClick={stopQueue}
+              aria-label="Stop book audio"
               className="bg-muted/70 hover:bg-muted p-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={!canStopQueue}
             >

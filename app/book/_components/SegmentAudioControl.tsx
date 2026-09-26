@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useFetcher } from '@/components/FetcherProvider';
+import type { TtsConfig } from '@/types';
 import { useAlert } from "@/components/AlertBox";
 import { ensureSegmentAudioBlob, formatAudioTime } from "@/lib/ttsAudioClient";
 import {
@@ -19,6 +21,8 @@ export default function SegmentAudioControl(props: {
   className?: string;
 }) {
   const { showAlert } = useAlert();
+  const { fetcher } = useFetcher();
+  const pending = useRef<AbortController | null>(null);
   const [isGeneratingTts, setIsGeneratingTts] = useState(false);
   const [playbackStatus, setPlaybackStatus] = useState<AudioPlaybackStatus>({
     activeSegmentId: null,
@@ -32,11 +36,18 @@ export default function SegmentAudioControl(props: {
     return subscribeToAudioPlayback(setPlaybackStatus);
   }, []);
 
+  useEffect(() => {
+    const cancel = () => { pending.current?.abort(); setIsGeneratingTts(false); stopAudioPlayback(props.segmentId); };
+    window.addEventListener('aistory:settings', cancel);
+    window.addEventListener('aistory:audio-interrupt', cancel);
+    return () => { window.removeEventListener('aistory:settings', cancel); window.removeEventListener('aistory:audio-interrupt', cancel); pending.current?.abort(); };
+  }, [props.segmentId]);
+
   const isActiveTtsSegment = playbackStatus.activeSegmentId === props.segmentId;
   const isTtsLoading = isActiveTtsSegment && playbackStatus.state === 'loading';
   const isTtsPaused = isActiveTtsSegment && playbackStatus.state === 'paused';
   const isTtsPlaying = isActiveTtsSegment && (playbackStatus.state === 'playing' || playbackStatus.state === 'waiting');
-  const canStopTts = isActiveTtsSegment && playbackStatus.state !== 'idle' && !props.disabled;
+  const canStopTts = (isGeneratingTts || (isActiveTtsSegment && playbackStatus.state !== 'idle')) && !props.disabled;
   const audioTimeLabel = isActiveTtsSegment
     ? `${formatAudioTime(playbackStatus.currentTime)} / ${formatAudioTime(playbackStatus.duration)}`
     : null;
@@ -51,21 +62,26 @@ export default function SegmentAudioControl(props: {
       return;
     }
 
+    window.dispatchEvent(new Event('aistory:audio-interrupt'));
+    const controller = new AbortController(); pending.current = controller;
     setIsGeneratingTts(true);
 
     try {
+      const { selectedTts } = await fetcher<{ selectedTts: TtsConfig }>('/api/ai/tts', { silent: true, signal: controller.signal });
       const audioBlob = await ensureSegmentAudioBlob(props.segmentId, props.content, {
         feature: 'Segment audio playback',
         bookId: props.bookId,
         bookName: props.bookName,
-      });
+      }, selectedTts, controller.signal);
+      if (controller.signal.aborted) return;
 
       await playAudioBlob(props.segmentId, audioBlob);
     } catch (error) {
+      if (controller.signal.aborted) return;
       console.error('Failed to play TTS audio:', error);
       showAlert(error instanceof Error ? error.message : 'Failed to generate speech.');
     } finally {
-      setIsGeneratingTts(false);
+      if (pending.current === controller) setIsGeneratingTts(false);
     }
   };
 
@@ -93,6 +109,7 @@ export default function SegmentAudioControl(props: {
   };
 
   const handleStopTts = () => {
+    pending.current?.abort(); setIsGeneratingTts(false);
     stopAudioPlayback(props.segmentId);
   };
 
@@ -101,6 +118,7 @@ export default function SegmentAudioControl(props: {
       <button
         type="button"
         onClick={handleMainTtsAction}
+        aria-label={isTtsPlaying ? 'Pause segment audio' : 'Play segment audio'}
         className="bg-muted/70 hover:bg-muted p-1 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
         disabled={props.disabled || isGeneratingTts || isTtsLoading}
       >
@@ -122,6 +140,7 @@ export default function SegmentAudioControl(props: {
       <button
         type="button"
         onClick={handleStopTts}
+        aria-label="Stop segment audio"
         className="bg-muted/70 hover:bg-muted p-1 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
         disabled={!canStopTts}
       >

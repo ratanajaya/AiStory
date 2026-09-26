@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { AiModelOption, ApiKeyConfig, DefaultValue, LLMService, PromptBuilderConfig } from '@/types';
+import { TtsSettingsSection } from '@/components/TtsSettingsSection';
+import { resolveTtsConfig } from '@/lib/ttsConfig';
 import { AiSettingsSection } from '@/components/AiSettingsSection';
 import { useAiModelCatalog } from '@/components/AiModelCatalogProvider';
 import { useFetcher } from '@/components/FetcherProvider';
@@ -22,6 +24,7 @@ type SettingsFormData = Omit<DefaultValue, 'selectedLlm'> & {
 const emptyModels: AiModelOption[] = [];
 
 const emptyDefaultValue: SettingsFormData = {
+  selectedTts: resolveTtsConfig(null),
   promptBuilder: { ..._constant.emptyPromptBuilder },
   generationProfiles: normalizeGenerationProfileConfig(null),
   apiKey: { ..._constant.emptyApiKey },
@@ -35,6 +38,7 @@ export default function SettingPage() {
   const [formData, setFormData] = useState<SettingsFormData>(emptyDefaultValue);
   const [modelKeys, setModelKeys] = useState<ApiKeyConfig>({ ..._constant.emptyApiKey });
   const [dirtyApiKeys, setDirtyApiKeys] = useState<Record<LLMService, boolean>>({ together: false, openAi: false });
+  const [ttsKeysDirty, setTtsKeysDirty] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(true);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
@@ -48,6 +52,7 @@ export default function SettingPage() {
         });
         const apiKey = _util.normalizeApiKeyConfig(data.apiKey);
         setFormData({
+          selectedTts: resolveTtsConfig(data.selectedTts),
           promptBuilder: _util.normalizePromptBuilderConfig(data.promptBuilder),
           generationProfiles: normalizeGenerationProfileConfig(data.generationProfiles),
           apiKey,
@@ -110,6 +115,8 @@ export default function SettingPage() {
         }),
         errorMessage: 'Failed to update settings',
       });
+      setTtsKeysDirty(false);
+      window.dispatchEvent(new Event('aistory:settings'));
       setSaveMessage('Settings saved successfully!');
       setTimeout(() => setSaveMessage(null), 3000);
     } catch {
@@ -150,6 +157,7 @@ export default function SettingPage() {
   };
 
   const handleApiKeyChange = (field: string, value: string) => {
+    setTtsKeysDirty(true);
     setFormData((prev) => ({
       ...prev,
       apiKey: {
@@ -226,6 +234,8 @@ export default function SettingPage() {
           llmError={llmError}
           variant="page"
         />
+
+        <TtsSettingsSection scope="defaults" value={formData.selectedTts ?? resolveTtsConfig(null)} onChange={(selectedTts) => setFormData(previous => ({ ...previous, selectedTts }))} credentialsDirty={ttsKeysDirty} />
 
         <div className="flex gap-4 items-center">
           <Button type="submit" disabled={saveDisabled} variant="primary">

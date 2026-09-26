@@ -1,55 +1,30 @@
-import { getActorGenerationSettings } from '@/lib/actorSettings';
-import { TTS_SYNTHESIS_CONFIG } from "@/lib/ttsConfig";
-
-const TOGETHER_TTS_URL = 'https://api.together.xyz/v1/audio/speech';
+import type { TtsConfig } from '@/types';
+import { pcmToWav, splitSpeechInput } from '@/lib/ttsPcm';
 
 export interface TtsEndpoint {
-  generateAudio: (input: string) => Promise<{
-    audioBuffer: ArrayBuffer;
-    contentType: string;
-  }>;
+  generateAudio: (input: string) => Promise<{ audioBuffer: ArrayBuffer; contentType: string }>;
 }
 
-const createTogetherTtsEndpoint = (apiKey: string): TtsEndpoint => ({
-  generateAudio: async (input: string) => {
-    const response = await fetch(TOGETHER_TTS_URL, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: TTS_SYNTHESIS_CONFIG.model,
-        input,
-        voice: TTS_SYNTHESIS_CONFIG.voice,
-        response_format: TTS_SYNTHESIS_CONFIG.responseFormat,
-        sample_rate: TTS_SYNTHESIS_CONFIG.sampleRate,
-        stream: TTS_SYNTHESIS_CONFIG.stream,
-      }),
-    });
-
-    if (!response.ok) {
-      throw Object.assign(new Error('TTS provider rejected the request'), { statusCode: response.status });
+export function getDynamicTtsEndpoint(config: TtsConfig, apiKey: string, signal?: AbortSignal): TtsEndpoint {
+  const openAi = config.service === 'openAi';
+  return { generateAudio: async (input) => {
+    const chunks = openAi ? splitSpeechInput(input) : [input];
+    const buffers: ArrayBuffer[] = [];
+    let contentType = 'audio/mpeg';
+    for (const chunk of chunks) {
+      const response = await fetch(openAi ? 'https://api.openai.com/v1/audio/speech' : 'https://api.together.xyz/v1/audio/speech', {
+        method: 'POST', headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: config.model, voice: config.voice, input: chunk,
+          ...(openAi ? { response_format: 'pcm' } : { response_format: 'mp3', sample_rate: 48000, stream: false }) }),
+        signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(120_000)]) : AbortSignal.timeout(120_000),
+      });
+      if (!response.ok) throw Object.assign(new Error('TTS provider rejected the request'), { statusCode: response.status });
+      const buffer = await response.arrayBuffer();
+      if (!buffer.byteLength) throw new Error('TTS provider returned empty audio');
+      buffers.push(buffer);
+      const upstreamType = response.headers.get('content-type');
+      contentType = upstreamType && upstreamType !== 'application/octet-stream' ? upstreamType : 'audio/mpeg';
     }
-
-    const audioBuffer = await response.arrayBuffer();
-    const upstreamType = response.headers.get('content-type');
-
-    return {
-      audioBuffer,
-      contentType: upstreamType && upstreamType !== 'application/octet-stream'
-        ? upstreamType
-        : 'audio/mpeg',
-    };
-  },
-});
-
-export const getDynamicTtsEndpoint = async (): Promise<TtsEndpoint> => {
-  const { apiKey } = await getActorGenerationSettings();
-
-  if (!apiKey.together) {
-    throw new Error('Together API key is not configured');
-  }
-
-  return createTogetherTtsEndpoint(apiKey.together);
-};
+    return openAi ? { audioBuffer: pcmToWav(buffers), contentType: 'audio/wav' } : { audioBuffer: buffers[0], contentType };
+  } };
+}

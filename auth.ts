@@ -1,10 +1,11 @@
+import { resolveTtsConfig } from '@/lib/ttsConfig';
 import NextAuth from "next-auth";
 import type { Session } from "next-auth";
 import authConfig from "./auth.config";
 import dbConnect from "@/lib/mongodb";
 import { getAuthSessionOverrideUser } from "@/lib/authSessionOverride";
 import { KeyValueModel, UserModel } from "@/models";
-import { ApiKeyConfig, DefaultValue, GenerationProfileConfig, LlmConfig, LLMService, User } from "@/types";
+import { ApiKeyConfig, DefaultValue, GenerationProfileConfig, LlmConfig, LLMService, TtsConfig, User } from "@/types";
 import { normalizeGenerationProfileConfig } from "@/lib/generationProfiles";
 import _util from "./utils/_util";
 
@@ -81,7 +82,9 @@ async function getCurrentUser(): Promise<User | null> {
   }
 }
 
+
 async function getUserSettingWithFallback(): Promise<{
+  selectedTts: TtsConfig;
   selectedLlm: LlmConfig;
   apiKey: ApiKeyConfig;
   generationProfiles: GenerationProfileConfig;
@@ -107,6 +110,7 @@ async function getUserSettingWithFallback(): Promise<{
 
   return {
     selectedLlm,
+    selectedTts: resolveTtsConfig(user?.selectedTts, defaultValue.selectedTts),
     apiKey,
     generationProfiles: normalizeGenerationProfileConfig(defaultValue.generationProfiles),
   };

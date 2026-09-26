@@ -5,7 +5,7 @@ Full-stack interactive fiction platform with **multi-provider LLM generation**, 
 ## Highlights
 
 - **Multi-LLM Story Generation** — Together AI and OpenAI via unified Vercel AI SDK with real-time token streaming
-- **AI Text-to-Speech** — Together AI with client-side IndexedDB caching and automatic invalidation
+- **AI Text-to-Speech** — Together AI and OpenAI model/voice selection, sample previews, and IndexedDB caching with automatic invalidation
 - **Template-Driven Prompts** — Customizable prompt builders with placeholder substitution for repeatable story workflows
 - **Audio Queue Playback** — Sequential narration with intelligent prefetching and chapter-aware playback barriers
 - **Multi-Tenant by Design** — Ownership enforced at the database query level; per-user LLM credentials with system-wide fallbacks
@@ -21,12 +21,12 @@ Full-stack interactive fiction platform with **multi-provider LLM generation**, 
 ┌──────────▼──────────┐  ┌───────▼───────────────────────────┐
 │  /api/ai            │  │  /api/ai/tts                      │
 │  LLM Chat (stream   │  │  Text-to-Speech synthesis          │
-│  or JSON response)  │  │  Returns audio/mpeg blob           │
+│  or JSON response)  │  │  Returns MP3 or WAV audio          │
 └──────────┬──────────┘  └───────┬───────────────────────────┘
-           │ Vercel AI SDK       │ Together AI Audio API
+           │ Vercel AI SDK       │ Together / OpenAI Speech APIs
 ┌──────────▼──────────┐  ┌───────▼───────────────────────────┐
 │  LLM Providers      │  │  TTS Model                        │
-│  Together · OpenAI   │  │  48 kHz MP3 · Client IndexedDB    │
+│  Together · OpenAI   │  │  MP3 / WAV · Client IndexedDB     │
 │                     │  │  cache                             │
 └─────────────────────┘  └───────────────────────────────────┘
            │
@@ -86,7 +86,7 @@ POST /api/ai
 
 **AI/LLM:** Vercel AI SDK 6 · @ai-sdk/togetherai · @ai-sdk/openai
 
-**TTS:** Together AI Audio API · IndexedDB client cache
+**TTS:** Together AI and OpenAI speech APIs · IndexedDB client cache
 
 **Database:** MongoDB · Mongoose 9 · Optimistic version locking
 
@@ -126,7 +126,7 @@ npm start
 
 Visitors see published templates on the home page. Admins may publish only their own templates. Starting a book from a public template makes a private copy so later edits or unpublishing do not change the book.
 
-Guests can create books and templates, upload up to five template images, generate text, and use audio. Their server-stored workspace expires seven days after creation. Google sign-in claims the workspace; new accounts retain unused trial allowance. A guest or trial account can save a personal Together AI key for text and audio or an OpenAI key for text. Guest keys are encrypted server-side and are never returned by the guest settings API. Provider usage is billed by the provider and remains subject to provider limits.
+Guests can create books and templates, upload up to five template images, generate text, and use audio. Their server-stored workspace expires seven days after creation. Google sign-in claims the workspace; new accounts retain unused trial allowance. A guest or trial account can save a personal Together AI key for text and audio or an OpenAI key for text and audio. Guest keys are encrypted server-side and are never returned by the guest settings API. Provider usage is billed by the provider and remains subject to provider limits.
 
 The app-funded trial allows 20 text calls and 10,000 audio characters per workspace. Guest IPs additionally receive 60 text calls and 30,000 audio characters per UTC day. Personal-key requests do not consume these allowances. The UI warns at four text calls or 2,000 audio characters remaining and links to the key setup guide.
 
@@ -137,3 +137,13 @@ Production guest writes also require `GUEST_WRITES_ENABLED=true`. Set this only 
 Validation helpers: `node scripts/verify-guest-flow.mjs` targets port 7002 with the auth override cleared. `RUN_GUEST_DB_TESTS=true npx vitest run lib/trial.integration.test.ts` checks concurrent reservations against configured MongoDB. Both create isolated test records and remove their own records afterward; neither dispatches real provider calls.
 
 Rollout order: run `node scripts/setup-guest-indexes.mjs`, deploy with guest writes disabled, provision the encryption secret and trusted client IP source, activate hourly cleanup, then set `GUEST_WRITES_ENABLED=true`. Existing templates are private unless explicitly published by their admin owner.
+
+## Speech settings
+
+Choose a speech provider, model, and voice in the account sidebar or guest key/settings dialog, then select **Save voice**. Admins can set global defaults on the Settings page. Preferences apply across books; unset preferences inherit the global default, then Together Kokoro / `af_nicole`. Guest preferences transfer on sign-in only when the account has no saved preference.
+
+**Test voice** previews the displayed fixed sample without saving the selection. Save any API key edits first. Previews use the same audio allowance or selected provider's personal key as narration. Catalogs are fetched on the backend using saved credentials: Together's Voices API supplies models and voices; OpenAI's Models API is filtered to supported speech models with compatible built-in voices. Reload models retries catalog failures.
+
+Speech requests retain the 5,000-character total limit. OpenAI narration is split at sentence/word boundaries into requests of at most 4,096 characters and returned as one 24 kHz PCM WAV; Together returns MP3. Cached segment audio is invalidated by provider, model, voice, format/version, or content changes. Saving settings stops playback and cancels pending narration. Existing records need no backfill; restart a running development server after the schema update.
+
+`node scripts/verify-tts-flow.mjs` checks local guest persistence, fallback, permissions, and catalogs on port 7002 and removes its isolated test workspace. It requires the configured MongoDB connection and guest setup. Set `TTS_SMOKE_GENERATE=true` to additionally synthesize one sample using app credentials and verify allowance accounting. Add `TTS_SMOKE_PROVIDER=openai` to verify an OpenAI preview override and WAV output. No real synthesis occurs by default.
