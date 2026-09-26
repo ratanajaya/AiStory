@@ -10,7 +10,7 @@ function LoginContent() {
   const error = searchParams.get("error");
 
   const handleGoogleSignIn = () => {
-    signIn("google", { callbackUrl });
+    signIn("google", { callbackUrl: `/auth/finish?next=${encodeURIComponent(callbackUrl)}` });
   };
 
   return (
@@ -24,7 +24,7 @@ function LoginContent() {
         {error && (
           <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded-lg">
             {error === "AccessDenied" ? (
-              <p>Access denied. Your email is not registered in the system.</p>
+              <p>Access denied. Your Google email could not be verified.</p>
             ) : (
               <p>An error occurred during sign in. Please try again.</p>
             )}
@@ -57,7 +57,7 @@ function LoginContent() {
         </button>
 
         <p className="text-center text-sm text-muted-foreground">
-          Only registered users can sign in
+          New Google accounts are created automatically
         </p>
       </div>
     </div>

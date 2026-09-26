@@ -63,3 +63,5 @@ describe('ChapterEditorModal', () => {
     expect(screen.getByLabelText('Summary')).toHaveProperty('value', 'The ending');
   });
 });
+
+vi.mock('@/components/AlertBox', () => ({ useAlert: () => ({ showAlert: vi.fn() }) }));

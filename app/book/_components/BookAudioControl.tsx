@@ -1,5 +1,7 @@
 'use client';
 
+import TrialActionNotice from '@/app/_components/TrialActionNotice';
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAlert } from "@/components/AlertBox";
 import { useUiState } from "@/components/UiStateProvider";
@@ -295,6 +297,7 @@ export default function BookAudioControl(props: {
           </button>
         </div>
 
+        <TrialActionNotice kind="audio" />
         <div className="flex flex-1 flex-col gap-3 overflow-hidden">
           <div className="flex items-center gap-2">
             <button

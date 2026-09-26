@@ -64,17 +64,25 @@ const TemplateSchema = new Schema<Template>({
   storyBackground: { type: String, required: true },
   writingStyle: { type: String, required: true },
   imageUrl: { type: String, default: null },
-  ownerEmail: { type: String, required: true }
+  ownerEmail: { type: String },
+  guestId: { type: String },
+  expiresAt: { type: Date },
+  isPublic: { type: Boolean, default: false }
 }, {
   timestamps: true,
   toJSON: { virtuals: false },
   toObject: { virtuals: false }
 });
 
+TemplateSchema.index({ guestId: 1 });
+TemplateSchema.index({ isPublic: 1, createdAt: -1 });
+
 const BookSchema = new Schema<Book>({
   bookId: { type: String, required: true, unique: true },
   templateId: { type: String, required: true },
   name: { type: String, default: null },
+  draftOutline: { type: String, default: '' },
+  draftIdea: { type: String, default: '' },
   storySegments: [StorySegmentSchema],
   segmentSummaries: [SegmentSummarySchema],
   chapters: [ChapterSchema],
@@ -87,12 +95,16 @@ const BookSchema = new Schema<Book>({
       updatedAt: null,
     }),
   },
-  ownerEmail: { type: String, required: true }
+  ownerEmail: { type: String },
+  guestId: { type: String },
+  expiresAt: { type: Date }
 }, {
   timestamps: true,
   toJSON: { virtuals: false },
   toObject: { virtuals: false }
 });
+
+BookSchema.index({ guestId: 1 });
 
 const KeyValueSchema = new Schema<KeyValue>({
   key: { type: String, required: true, unique: true },
@@ -102,6 +114,13 @@ const KeyValueSchema = new Schema<KeyValue>({
   toJSON: { virtuals: false },
   toObject: { virtuals: false }
 });
+
+// Documents must belong to exactly one account or expiring guest workspace.
+function validateOwnership(this: { ownerEmail?: string | null; guestId?: string | null; expiresAt?: Date | null }) {
+  if (Boolean(this.ownerEmail) === Boolean(this.guestId) || (this.guestId && !this.expiresAt) || (this.ownerEmail && this.expiresAt)) throw new Error('Invalid workspace ownership');
+}
+BookSchema.pre('validate', validateOwnership);
+TemplateSchema.pre('validate', validateOwnership);
 
 // Export models
 export const TemplateModel = mongoose.models.Template || mongoose.model<Template>('Template', TemplateSchema, 'templates');
@@ -125,7 +144,10 @@ const UserSchema = new Schema<User>({
   registeredAt: { type: Date, default: Date.now },
   lastLoginAt: { type: Date, default: Date.now },
   selectedLlm: { type: LlmConfigSchema, default: null },
-  apiKey: { type: ApiKeyConfigSchema, default: () => ({ together: null, openAi: null }) }
+  apiKey: { type: ApiKeyConfigSchema, default: () => ({ together: null, openAi: null }) },
+  trialTextUsed: { type: Number, default: 0 },
+  trialAudioUsed: { type: Number, default: 0 },
+  trialAccount: { type: Boolean, default: false }
 }, {
   timestamps: true,
   toJSON: { virtuals: false },
@@ -133,3 +155,40 @@ const UserSchema = new Schema<User>({
 });
 
 export const UserModel = mongoose.models.User || mongoose.model<User>('User', UserSchema, 'users');
+
+const GuestWorkspaceSchema = new Schema({
+  guestId: { type: String, required: true, unique: true },
+  tokenHash: { type: String, required: true, unique: true },
+  state: { type: String, enum: ['active', 'claimed', 'cleaning'], default: 'active' },
+  expiresAt: { type: Date, required: true },
+  selectedLlm: { type: LlmConfigSchema, default: null },
+  encryptedKeys: { together: { type: String, default: null }, openAi: { type: String, default: null } },
+  trialTextUsed: { type: Number, default: 0 },
+  trialAudioUsed: { type: Number, default: 0 },
+  uploadCount: { type: Number, default: 0 },
+  claimedBy: { type: String, default: null },
+  lastMutationAt: { type: Date, default: null },
+  claimedExpiresAt: { type: Date },
+}, { timestamps: true });
+GuestWorkspaceSchema.index({ claimedExpiresAt: 1 }, { expireAfterSeconds: 0 });
+GuestWorkspaceSchema.index({ state: 1, expiresAt: 1 });
+export const GuestWorkspaceModel = mongoose.models.GuestWorkspace || mongoose.model('GuestWorkspace', GuestWorkspaceSchema, 'guestWorkspaces');
+
+const GuestUploadSchema = new Schema({
+  guestId: { type: String },
+  ownerEmail: { type: String },
+  imageUrl: { type: String, required: true },
+  expiresAt: { type: Date },
+}, { timestamps: true });
+GuestUploadSchema.pre('validate', validateOwnership);
+GuestUploadSchema.index({ guestId: 1 });
+export const GuestUploadModel = mongoose.models.GuestUpload || mongoose.model('GuestUpload', GuestUploadSchema, 'guestUploads');
+
+const GuestIpUsageSchema = new Schema({
+  key: { type: String, unique: true, required: true },
+  textUsed: { type: Number, default: 0 },
+  audioUsed: { type: Number, default: 0 },
+  expiresAt: { type: Date, required: true },
+});
+GuestIpUsageSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+export const GuestIpUsageModel = mongoose.models.GuestIpUsage || mongoose.model('GuestIpUsage', GuestIpUsageSchema, 'guestIpUsage');

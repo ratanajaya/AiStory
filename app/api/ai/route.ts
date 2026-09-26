@@ -1,11 +1,17 @@
+import { REQUEST_LIMITS } from '@/lib/guestLimits';
+import { safeProviderError } from '@/lib/providerError';
 import { getDynamicAiEndpoint } from '@/lib/aiEndpointDynamic';
 import { errorResponse, errorResponseFromMessage } from '@/lib/apiError';
 import { buildStreamErrorTail } from '@/lib/streamProtocol';
 import { isAiGenerationFeature } from '@/lib/generationProfiles';
 import { NextResponse } from 'next/server';
+import { getActor } from '@/lib/guest';
+import { getActorGenerationSettings } from '@/lib/actorSettings';
+import { reserveTrial } from '@/lib/trial';
 
 export async function POST(request: Request) {
   try {
+    if (!await getActor()) return errorResponseFromMessage('Unauthorized', 401);
     const body = await request.json();
     const { systemMessage, messages, feature, stream = true } = body;
 
@@ -16,7 +22,14 @@ export async function POST(request: Request) {
       return errorResponseFromMessage('feature is required and must be supported', 400);
     }
 
+    if (Buffer.byteLength(JSON.stringify({ systemMessage, messages }), 'utf8') > REQUEST_LIMITS.textBytes) return errorResponseFromMessage('Text input is too large', 413);
+    if (systemMessage != null && typeof systemMessage !== 'string' || messages.some((message) => !message || !['user', 'assistant', 'system'].includes(message.role) || typeof message.content !== 'string')) return errorResponseFromMessage('Invalid text messages', 400);
     const { endpoint: aiEndpoint, generationProfiles, selectedLlm } = await getDynamicAiEndpoint();
+    const settings = await getActorGenerationSettings();
+    if (settings.trialAccount && !settings.personal[settings.selectedLlm.service]) {
+      const reservation = await reserveTrial(request, 'text', 1);
+      if (!reservation.ok) return errorResponseFromMessage(reservation.message, reservation.status);
+    }
     const generationProfile = generationProfiles[feature];
 
     if (stream) {
@@ -33,8 +46,7 @@ export async function POST(request: Request) {
               }
             );
           } catch (err) {
-            console.error('Streaming error:', err);
-            controller.enqueue(encoder.encode(buildStreamErrorTail(err)));
+            controller.enqueue(encoder.encode(buildStreamErrorTail(safeProviderError(err))));
           } finally {
             controller.close();
           }
@@ -59,6 +71,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ content: result });
   } catch (err) {
-    return errorResponse(err);
+    return errorResponse(safeProviderError(err));
   }
 }

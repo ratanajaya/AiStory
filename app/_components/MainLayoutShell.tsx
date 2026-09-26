@@ -5,6 +5,7 @@ import { HamburgerButton, Sidebar } from "@/app/_components/Sidebar";
 import { AiApiLogDrawer } from "@/app/_components/AiApiLogDrawer";
 import { useUiState } from "@/components/UiStateProvider";
 import { useState } from "react";
+import { GuestAccess } from '@/app/_components/GuestAccess';
 import { AiModelCatalogProvider } from "@/components/AiModelCatalogProvider";
 
 export function MainLayoutShell({ children }: { children: React.ReactNode }) {
@@ -28,6 +29,7 @@ export function MainLayoutShell({ children }: { children: React.ReactNode }) {
         }}
       />
       <AiApiLogDrawer isOpen={aiApiLogsOpen} onClose={() => setAiApiLogsOpen(false)} />
+      <GuestAccess />
       {children}
     </AiModelCatalogProvider>
   );

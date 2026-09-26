@@ -68,6 +68,7 @@ export function FetcherProvider({ children }: FetcherProviderProps) {
 
       try {
         const response = await fetch(url, fetchOptions);
+        if (url === '/api/ai' || url.includes('/memory/proposal')) window.dispatchEvent(new Event('aistory:usage'));
 
         if (!response.ok) {
           const envelope = await extractErrorEnvelope(response);

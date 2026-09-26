@@ -41,11 +41,14 @@ export async function uploadImage(
 
 export async function deleteImage(imageUrl: string): Promise<void> {
   try {
-    const filePath = imageUrl.split(`${bucketName}/`)[1];
-    if (filePath) {
-      await bucket.file(filePath).delete();
-    }
+    await deleteImageOrThrow(imageUrl);
   } catch (error) {
     console.error('Failed to delete image from GCS:', error);
   }
+}
+
+export async function deleteImageOrThrow(imageUrl: string): Promise<void> {
+  const expected = `https://storage.googleapis.com/${bucketName}/`;
+  if (!imageUrl.startsWith(expected)) throw new Error('Image does not belong to the configured bucket');
+  await bucket.file(imageUrl.slice(expected.length)).delete({ ignoreNotFound: true });
 }

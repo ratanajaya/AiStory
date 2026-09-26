@@ -1,6 +1,8 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import type { BeforeSignInDetail } from '@/lib/guestSignInClient';
+import { useAlert } from '@/components/AlertBox';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { PromptBuilderConfig, Template } from '@/types';
@@ -25,14 +27,20 @@ const emptyTemplate: TemplateSafeModel = {
   storyBackground: '',
   writingStyle: '',
   imageUrl: null,
+  isPublic: false,
 };
 
 export default function TemplateForm({ templateId }: TemplateFormProps) {
   const router = useRouter();
+  const { showAlert } = useAlert();
+  const dirty = useRef(false);
+  const savedId = useRef(templateId);
   const { fetcher } = useFetcher();
   const isEditMode = Boolean(templateId);
 
   const [formData, setFormData] = useState<TemplateSafeModel>(emptyTemplate);
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => { fetcher<{ isAdmin: boolean }>('/api/viewer', { silent: true }).then((viewer) => setIsAdmin(viewer.isAdmin)).catch(() => {}); }, [fetcher]);
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(isEditMode);
   const [uploading, setUploading] = useState(false);
@@ -53,6 +61,7 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
         errorMessage: 'Failed to upload image',
       });
 
+      dirty.current = true;
       setFormData((prev) => ({ ...prev, imageUrl: res.imageUrl }));
     } catch {
     } finally {
@@ -62,6 +71,7 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
   };
 
   const handleRemoveImage = () => {
+    dirty.current = true;
     setFormData((prev) => ({ ...prev, imageUrl: null }));
   };
 
@@ -79,6 +89,7 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
           storyBackground: _util.toInputString(data.storyBackground),
           writingStyle: _util.toInputString(data.writingStyle),
           imageUrl: data.imageUrl ?? null,
+          isPublic: data.isPublic ?? false,
         });
       } catch {
       } finally {
@@ -91,31 +102,49 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
     }
   }, [isEditMode, templateId, fetcher]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const saveTemplate = useCallback(async () => {
     setLoading(true);
-
     try {
-      const url = isEditMode ? `/api/templates/${templateId}` : '/api/templates';
-      const method = isEditMode ? 'PUT' : 'POST';
-
-      await fetcher(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-        errorMessage: `Failed to ${isEditMode ? 'update' : 'create'} template`,
+      const id = savedId.current;
+      const saved = await fetcher<Template>(id ? `/api/templates/${id}` : '/api/templates', {
+        method: id ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: formData.name, promptBuilder: formData.promptBuilder, storyBackground: formData.storyBackground, writingStyle: formData.writingStyle, imageUrl: formData.imageUrl, ...(isAdmin ? { isPublic: formData.isPublic === true } : {}) }),
+        errorMessage: 'Failed to save template',
       });
+      savedId.current = saved.templateId ?? undefined;
+      dirty.current = false;
+      return saved.templateId;
+    } finally { setLoading(false); }
+  }, [fetcher, formData, isAdmin]);
 
-      router.push('/templates');
-    } catch {
-    } finally {
-      setLoading(false);
-    }
+  useEffect(() => {
+    const beforeSignIn = (event: Event) => {
+      const handoff = event as CustomEvent<BeforeSignInDetail>;
+      if (loading || uploading || fetchLoading) {
+        handoff.preventDefault();
+        showAlert('Wait for the current save or upload before signing in.', { type: 'info' });
+        return;
+      }
+      if (!dirty.current) return;
+      if (!formData.name.trim() || !formData.storyBackground.trim() || !formData.writingStyle.trim()) {
+        handoff.preventDefault();
+        showAlert('Complete the name, background, and writing style so your template can be saved before sign-in.', { type: 'info' });
+        return;
+      }
+      handoff.detail.pending.push(saveTemplate().then(() => { handoff.detail.returnTo = '/templates'; }));
+    };
+    window.addEventListener('aistory:before-signin', beforeSignIn);
+    return () => window.removeEventListener('aistory:before-signin', beforeSignIn);
+  }, [loading, uploading, fetchLoading, formData, saveTemplate, showAlert]);
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    try { await saveTemplate(); router.push('/templates'); } catch { /* Fetcher displays the error. */ }
   };
 
   const handleInputChange = (field: string, value: string) => {
+    dirty.current = true;
     setFormData((prev) => ({
       ...prev,
       [field]: value,
@@ -123,6 +152,7 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
   };
 
   const handlePromptBuilderChange = (field: keyof PromptBuilderConfig, value: string) => {
+    dirty.current = true;
     setFormData((prev) => ({
       ...prev,
       promptBuilder: {
@@ -184,6 +214,7 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
           />
         </FormField>
 
+        {isAdmin && <FormField label="Public template:"><label className="flex items-center gap-2"><input type="checkbox" checked={formData.isPublic === true} onChange={(event) => { dirty.current = true; setFormData((previous) => ({ ...previous, isPublic: event.target.checked })); }} /> Make this template visible to everyone</label></FormField>}
         <FormField label="Image:">
           <div className="space-y-3">
             {formData.imageUrl && (

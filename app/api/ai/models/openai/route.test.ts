@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   fetchOpenAiTextModels: vi.fn(),
 }));
 
+vi.mock('@/lib/guest', () => ({ getActor: async () => { const session = await mocks.auth(); return session?.user?.email ? { kind: 'user', ownerEmail: session.user.email } : null; }, guestSettings: vi.fn() }));
 vi.mock("@/auth", () => ({
   auth: mocks.auth,
   getUserSettingWithFallback: mocks.getUserSettingWithFallback,

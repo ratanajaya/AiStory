@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import { BookModel } from '@/models';
-import { auth } from '@/auth';
+import { getActor, guardGuestMutation } from '@/lib/guest';
 import { errorResponse, errorResponseFromMessage } from '@/lib/apiError';
 import { normalizeLongTermMemoryState } from '@/lib/bookMemory';
 
@@ -10,17 +10,15 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    const ownerEmail = session?.user?.email;
-    if (!ownerEmail) {
-      return errorResponseFromMessage('Unauthorized', 401);
-    }
+    const actor = await getActor();
+    if (!actor) return errorResponseFromMessage('Unauthorized', 401);
+    const ownership = actor.filter;
 
     await dbConnect();
     const { id } = await params;
     const book = await BookModel.findOne({
       bookId: id,
-      ownerEmail
+      ...ownership
     });
     if (!book) {
       return errorResponseFromMessage('Book not found', 404);
@@ -33,19 +31,20 @@ export async function GET(
   }
 }
 
-export async function DELETE(
+async function deleteHandler(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    const ownerEmail = session!.user!.email!;
+    const actor = await getActor();
+    if (!actor) return errorResponseFromMessage('Unauthorized', 401);
+    const ownership = actor.filter;
 
     await dbConnect();
     const { id } = await params;
     const book = await BookModel.findOneAndDelete({
       bookId: id,
-      ownerEmail
+      ...ownership
     });
     if (!book) {
       return errorResponseFromMessage('Book not found', 404);
@@ -55,3 +54,5 @@ export async function DELETE(
     return errorResponse(err);
   }
 }
+
+export const DELETE = guardGuestMutation(deleteHandler);

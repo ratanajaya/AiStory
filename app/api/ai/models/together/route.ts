@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
-import { auth, getUserSettingWithFallback } from "@/auth";
+import { getUserSettingWithFallback } from "@/auth";
 import { errorResponse, errorResponseFromMessage } from "@/lib/apiError";
 import { fetchTogetherChatModels, TogetherModelsError } from "@/lib/togetherModels";
+import { getActor, guestSettings } from '@/lib/guest';
 import _util from "@/utils/_util";
 
 export async function POST(request: Request) {
-  const session = await auth();
+  const actor = await getActor();
 
-  if (!session?.user?.email) {
+  if (!actor) {
     return errorResponseFromMessage("Unauthorized", 401);
   }
 
@@ -19,8 +20,8 @@ export async function POST(request: Request) {
       body = {};
     }
 
-    let apiKey = typeof body.apiKey === "string" ? _util.toInputString(body.apiKey) : "";
-    if (!apiKey) {
+    let apiKey = actor.kind === 'guest' ? _util.toInputString((await guestSettings())?.apiKey.together) : typeof body.apiKey === "string" ? _util.toInputString(body.apiKey) : "";
+    if (!apiKey && actor.kind === 'user') {
       const settings = await getUserSettingWithFallback();
       apiKey = _util.toInputString(settings.apiKey.together);
     }

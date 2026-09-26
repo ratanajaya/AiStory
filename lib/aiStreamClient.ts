@@ -59,6 +59,7 @@ export async function streamAiRequest(
       signal: handlers.signal,
     });
     httpStatus = response.status;
+    if (typeof window !== 'undefined') window.dispatchEvent(new Event('aistory:usage'));
 
     if (!response.ok) {
     // Non-OK response is JSON-shaped via errorResponse on the server side.

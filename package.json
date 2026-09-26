@@ -8,7 +8,8 @@
     "start": "next start -p 7002",
     "lint": "eslint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "cleanup:guests": "node scripts/cleanup-guests.mjs"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.7",

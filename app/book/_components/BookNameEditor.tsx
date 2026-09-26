@@ -1,5 +1,6 @@
 'use client';
 
+import { useSignInEditGuard } from '@/lib/useSignInEditGuard';
 import { useState } from 'react';
 import { Input } from '@/components/Input';
 import { useFetcher } from '@/components/FetcherProvider';
@@ -20,6 +21,7 @@ export default function BookNameEditor({
 }: BookNameEditorProps) {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState('');
+  useSignInEditGuard(isEditingName);
   const { fetcher } = useFetcher();
   const { showAlert } = useAlert();
 

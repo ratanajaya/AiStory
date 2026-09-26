@@ -1,7 +1,8 @@
+import { useFetcher } from '@/components/FetcherProvider';
 import { Textarea } from "@/components/Textarea";
 import { Button } from "@/components/Button";
 import { useAlert } from "@/components/AlertBox";
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Panel } from "react-resizable-panels";
 import { Template } from "@/types";
 import { BookUIModel } from "@/types/extendedTypes";
@@ -13,16 +14,38 @@ import { formatErrorDetail } from "@/lib/errorClient";
 import { StatusBarProps } from "./StatusBar";
 
 export default function useInputPanel(props:{
+  ready: boolean;
   inputTag: string;
   template: Template | null;
   book: BookUIModel;
   onStatusChange: (status: StatusBarProps) => void;
 }){
   const { showAlert } = useAlert();
+  const { fetcher } = useFetcher();
+  const draftTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const draftSave = useRef<Promise<unknown>>(Promise.resolve());
+  const restoredBook = useRef<string | null>(null);
   // Use refs instead of state to avoid re-renders
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const ideaRef = useRef<HTMLTextAreaElement>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+
+  useEffect(() => {
+    if (!props.ready || !inputRef.current || !ideaRef.current || !props.book.bookId || restoredBook.current === props.book.bookId) return;
+    if (inputRef.current) inputRef.current.value = props.book.draftOutline ?? '';
+    if (ideaRef.current) ideaRef.current.value = props.book.draftIdea ?? '';
+    restoredBook.current = props.book.bookId;
+  }, [props.ready, props.book.bookId, props.book.draftOutline, props.book.draftIdea]);
+
+  const flushDraft = useCallback(async () => {
+    if (draftTimer.current) clearTimeout(draftTimer.current);
+    if (!props.book.bookId || !inputRef.current || !ideaRef.current) return;
+    const values = { draftOutline: inputRef.current?.value ?? '', draftIdea: ideaRef.current?.value ?? '' };
+    draftSave.current = draftSave.current.catch(() => {}).then(() => fetcher(`/api/books/${props.book.bookId}/draft`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values), silent: true }));
+    await draftSave.current;
+  }, [fetcher, props.book.bookId]);
+  useEffect(() => () => { if (draftTimer.current) clearTimeout(draftTimer.current); }, []);
+  const scheduleDraftSave = () => { if (draftTimer.current) clearTimeout(draftTimer.current); draftTimer.current = setTimeout(() => { void flushDraft().catch(() => {}); }, 500); };
 
   const hasGenerator = !!props.template?.promptBuilder.outlineIdeaGenerator?.trim();
 
@@ -91,6 +114,7 @@ export default function useInputPanel(props:{
       if (inputRef.current) {
         inputRef.current.value = prefix + cleaned;
       }
+      scheduleDraftSave();
       props.onStatusChange({
         loading: false,
         text: 'Outline generation complete',
@@ -121,6 +145,7 @@ export default function useInputPanel(props:{
             rows={1}
             size='small'
             ref={ideaRef}
+            onChange={scheduleDraftSave}
             disabled={isGenerating}
           />
           <Button
@@ -139,10 +164,11 @@ export default function useInputPanel(props:{
           className='flex-1 min-h-0'
           placeholder={props.inputTag}
           ref={inputRef}
+          onChange={scheduleDraftSave}
         />
       </div>
     </Panel>
   );
 
-  return { element, getUserInput };
+  return { element, getUserInput, flushDraft, isGenerating };
 }

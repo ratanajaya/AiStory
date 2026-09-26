@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/auth', () => ({ auth: mocks.auth }));
 vi.mock('@/lib/mongodb', () => ({ default: mocks.dbConnect }));
 vi.mock('@/models', () => ({
+  UserModel: { findOne: () => ({ select: () => ({ lean: () => Promise.resolve({ isAdmin: false }) }) }) },
   BookModel: { findOne: mocks.bookFindOne },
   TemplateModel: { findOne: mocks.templateFindOne },
 }));
@@ -102,7 +103,7 @@ describe('memory proposal route', () => {
     expect(mocks.generate).not.toHaveBeenCalled();
   });
 
-  it('returns the full technical provider error chain to the client', async () => {
+  it('returns actionable guidance without the raw provider error chain', async () => {
     const book = {
       bookId: 'book-1',
       templateId: 'template-1',
@@ -134,19 +135,8 @@ describe('memory proposal route', () => {
     const body = await response.json();
 
     expect(response.status).toBe(502);
-    expect(body.error).toMatchObject({
-      name: 'MemoryGenerationError',
-      message: 'AI memory patch generation failed for source batch 1/1.',
-      cause: {
-        name: 'AiStructuredOutputError',
-        message: 'No output generated.',
-        details: {
-          provider: 'togetherai.chat',
-          modelId: 'zai-org/GLM-5.2',
-          finishReason: 'length',
-        },
-      },
-    });
-    expect(body.error.stack).toContain('MemoryGenerationError');
+    expect(body.error.message).toContain('Check your provider API key');
+    expect(body.error.cause).toBeUndefined();
+    expect(body.error.details).toBeUndefined();
   });
 });

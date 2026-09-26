@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/auth';
+import { getActor, guardGuestMutation } from '@/lib/guest';
 import { errorResponse, errorResponseFromMessage } from '@/lib/apiError';
 import dbConnect from '@/lib/mongodb';
 import { BookModel } from '@/models';
@@ -19,14 +19,14 @@ const revisionFilter = (baseRevision: number) => baseRevision === 0
   ? { $or: [{ 'longTermMemory.revision': 0 }, { longTermMemory: { $exists: false } }] }
   : { 'longTermMemory.revision': baseRevision };
 
-export async function PUT(
+async function putHandler(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await auth();
-    const ownerEmail = session?.user?.email;
-    if (!ownerEmail) return errorResponseFromMessage('Unauthorized', 401);
+    const actor = await getActor();
+    if (!actor) return errorResponseFromMessage('Unauthorized', 401);
+    const ownership = actor.filter;
 
     const body = await request.json();
     const baseRevision = body?.baseRevision;
@@ -37,7 +37,7 @@ export async function PUT(
 
     await dbConnect();
     const { id } = await params;
-    const current = await BookModel.findOne({ bookId: id, ownerEmail }).select('longTermMemory');
+    const current = await BookModel.findOne({ bookId: id, ...ownership }).select('longTermMemory');
     if (!current) return errorResponseFromMessage('Book not found', 404);
     const currentMemory = normalizeLongTermMemoryState(current.longTermMemory);
     if (currentMemory.revision !== baseRevision) {
@@ -51,7 +51,7 @@ export async function PUT(
       updatedAt: new Date().toISOString(),
     };
     const updated = await BookModel.findOneAndUpdate(
-      { bookId: id, ownerEmail, ...revisionFilter(baseRevision) },
+      { bookId: id, ...ownership, ...revisionFilter(baseRevision) },
       { $set: { longTermMemory: nextMemory } },
       { new: true, runValidators: true },
     ).select('longTermMemory');
@@ -63,14 +63,14 @@ export async function PUT(
   }
 }
 
-export async function PATCH(
+async function patchHandler(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await auth();
-    const ownerEmail = session?.user?.email;
-    if (!ownerEmail) return errorResponseFromMessage('Unauthorized', 401);
+    const actor = await getActor();
+    if (!actor) return errorResponseFromMessage('Unauthorized', 401);
+    const ownership = actor.filter;
 
     const body = await request.json();
     const baseRevision = body?.baseRevision;
@@ -90,7 +90,7 @@ export async function PATCH(
 
     await dbConnect();
     const { id } = await params;
-    const current = await BookModel.findOne({ bookId: id, ownerEmail });
+    const current = await BookModel.findOne({ bookId: id, ...ownership });
     if (!current) return errorResponseFromMessage('Book not found', 404);
     const currentMemory = normalizeLongTermMemoryState(current.longTermMemory);
     if (currentMemory.revision !== baseRevision
@@ -118,7 +118,7 @@ export async function PATCH(
     const updated = await BookModel.findOneAndUpdate(
       {
         _id: current._id,
-        ownerEmail,
+        ...ownership,
         updatedAt: current.updatedAt,
         ...revisionFilter(baseRevision),
       },
@@ -132,3 +132,6 @@ export async function PATCH(
     return errorResponse(error);
   }
 }
+
+export const PUT = guardGuestMutation(putHandler);
+export const PATCH = guardGuestMutation(patchHandler);

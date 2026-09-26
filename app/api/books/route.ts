@@ -1,20 +1,22 @@
+import { GUEST_STORAGE_LIMITS } from '@/lib/guestLimits';
 import { NextResponse } from 'next/server';
 import shortid from 'shortid';
 import dbConnect from '@/lib/mongodb';
-import { BookModel } from '@/models';
-import { auth } from '@/auth';
+import { BookModel, TemplateModel } from '@/models';
+import { getActor, getOrCreateActor, getGuestWorkspace, sameOrigin, guardGuestMutation } from '@/lib/guest';
 import { errorResponse, errorResponseFromMessage } from '@/lib/apiError';
 
 export async function GET(request: Request) {
   try {
-    const session = await auth();
-    const ownerEmail = session!.user!.email!;
+    const actor = await getActor();
+    if (!actor) return NextResponse.json([]);
+    const ownership = actor.filter;
 
     await dbConnect();
     const { searchParams } = new URL(request.url);
     const select = searchParams.get('select');
 
-    let query = BookModel.find({ ownerEmail });
+    let query = BookModel.find({ ...ownership });
 
     if (select) {
       // Convert comma-separated string to space-separated string for Mongoose select
@@ -29,19 +31,23 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+async function postHandler(request: Request) {
   try {
-    const session = await auth();
-    const ownerEmail = session!.user!.email!;
+    if (!sameOrigin(request)) return errorResponseFromMessage('Invalid origin', 403);
+    const actor = await getOrCreateActor();
+    const ownership = actor.filter;
 
     await dbConnect();
     const body = await request.json();
     const { templateId } = body;
 
-    if (!templateId) {
+    if (typeof templateId !== 'string' || !templateId.trim()) {
       return errorResponseFromMessage('templateId is required', 400);
     }
 
+    if (!await TemplateModel.exists({ templateId, ...ownership })) return errorResponseFromMessage('Template not found', 404);
+    if (actor.kind === 'guest' && await BookModel.countDocuments({ guestId: actor.guestId }) >= GUEST_STORAGE_LIMITS.books) return errorResponseFromMessage('Guest book limit reached', 429);
+    const expiresAt = actor.kind === 'guest' ? { expiresAt: (await getGuestWorkspace())!.expiresAt } : {};
     const newBook = {
       bookId: shortid.generate(),
       templateId,
@@ -55,7 +61,8 @@ export async function POST(request: Request) {
         checkpoint: { throughSegmentId: null, fingerprint: null },
         updatedAt: null,
       },
-      ownerEmail
+      ...ownership,
+      ...expiresAt
     };
 
     const book = await BookModel.create(newBook);
@@ -64,3 +71,5 @@ export async function POST(request: Request) {
     return errorResponse(err);
   }
 }
+
+export const POST = guardGuestMutation(postHandler);

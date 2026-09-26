@@ -1,3 +1,4 @@
+import { useSignInEditGuard } from '@/lib/useSignInEditGuard';
 import { useState } from "react";
 import SegmentAudioControl from "./SegmentAudioControl";
 import { Button } from "@/components/Button";
@@ -41,6 +42,8 @@ export default function SegmentDisplay(props: {
     isEditing: false,
     content: '',
   });
+
+  useSignInEditGuard(editor.isEditing);
 
   const handleSave = async () => {
     const saved = await props.onUpdateSegment({

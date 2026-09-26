@@ -15,16 +15,22 @@ AiStory is a Next.js 16 App Router app for creating template-driven stories, gro
 
 ### Auth and data ownership
 
-- `middleware.ts` protects everything except `/login` and `/api/auth/*`, but route handlers must still authenticate with `auth()` (or `getCurrentUser()`) and return explicit 401/403 errors.
-- Scope user-owned book/template reads and writes by `ownerEmail`; never trust an owner supplied by the client.
-- Google sign-in is restricted to emails already in the `users` collection. Preserve the local/test override in `lib/authSessionOverride.ts`.
+- `middleware.ts` opens the homepage, guest-capable pages and APIs, public catalog, and auth routes. Each handler must resolve the actor or authenticate independently and return explicit 401/403 errors.
+- Scope account-owned records by `ownerEmail` and guest records by `guestId` through `lib/guest.ts`; never trust ownership fields supplied by the client. Guest work expires after seven days and is claimed transactionally after Google sign-in.
+- Google sign-in registers verified emails; new accounts are non-admin trial accounts. Preserve the local/test override in `lib/authSessionOverride.ts`.
 - `/api/settings` manages global defaults and is admin-only; `/api/user/settings` may update only the current user's LLM selection and API keys.
+
+### Public and guest behavior
+
+- `isPublic` defaults to false. Only admins may set it on their own templates; public card responses expose no private fields. Starting a public template creates a private copy and book.
+- Guest books, templates, images, and keys use a temporary workspace. Keep guest mutations coordinated with claim and cleanup through workspace state and MongoDB transactions. Run hourly cleanup via the Vercel cron or `npm run cleanup:guests`.
+- App-funded guest/new-account generation uses a 20-call text and 10,000-character audio trial; guest IP limits are 60 calls and 30,000 characters per UTC day. Personal provider keys bypass trial consumption only for the corresponding provider. Do not expose keys in logs or API responses.
 
 ### Book mutations
 
 - `Book` embeds `storySegments`, `segmentSummaries`, and `chapters`.
 - The old book `version` field and whole-document `PUT /api/books/[id]` flow are retired. Use the narrow subresource routes and update only the array/field they own.
-- Validate book mutation payloads with `lib/bookMutationValidation.ts`. Include `ownerEmail` in the atomic query and do not overwrite unrelated embedded arrays.
+- Validate book mutation payloads with `lib/bookMutationValidation.ts`. Include the resolved actor ownership filter in the atomic query and do not overwrite unrelated embedded arrays.
 
 ### Prompts, AI, and TTS
 
@@ -32,7 +38,7 @@ AiStory is a Next.js 16 App Router app for creating template-driven stories, gro
 - `/api/ai` returns plain-text chunks when `stream: true` and `{ content }` JSON otherwise. Streaming failures are appended with the sentinel protocol in `lib/streamProtocol.ts`; clients should use `streamAiRequest()` so split sentinels and error envelopes are handled correctly.
 - `/api/ai/tts` returns raw audio bytes. Fetch it as a `Blob` through `lib/ttsAudioClient.ts`; preserve its content-type handling and IndexedDB invalidation rules in `lib/ttsIndexedDb.ts`/`lib/ttsConfig.ts`.
 - Use `lib/apiError.ts` for route error envelopes. Validate request bodies early and avoid exposing credentials or provider internals in errors/logs.
-- User AI credentials and LLM selection come from `getUserSettingWithFallback()`; unset values fall back to the `keyvalues.defaultValue` document.
+- Resolve generation credentials through `getActorGenerationSettings()` (account fallback uses `getUserSettingWithFallback()`); unset values fall back to the `keyvalues.defaultValue` document.
 - Provider or generation-feature changes must stay synchronized across types, Mongoose schemas, constants/defaults, validators, settings routes/UI, and AI endpoint wiring. Add tests for validators and endpoint behavior.
 
 ### Data normalization
@@ -54,3 +60,5 @@ Run the narrowest relevant checks, then broaden for cross-cutting changes:
 - `npm test` for utility, validation, stream, endpoint, or client logic; add/update focused Vitest coverage.
 - `npm run lint` for code changes.
 - `npm run build` for routes, auth, middleware, app-router boundaries, or shared contracts.
+
+- Production guest workspace creation is gated by `GUEST_WRITES_ENABLED=true`, transaction-capable MongoDB, encryption/cron secrets, and the trusted IP configuration. Provision indexes and hourly cleanup before enabling it. Preserve pending draft saves via `aistory:before-signin`.

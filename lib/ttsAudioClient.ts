@@ -45,13 +45,15 @@ export const ensureSegmentAudioBlob = async (
     }),
     });
     httpStatus = response.status;
+    if (typeof window !== 'undefined') window.dispatchEvent(new Event('aistory:usage'));
 
     if (!response.ok) {
       const contentType = response.headers.get('content-type') ?? '';
 
       if (contentType.includes('application/json')) {
-        const errorBody = await response.json().catch(() => null) as { error?: string } | null;
-        throw new Error(errorBody?.error || 'Failed to generate speech.');
+        const errorBody = await response.json().catch(() => null) as { error?: string | { message?: string } } | null;
+        const message = typeof errorBody?.error === 'string' ? errorBody.error : errorBody?.error?.message;
+        throw new Error(message || 'Failed to generate speech.');
       }
 
       const errorText = await response.text().catch(() => '');
