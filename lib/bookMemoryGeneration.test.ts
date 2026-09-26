@@ -4,9 +4,11 @@ import { createEmptyLongTermMemoryState } from './bookMemory';
 
 const chatObjectFull = vi.fn();
 
+vi.mock('@/lib/trial', () => ({ reserveTrial: vi.fn() }));
 vi.mock('@/lib/aiEndpointDynamic', () => ({
   getDynamicAiEndpoint: vi.fn(async () => ({
     endpoint: { chatObjectFull },
+    trialFunded: false,
     generationProfiles: {
       longTermMemory: { temperature: null, maxOutputTokens: 2000, timeoutMs: 120000, maxRetries: 1 },
     },

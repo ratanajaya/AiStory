@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import { TemplateModel, KeyValueModel } from '@/models';
 import { DefaultValue, KeyValue, PromptBuilderConfig } from '@/types';
-import { auth } from '@/auth';
+import { getActor } from '@/lib/guest';
 import _util from '@/utils/_util';
+import { visibleTemplate } from '@/lib/templateVisibility';
 import { errorResponse, errorResponseFromMessage } from '@/lib/apiError';
 
 function mergePromptBuilderWithDefaults(
@@ -48,14 +49,15 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    const ownerEmail = session!.user!.email!;
+    const actor = await getActor();
+    if (!actor) return errorResponseFromMessage('Unauthorized', 401);
+    const ownership = actor.filter;
 
     await dbConnect();
     const { id } = await params;
     const template = await TemplateModel.findOne({ 
       templateId: id, 
-      ownerEmail 
+      ...ownership
     });
     if (!template) {
       return errorResponseFromMessage('Template not found', 404);
@@ -72,12 +74,12 @@ export async function GET(
 
       const templateObj = template.toObject();
       return NextResponse.json({
-        ...templateObj,
+        ...visibleTemplate(templateObj, actor.isAdmin),
         promptBuilder: mergedPromptBuilder,
       });
     }
 
-    return NextResponse.json(template);
+    return NextResponse.json(visibleTemplate(template.toObject(), actor.isAdmin));
   } catch (err) {
     return errorResponse(err);
   }

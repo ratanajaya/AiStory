@@ -1,3 +1,5 @@
+import { REQUEST_LIMITS } from '@/lib/guestLimits';
+import { reserveTrial } from '@/lib/trial';
 import { createHash } from 'node:crypto';
 import type {
   Book,
@@ -118,6 +120,7 @@ export async function generateLongTermMemoryProposal(options: {
   book: Book;
   template: Template;
   mode: MemoryProposalMode;
+  request?: Request;
 }): Promise<LongTermMemoryProposal> {
   const memory = normalizeLongTermMemoryState(options.book.longTermMemory);
   const assistantSegments = options.book.storySegments.filter((segment) => segment.role === 'assistant');
@@ -158,22 +161,22 @@ export async function generateLongTermMemoryProposal(options: {
   }));
 
   if (sourceSegments.length > 0) {
-    const { endpoint, generationProfiles } = await getDynamicAiEndpoint();
+    const { endpoint, generationProfiles, trialFunded } = await getDynamicAiEndpoint();
     const batches = buildMemorySourceBatches(sourceSegments);
     for (const [batchIndex, batch] of batches.entries()) {
+      const batchPrompt = createBatchPrompt({ mode: options.mode, template: options.template, workingMemory, existingIdentityCatalog, segments: batch });
+      if (Buffer.byteLength(JSON.stringify({ systemMessage: updaterSystemPrompt, messages: [{ role: 'user', content: batchPrompt }] }), 'utf8') > REQUEST_LIMITS.textBytes) throw new MemoryGenerationError('Memory input exceeds the 64 KiB request limit. Reduce the source or memory size.', 413);
       let response: { operations: unknown };
+      if (options.request && trialFunded) {
+        const reserved = await reserveTrial(options.request, 'text', 1);
+        if (!reserved.ok) throw new MemoryGenerationError(reserved.message, reserved.status);
+      }
       try {
         response = await endpoint.chatObjectFull<{ operations: unknown }>(
           updaterSystemPrompt,
           [{
             role: 'user',
-            content: createBatchPrompt({
-              mode: options.mode,
-              template: options.template,
-              workingMemory,
-              existingIdentityCatalog,
-              segments: batch,
-            }),
+            content: batchPrompt,
           }],
           generationProfiles.longTermMemory,
           proposalSchema,

@@ -69,3 +69,5 @@ describe('narration model labels', () => {
     expect(screen.queryByText(/Narration model:/)).toBeNull();
   });
 });
+
+vi.mock('@/components/AlertBox', () => ({ useAlert: () => ({ showAlert: vi.fn() }) }));

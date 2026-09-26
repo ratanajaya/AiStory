@@ -2,7 +2,7 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { createTogetherAI } from '@ai-sdk/togetherai';
 import { generateText, streamText, ModelMessage, LanguageModel, Output, jsonSchema } from 'ai';
-import { getUserSettingWithFallback } from "@/auth";
+import { getActorGenerationSettings } from '@/lib/actorSettings';
 import { assertSupportedLlmConfig } from "@/lib/llmSettings";
 import type { GenerationProfile, GenerationProfileConfig, LlmConfig } from '@/types';
 import { toAiSdkGenerationOptions } from '@/lib/generationProfiles';
@@ -86,11 +86,11 @@ function createStructuredOutputError(
   );
 }
 
-const createAiSdkEndpoint = (model: LanguageModel, structuredOutputModel: LanguageModel = model): AiEndpoint => ({
+const createAiSdkEndpoint = (model: LanguageModel, structuredOutputModel: LanguageModel = model, trialFunded = false): AiEndpoint => ({
   chatObjectFull: async <T>(systemMsg: string | null, messages: unknown[], profile: GenerationProfile, schema: Record<string, unknown>) => {
     const systemPrompt: ModelMessage[] = systemMsg ? [{ role: 'system', content: systemMsg }] : [];
-    const generationOptions = toAiSdkGenerationOptions(profile);
-    const outputBudgets = profile.maxOutputTokens < 4_096
+    const generationOptions = { ...toAiSdkGenerationOptions(profile), ...(trialFunded ? { maxRetries: 0 } : {}) };
+    const outputBudgets = trialFunded ? [profile.maxOutputTokens] : profile.maxOutputTokens < 4_096
       ? [profile.maxOutputTokens, 4_096]
       : [profile.maxOutputTokens];
     const attempts: Array<Record<string, unknown>> = [];
@@ -158,6 +158,7 @@ const createAiSdkEndpoint = (model: LanguageModel, structuredOutputModel: Langua
         ...messages,
       ] as ModelMessage[],
       ...toAiSdkGenerationOptions(profile),
+      ...(trialFunded ? { maxRetries: 0 } : {}),
     });
 
     if (!text || !text.trim()) {
@@ -182,6 +183,7 @@ const createAiSdkEndpoint = (model: LanguageModel, structuredOutputModel: Langua
         ...messages,
       ] as ModelMessage[],
       ...toAiSdkGenerationOptions(profile),
+      ...(trialFunded ? { maxRetries: 0 } : {}),
       onError: ({ error }) => {
         streamError = error;
       },
@@ -216,9 +218,12 @@ export const getDynamicAiEndpoint = async (): Promise<{
   endpoint: AiEndpoint;
   generationProfiles: GenerationProfileConfig;
   selectedLlm: LlmConfig;
+  trialFunded: boolean;
 }> => {
-  const { selectedLlm, apiKey, generationProfiles } = await getUserSettingWithFallback();
+  const { selectedLlm, apiKey, generationProfiles, personal, trialAccount } = await getActorGenerationSettings();
   assertSupportedLlmConfig(selectedLlm);
+  // Keep accounting tied to these credentials even if settings change mid-request.
+  const trialFunded = trialAccount && !personal[selectedLlm.service];
   
   if (selectedLlm.service === 'together') {
     if (!apiKey.together) {
@@ -239,16 +244,18 @@ export const getDynamicAiEndpoint = async (): Promise<{
       endpoint: createAiSdkEndpoint(
         together(selectedLlm.model),
         togetherStructured(selectedLlm.model),
+        trialFunded,
       ),
       generationProfiles,
       selectedLlm,
+      trialFunded,
     };
   } else if (selectedLlm.service === 'openAi') {
     if (!apiKey.openAi) {
       throw new Error('OpenAI API key is not configured');
     }
     const openai = createOpenAI({ apiKey: apiKey.openAi });
-    return { endpoint: createAiSdkEndpoint(openai(selectedLlm.model)), generationProfiles, selectedLlm };
+    return { endpoint: createAiSdkEndpoint(openai(selectedLlm.model), undefined, trialFunded), generationProfiles, selectedLlm, trialFunded };
   }
 
   throw new Error('Unsupported LLM service configured');

@@ -1,12 +1,19 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getDefaultGenerationProfiles } from '@/lib/generationProfiles';
 
-const mocks = vi.hoisted(() => ({ getDynamicAiEndpoint: vi.fn() }));
+const mocks = vi.hoisted(() => ({ getDynamicAiEndpoint: vi.fn(), reserve: vi.fn() }));
+vi.mock('@/lib/guest', () => ({ getActor: async () => ({ kind: 'user', ownerEmail: 'test@example.com' }) }));
+vi.mock('@/lib/trial', () => ({ reserveTrial: mocks.reserve }));
 vi.mock('@/lib/aiEndpointDynamic', () => ({ getDynamicAiEndpoint: mocks.getDynamicAiEndpoint }));
 
 import { POST } from './route';
 
 describe('POST /api/ai stream metadata', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.reserve.mockResolvedValue({ ok: true });
+    mocks.getDynamicAiEndpoint.mockResolvedValue({ endpoint: { chatCompletionFull: vi.fn(async () => 'OK') }, generationProfiles: getDefaultGenerationProfiles(), selectedLlm: { service: 'together', model: 'org/model-v2' }, trialFunded: false });
+  });
   it('returns the resolved provider and model in headers while keeping plain-text chunks', async () => {
     mocks.getDynamicAiEndpoint.mockResolvedValue({
       endpoint: {
@@ -22,6 +29,7 @@ describe('POST /api/ai stream metadata', () => {
       },
       generationProfiles: getDefaultGenerationProfiles(),
       selectedLlm: { service: 'together', model: 'org/model-v2' },
+      trialFunded: false,
     });
 
     const response = await POST(new Request('http://localhost/api/ai', {
@@ -33,5 +41,19 @@ describe('POST /api/ai stream metadata', () => {
     expect(response.headers.get('X-AI-Service')).toBe('together');
     expect(decodeURIComponent(response.headers.get('X-AI-Model') ?? '')).toBe('org/model-v2');
     expect(await response.text()).toBe('First part');
+  });
+
+  it('does not charge the trial when a personal key funds the selected provider', async () => {
+    const response = await POST(new Request('http://localhost/api/ai', { method: 'POST', body: JSON.stringify({ feature: 'default', stream: false, messages: [{ role: 'user', content: 'Hi' }] }) }));
+    expect(response.status).toBe(200);
+    expect(mocks.reserve).not.toHaveBeenCalled();
+  });
+
+  it('rejects an exhausted trial before invoking the provider', async () => {
+    mocks.getDynamicAiEndpoint.mockResolvedValue({ endpoint: { chatCompletionFull: vi.fn() }, generationProfiles: getDefaultGenerationProfiles(), selectedLlm: { service: 'together', model: 'org/model-v2' }, trialFunded: true });
+    mocks.reserve.mockResolvedValue({ ok: false, status: 429, message: 'Free trial exhausted. Add your own API key to continue.' });
+    const response = await POST(new Request('http://localhost/api/ai', { method: 'POST', body: JSON.stringify({ feature: 'default', stream: false, messages: [{ role: 'user', content: 'Hi' }] }) }));
+    expect(response.status).toBe(429);
+    expect((await mocks.getDynamicAiEndpoint.mock.results[0].value).endpoint.chatCompletionFull).not.toHaveBeenCalled();
   });
 });

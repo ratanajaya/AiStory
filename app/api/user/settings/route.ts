@@ -58,7 +58,20 @@ export async function PUT(request: Request) {
     }
 
     if (apiKey !== undefined) {
-      updateData.apiKey = _util.normalizeApiKeyConfig(apiKey);
+      if (!apiKey || typeof apiKey !== 'object' || Array.isArray(apiKey)) return errorResponseFromMessage('Invalid API keys', 400);
+      await dbConnect();
+      const existing = await UserModel.findOne({ email: session.user.email }).select('apiKey').lean();
+      if (!existing) return errorResponseFromMessage('User not found', 404);
+      const merged = { ..._util.normalizeApiKeyConfig(existing.apiKey) };
+      for (const service of ['together', 'openAi'] as const) {
+        if (!(service in apiKey)) continue;
+        const value = apiKey[service];
+        if (value !== null && typeof value !== 'string') return errorResponseFromMessage('Invalid API key', 400);
+        const normalized = _util.toInputString(value);
+        if (normalized.length > 512) return errorResponseFromMessage('API key is too long', 400);
+        merged[service] = normalized || null;
+      }
+      updateData.apiKey = merged;
     }
 
     await dbConnect();

@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/auth', () => ({ auth: mocks.auth }));
 vi.mock('@/lib/mongodb', () => ({ default: mocks.dbConnect }));
 vi.mock('@/models', () => ({
+  UserModel: { findOne: () => ({ select: () => ({ lean: () => Promise.resolve({ isAdmin: false }) }) }) },
   BookModel: {
     findOne: mocks.findOne,
     findOneAndUpdate: mocks.findOneAndUpdate,

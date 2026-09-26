@@ -11,25 +11,20 @@ import _util from "./utils/_util";
 const { handlers, signIn, signOut, auth: baseAuth } = NextAuth({
   ...authConfig,
   callbacks: {
-    async signIn({ user }) {
-      // Check if the user's email exists in the database
-      if (!user.email) {
+    async signIn({ user, account, profile }) {
+      if (account?.provider !== "google" || !user.email || profile?.email_verified !== true) {
         return false;
       }
 
       try {
         await dbConnect();
-        const existingUser = await UserModel.findOne({ email: user.email });
-
-        if (!existingUser) {
-          // Reject login if user doesn't exist in database
-          return false;
-        }
-
-        // Update lastLoginAt
         await UserModel.updateOne(
           { email: user.email },
-          { $set: { lastLoginAt: new Date() } }
+          {
+            $setOnInsert: { email: user.email, isAdmin: false, registeredAt: new Date(), trialAccount: true, trialTextUsed: 0, trialAudioUsed: 0 },
+            $set: { lastLoginAt: new Date() },
+          },
+          { upsert: true }
         );
 
         return true;
@@ -90,6 +85,8 @@ async function getUserSettingWithFallback(): Promise<{
   selectedLlm: LlmConfig;
   apiKey: ApiKeyConfig;
   generationProfiles: GenerationProfileConfig;
+  personal: Record<LLMService, boolean>;
+  trialAccount: boolean;
 }> {
   const session = await auth();
 
@@ -114,6 +111,12 @@ async function getUserSettingWithFallback(): Promise<{
     selectedLlm,
     apiKey,
     generationProfiles: normalizeGenerationProfileConfig(defaultValue.generationProfiles),
+    // Funding must describe the same user record that supplied the credentials.
+    personal: {
+      together: Boolean(_util.toInputString(user?.apiKey?.together)),
+      openAi: Boolean(_util.toInputString(user?.apiKey?.openAi)),
+    },
+    trialAccount: Boolean(user?.trialAccount),
   };
 }
 

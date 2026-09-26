@@ -1,5 +1,8 @@
 'use client';
 
+import type { BeforeSignInDetail } from '@/lib/guestSignInClient';
+import TrialActionNotice from '@/app/_components/TrialActionNotice';
+
 import { useEffect, useState, use } from 'react';
 import { Book, Chapter, SegmentSummary, StorySegment, StorySegmentCandidate, StorySegmentCandidateVersion, Template } from '@/types';
 import { useFetcher } from '@/components/FetcherProvider';
@@ -94,12 +97,30 @@ export default function BookPage({ params }: PageProps) {
     book: bookUiModel,
   });
 
-  const { element: inputPanelElement, getUserInput } = useInputPanel({
+  const { element: inputPanelElement, getUserInput, flushDraft, isGenerating } = useInputPanel({
+    ready: !loading,
     inputTag: _constant.inputTag,
     template,
     book: bookUiModel,
     onStatusChange: setSbp,
   });
+
+  useEffect(() => {
+    const beforeSignIn = (event: Event) => {
+      const handoff = event as CustomEvent<BeforeSignInDetail>;
+      if (sbp.loading || isGenerating || candidateSaving || segmentCandidate || enhancer.visible || summarizer.visible || chapterWrapper.visible || memoryVisible) {
+        handoff.preventDefault();
+        showAlert('Finish generation and save or dismiss open edits before signing in.', { type: 'info' });
+        return;
+      }
+      handoff.detail.pending.push(flushDraft().catch((error) => {
+        showAlert('Could not save your draft. Please retry sign-in.', { type: 'error' });
+        throw error;
+      }));
+    };
+    window.addEventListener('aistory:before-signin', beforeSignIn);
+    return () => window.removeEventListener('aistory:before-signin', beforeSignIn);
+  }, [sbp.loading, isGenerating, candidateSaving, segmentCandidate, enhancer.visible, summarizer.visible, chapterWrapper.visible, memoryVisible, flushDraft, showAlert]);
 
   const createSegment = async (segment: StorySegment) => {
     try {
@@ -862,6 +883,7 @@ export default function BookPage({ params }: PageProps) {
                 {inputPanelElement}
               </PanelGroup>
               <div className='h-2'></div>
+              <TrialActionNotice kind='text' />
               <Button
                 className='h-7 w-full'
                 onClick={bookAction.narration}

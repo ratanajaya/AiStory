@@ -1,17 +1,18 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/auth';
+import { getActor, guardGuestMutation } from '@/lib/guest';
 import { errorResponse, errorResponseFromMessage } from '@/lib/apiError';
 import { parseChapter, parseSegmentIds } from '@/lib/bookMutationValidation';
 import dbConnect from '@/lib/mongodb';
 import { BookModel } from '@/models';
 
-export async function POST(
+async function postHandler(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    const ownerEmail = session!.user!.email!;
+    const actor = await getActor();
+    if (!actor) return errorResponseFromMessage('Unauthorized', 401);
+    const ownership = actor.filter;
     const { id } = await params;
     const body = await request.json();
     const segmentIds = parseSegmentIds(body?.segmentIds);
@@ -25,7 +26,7 @@ export async function POST(
     const book = await BookModel.findOneAndUpdate(
       {
         bookId: id,
-        ownerEmail,
+        ...ownership,
         'storySegments.id': { $all: segmentIds },
         'chapters.id': { $ne: chapter.id },
         $expr: {
@@ -60,7 +61,7 @@ export async function POST(
     );
 
     if (!book) {
-      const exists = await BookModel.exists({ bookId: id, ownerEmail });
+      const exists = await BookModel.exists({ bookId: id, ...ownership });
       return errorResponseFromMessage(exists ? 'Segments changed or chapter id already exists' : 'Book not found', exists ? 409 : 404);
     }
 
@@ -69,3 +70,5 @@ export async function POST(
     return errorResponse(err);
   }
 }
+
+export const POST = guardGuestMutation(postHandler);

@@ -113,18 +113,25 @@ export interface Template {
   storyBackground: string;
   writingStyle: string;
   imageUrl: string | null;
-  ownerEmail: string;
+  ownerEmail?: string;
+  guestId?: string;
+  expiresAt?: Date;
+  isPublic?: boolean;
 }
 
 export interface Book {
   bookId: string;
   name: string | null;
   templateId: string;
+  draftOutline?: string;
+  draftIdea?: string;
   storySegments: StorySegment[];
   segmentSummaries: SegmentSummary[];
   chapters: Chapter[];
   longTermMemory: LongTermMemoryState;
-  ownerEmail: string;
+  ownerEmail?: string;
+  guestId?: string;
+  expiresAt?: Date;
 }
 
 export interface DefaultValue {
@@ -172,6 +179,9 @@ export interface User {
   lastLoginAt: Date;
   selectedLlm: LlmConfig | null;
   apiKey: ApiKeyConfig;
+  trialTextUsed?: number;
+  trialAudioUsed?: number;
+  trialAccount?: boolean;
 }
 
 export interface KeyValue {

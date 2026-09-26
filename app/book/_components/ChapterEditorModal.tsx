@@ -1,3 +1,4 @@
+import { useSignInEditGuard } from '@/lib/useSignInEditGuard';
 import { Chapter } from '@/types';
 import { useEffect, useRef, useState } from 'react';
 import { FormField } from '@/components/FormField';
@@ -15,6 +16,7 @@ interface ChapterEditorModalProps {
 const titleErrorMessage = 'Please input the title of the chapter';
 
 export default function ChapterEditorModal({ isOpen, onClose, onSave, chapter }: ChapterEditorModalProps) {
+  useSignInEditGuard(isOpen);
   const [title, setTitle] = useState(chapter.title);
   const [summary, setSummary] = useState(chapter.summary);
   const [titleError, setTitleError] = useState<string>();

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import Link from "next/link";
+import SignInToKeepLink from '@/app/_components/SignInToKeepLink';
 import { AiSettingsSection } from "@/components/AiSettingsSection";
 import { Button } from "@/components/Button";
 import { useFetcher } from "@/components/FetcherProvider";
@@ -59,6 +60,8 @@ export function Sidebar({
   const pathname = usePathname();
   const { fetcher } = useFetcher();
   const { getEntry, loadModels } = useAiModelCatalog();
+  const [viewerKind, setViewerKind] = useState<'visitor' | 'guest' | 'user' | null>(null);
+  useEffect(() => { fetcher<{ kind: 'visitor' | 'guest' | 'user' }>('/api/viewer', { silent: true }).then((viewer) => setViewerKind(viewer.kind)).catch(() => setViewerKind('visitor')); }, [fetcher, pathname]);
   const sidebarRef = useRef<HTMLDivElement>(null);
 
   // LLM settings
@@ -79,7 +82,7 @@ export function Sidebar({
 
   // Load user settings in the background with the model catalogs.
   useEffect(() => {
-    if (loaded) return;
+    if (loaded || viewerKind !== 'user') return;
 
     const fetchSettings = async () => {
       try {
@@ -104,7 +107,7 @@ export function Sidebar({
     };
 
     fetchSettings();
-  }, [loaded, fetcher]);
+  }, [loaded, fetcher, viewerKind]);
 
   const catalog = selectedService === 'together' || selectedService === 'openAi'
     ? getEntry(selectedService, modelKeys[selectedService])
@@ -243,6 +246,16 @@ export function Sidebar({
         : null;
   const actionDisabled = saving || testing || modelLoading || Boolean(llmError) || Boolean(modelLoadError);
 
+  if (viewerKind !== 'user') return (<>
+    {isOpen && <div className="fixed inset-0 z-40 bg-black/50" onClick={onClose} />}
+    <div className={`fixed right-0 top-0 z-50 flex h-full w-80 flex-col border-l border-border bg-card p-5 transition-transform ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+      <button className="self-end" onClick={onClose} aria-label="Close sidebar">?</button><h2 className="mb-5 font-bold">AI Story</h2>
+      <Link className="mb-3" href="/" onClick={onClose}>Library</Link><Link className="mb-3" href="/templates" onClick={onClose}>Templates</Link>
+      {viewerKind && <button className="mb-3 text-left" onClick={() => { window.dispatchEvent(new Event('aistory:keys')); onClose(); }}>Use your own API key</button>}
+      <SignInToKeepLink onNavigate={onClose} />
+    </div>
+  </>);
+
   return (
     <>
       {/* Backdrop */}
@@ -360,7 +373,7 @@ export function Sidebar({
         {/* Logout button - pinned to bottom */}
         <div className="p-4 border-t border-border">
           <Button
-            onClick={() => signOut({ callbackUrl: "/login" })}
+            onClick={() => signOut({ callbackUrl: "/" })}
             variant="danger"
             size="default"
             className="w-full"

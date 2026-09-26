@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
   streamText: vi.fn(),
 }));
 
-vi.mock('@/auth', () => ({ getUserSettingWithFallback: mocks.getUserSettingWithFallback }));
+vi.mock('@/lib/actorSettings', () => ({ getActorGenerationSettings: async () => ({ ...await mocks.getUserSettingWithFallback(), personal: { together: true, openAi: true }, trialAccount: true }) }));
 vi.mock('@ai-sdk/openai', () => ({ createOpenAI: mocks.createOpenAI }));
 vi.mock('@ai-sdk/togetherai', () => ({ createTogetherAI: mocks.createTogetherAI }));
 vi.mock('@ai-sdk/openai-compatible', () => ({ createOpenAICompatible: mocks.createOpenAICompatible }));

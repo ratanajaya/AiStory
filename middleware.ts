@@ -10,14 +10,25 @@ export default auth((req) => {
   const { nextUrl } = req;
   const isLoggedIn = !!req.auth || !!authOverrideUser;
   const isApiRoute = nextUrl.pathname.startsWith("/api");
+  if (isApiRoute && !nextUrl.pathname.startsWith('/api/auth') && !['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+    const origin = req.headers.get('origin');
+    const fetchSite = req.headers.get('sec-fetch-site');
+    if ((origin && origin !== nextUrl.origin) || fetchSite === 'cross-site') return NextResponse.json({ error: { message: 'Invalid origin' } }, { status: 403 });
+  }
 
   // Public routes that don't require authentication
-  const publicRoutes = ["/login", "/api/auth"];
-  const isPublicRoute = publicRoutes.some((route) =>
-    nextUrl.pathname.startsWith(route)
-  );
+  const publicRoutes = [
+    /^\/login$/, /^\/api\/auth(?:\/|$)/, /^\/api\/viewer$/,
+    /^\/api\/guest\/(session|settings|claim)$/,
+    /^\/api\/public\/templates(?:\/[^/]+\/start)?$/,
+    /^\/api\/books(?:\/[^/]+(?:\/(?:name|draft|segments|summaries|chapters|memory)(?:\/(?:[^/]+))?)?)?$/,
+    /^\/api\/templates(?:\/[^/]+(?:\/merged)?)?$/,
+    /^\/api\/ai(?:\/tts|\/models\/(?:openai|together))?$/,
+  ];
+  const publicPages = nextUrl.pathname === '/' || /^\/templates(?:\/[^/]+)?$/.test(nextUrl.pathname) || /^\/book\/[^/]+$/.test(nextUrl.pathname);
+  const isPublicRoute = publicRoutes.some((route) => route.test(nextUrl.pathname));
 
-  if (isPublicRoute) {
+  if (isPublicRoute || publicPages || nextUrl.pathname === "/api/internal/cleanup") {
     // If user is logged in and trying to access login page, redirect to home
     if (isLoggedIn && nextUrl.pathname === "/login") {
       return NextResponse.redirect(new URL("/", nextUrl));

@@ -1,4 +1,4 @@
-import { getUserSettingWithFallback } from "@/auth";
+import { getActorGenerationSettings } from '@/lib/actorSettings';
 import { TTS_SYNTHESIS_CONFIG } from "@/lib/ttsConfig";
 
 const TOGETHER_TTS_URL = 'https://api.together.xyz/v1/audio/speech';
@@ -29,8 +29,7 @@ const createTogetherTtsEndpoint = (apiKey: string): TtsEndpoint => ({
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(errorText || 'Failed to generate TTS audio');
+      throw Object.assign(new Error('TTS provider rejected the request'), { statusCode: response.status });
     }
 
     const audioBuffer = await response.arrayBuffer();
@@ -45,12 +44,15 @@ const createTogetherTtsEndpoint = (apiKey: string): TtsEndpoint => ({
   },
 });
 
-export const getDynamicTtsEndpoint = async (): Promise<TtsEndpoint> => {
-  const { apiKey } = await getUserSettingWithFallback();
+export const getDynamicTtsEndpoint = async (): Promise<{ endpoint: TtsEndpoint; trialFunded: boolean }> => {
+  const { apiKey, personal, trialAccount } = await getActorGenerationSettings();
 
   if (!apiKey.together) {
     throw new Error('Together API key is not configured');
   }
 
-  return createTogetherTtsEndpoint(apiKey.together);
+  return {
+    endpoint: createTogetherTtsEndpoint(apiKey.together),
+    trialFunded: trialAccount && !personal.together,
+  };
 };
