@@ -85,6 +85,8 @@ async function getUserSettingWithFallback(): Promise<{
   selectedLlm: LlmConfig;
   apiKey: ApiKeyConfig;
   generationProfiles: GenerationProfileConfig;
+  personal: Record<LLMService, boolean>;
+  trialAccount: boolean;
 }> {
   const session = await auth();
 
@@ -109,6 +111,12 @@ async function getUserSettingWithFallback(): Promise<{
     selectedLlm,
     apiKey,
     generationProfiles: normalizeGenerationProfileConfig(defaultValue.generationProfiles),
+    // Funding must describe the same user record that supplied the credentials.
+    personal: {
+      together: Boolean(_util.toInputString(user?.apiKey?.together)),
+      openAi: Boolean(_util.toInputString(user?.apiKey?.openAi)),
+    },
+    trialAccount: Boolean(user?.trialAccount),
   };
 }
 

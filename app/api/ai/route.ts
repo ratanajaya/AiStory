@@ -6,7 +6,6 @@ import { buildStreamErrorTail } from '@/lib/streamProtocol';
 import { isAiGenerationFeature } from '@/lib/generationProfiles';
 import { NextResponse } from 'next/server';
 import { getActor } from '@/lib/guest';
-import { getActorGenerationSettings } from '@/lib/actorSettings';
 import { reserveTrial } from '@/lib/trial';
 
 export async function POST(request: Request) {
@@ -24,9 +23,8 @@ export async function POST(request: Request) {
 
     if (Buffer.byteLength(JSON.stringify({ systemMessage, messages }), 'utf8') > REQUEST_LIMITS.textBytes) return errorResponseFromMessage('Text input is too large', 413);
     if (systemMessage != null && typeof systemMessage !== 'string' || messages.some((message) => !message || !['user', 'assistant', 'system'].includes(message.role) || typeof message.content !== 'string')) return errorResponseFromMessage('Invalid text messages', 400);
-    const { endpoint: aiEndpoint, generationProfiles, selectedLlm } = await getDynamicAiEndpoint();
-    const settings = await getActorGenerationSettings();
-    if (settings.trialAccount && !settings.personal[settings.selectedLlm.service]) {
+    const { endpoint: aiEndpoint, generationProfiles, selectedLlm, trialFunded } = await getDynamicAiEndpoint();
+    if (trialFunded) {
       const reservation = await reserveTrial(request, 'text', 1);
       if (!reservation.ok) return errorResponseFromMessage(reservation.message, reservation.status);
     }

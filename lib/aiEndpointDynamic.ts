@@ -218,9 +218,12 @@ export const getDynamicAiEndpoint = async (): Promise<{
   endpoint: AiEndpoint;
   generationProfiles: GenerationProfileConfig;
   selectedLlm: LlmConfig;
+  trialFunded: boolean;
 }> => {
   const { selectedLlm, apiKey, generationProfiles, personal, trialAccount } = await getActorGenerationSettings();
   assertSupportedLlmConfig(selectedLlm);
+  // Keep accounting tied to these credentials even if settings change mid-request.
+  const trialFunded = trialAccount && !personal[selectedLlm.service];
   
   if (selectedLlm.service === 'together') {
     if (!apiKey.together) {
@@ -241,17 +244,18 @@ export const getDynamicAiEndpoint = async (): Promise<{
       endpoint: createAiSdkEndpoint(
         together(selectedLlm.model),
         togetherStructured(selectedLlm.model),
-        trialAccount && !personal.together,
+        trialFunded,
       ),
       generationProfiles,
       selectedLlm,
+      trialFunded,
     };
   } else if (selectedLlm.service === 'openAi') {
     if (!apiKey.openAi) {
       throw new Error('OpenAI API key is not configured');
     }
     const openai = createOpenAI({ apiKey: apiKey.openAi });
-    return { endpoint: createAiSdkEndpoint(openai(selectedLlm.model), undefined, trialAccount && !personal.openAi), generationProfiles, selectedLlm };
+    return { endpoint: createAiSdkEndpoint(openai(selectedLlm.model), undefined, trialFunded), generationProfiles, selectedLlm, trialFunded };
   }
 
   throw new Error('Unsupported LLM service configured');

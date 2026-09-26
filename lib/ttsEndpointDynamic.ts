@@ -44,12 +44,15 @@ const createTogetherTtsEndpoint = (apiKey: string): TtsEndpoint => ({
   },
 });
 
-export const getDynamicTtsEndpoint = async (): Promise<TtsEndpoint> => {
-  const { apiKey } = await getActorGenerationSettings();
+export const getDynamicTtsEndpoint = async (): Promise<{ endpoint: TtsEndpoint; trialFunded: boolean }> => {
+  const { apiKey, personal, trialAccount } = await getActorGenerationSettings();
 
   if (!apiKey.together) {
     throw new Error('Together API key is not configured');
   }
 
-  return createTogetherTtsEndpoint(apiKey.together);
+  return {
+    endpoint: createTogetherTtsEndpoint(apiKey.together),
+    trialFunded: trialAccount && !personal.together,
+  };
 };
