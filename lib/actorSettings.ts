@@ -1,11 +1,10 @@
 import { resolveTtsConfig } from '@/lib/ttsConfig';
 import { getUserSettingWithFallback } from '@/auth';
 import dbConnect from '@/lib/mongodb';
-import { KeyValueModel, UserModel } from '@/models';
+import { KeyValueModel } from '@/models';
 import { getActor, guestSettings } from '@/lib/guest';
 import { normalizeGenerationProfileConfig } from '@/lib/generationProfiles';
 import type { ApiKeyConfig, DefaultValue, GenerationProfileConfig, LlmConfig, LLMService, TtsConfig } from '@/types';
-import _util from '@/utils/_util';
 
 export async function getActorGenerationSettings(): Promise<{
   selectedTts: TtsConfig;
@@ -16,14 +15,7 @@ export async function getActorGenerationSettings(): Promise<{
   if (!actor) throw new Error('Unauthorized');
   await dbConnect();
   if (actor.kind === 'user') {
-    const [settings, user] = await Promise.all([
-      getUserSettingWithFallback(),
-      UserModel.findOne({ email: actor.ownerEmail }).select('apiKey trialAccount').lean(),
-    ]);
-    return { ...settings, trialAccount: Boolean(user?.trialAccount), personal: {
-      together: Boolean(_util.toInputString(user?.apiKey?.together)),
-      openAi: Boolean(_util.toInputString(user?.apiKey?.openAi)),
-    } };
+    return getUserSettingWithFallback();
   }
   const [guest, defaultDoc] = await Promise.all([
     guestSettings(),
