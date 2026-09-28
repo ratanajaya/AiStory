@@ -138,12 +138,19 @@ const LlmConfigSchema = new Schema<LlmConfig>({
   model: { type: String, required: true }
 }, { _id: false });
 
+const TtsConfigSchema = new Schema({
+  service: { type: String, enum: ['together', 'openAi'], required: true },
+  model: { type: String, required: true },
+  voice: { type: String, required: true },
+}, { _id: false });
+
 const UserSchema = new Schema<User>({
   email: { type: String, required: true, unique: true },
   isAdmin: { type: Boolean, default: false },
   registeredAt: { type: Date, default: Date.now },
   lastLoginAt: { type: Date, default: Date.now },
   selectedLlm: { type: LlmConfigSchema, default: null },
+  selectedTts: { type: TtsConfigSchema, default: null },
   apiKey: { type: ApiKeyConfigSchema, default: () => ({ together: null, openAi: null }) },
   trialTextUsed: { type: Number, default: 0 },
   trialAudioUsed: { type: Number, default: 0 },
@@ -162,6 +169,7 @@ const GuestWorkspaceSchema = new Schema({
   state: { type: String, enum: ['active', 'claimed', 'cleaning'], default: 'active' },
   expiresAt: { type: Date, required: true },
   selectedLlm: { type: LlmConfigSchema, default: null },
+  selectedTts: { type: TtsConfigSchema, default: null },
   encryptedKeys: { together: { type: String, default: null }, openAi: { type: String, default: null } },
   trialTextUsed: { type: Number, default: 0 },
   trialAudioUsed: { type: Number, default: 0 },

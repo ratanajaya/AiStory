@@ -13,6 +13,7 @@ import _util from '@/utils/_util';
 import { streamAiRequest, AiStreamError } from '@/lib/aiStreamClient';
 import { formatErrorDetail } from '@/lib/errorClient';
 import BookAudioControl from '../_components/BookAudioControl';
+import { BookAudioProvider } from '@/app/book/_components/BookAudioProvider';
 import SegmentDisplay from '../_components/SegmentDisplay';
 import ChapterDisplay from '../_components/ChapterDisplay';
 import StatusBar, { StatusBarProps } from '../_components/StatusBar';
@@ -60,6 +61,10 @@ const emptyBookModel: BookUIModel = {
 
 export default function BookPage({ params }: PageProps) {
   const { bookId } = use(params);
+  return <BookAudioProvider key={bookId} bookId={bookId}><BookPageContent bookId={bookId} /></BookAudioProvider>;
+}
+
+function BookPageContent({ bookId }: { bookId: string }) {
   const [bookUiModel, setBookUiModel] = useState<BookUIModel>(emptyBookModel);
   const [template, setTemplate] = useState<Template | null>(null);
   const [loading, setLoading] = useState(true);

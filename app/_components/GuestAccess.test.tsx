@@ -8,6 +8,7 @@ const fetcher = vi.fn();
 vi.mock('@/components/FetcherProvider', () => ({ useFetcher: () => ({ fetcher }) }));
 vi.mock('next/navigation', () => ({ usePathname: () => '/', useRouter: () => ({ push: vi.fn() }) }));
 vi.mock('next-auth/react', () => ({ useSession: () => ({ status: 'unauthenticated' }) }));
+vi.mock('@/components/TtsSettingsSection', () => ({ TtsSettingsSection: () => null }));
 
 afterEach(() => { cleanup(); fetcher.mockReset(); sessionStorage.clear(); });
 
@@ -23,7 +24,7 @@ describe('guest allowance reminder', () => {
     expect(await screen.findByText(/You have 4 free text generations left/)).toBeTruthy();
     fireEvent.click(screen.getAllByText('Use your own API key')[1]);
     expect(screen.getByRole('dialog', { name: 'Use your own API key' })).toBeTruthy();
-    expect(screen.getByText(/Audio specifically requires a Together key/)).toBeTruthy();
+    expect(screen.getByText(/Audio uses the key for your selected speech provider/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Close API key guide' }));
     fireEvent.click(screen.getByRole('button', { name: 'Dismiss allowance reminder' }));
     expect(sessionStorage.getItem('aistory-reminder-dismissed')).toBe('1');

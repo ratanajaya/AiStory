@@ -1,12 +1,16 @@
-import { TTS_CACHE_CONFIG_ID } from "@/lib/ttsConfig";
+
 
 const DB_NAME = 'ai-story-tts';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_NAME = 'segment-audio';
+const CHUNK_STORE = 'chunk-audio';
 
 export type AudioPlaybackState = 'idle' | 'loading' | 'waiting' | 'playing' | 'paused' | 'error';
 
 export interface AudioPlaybackStatus {
+  chunkKey?: string;
+  partIndex?: number;
+  partCount?: number;
   activeSegmentId: string | null;
   state: AudioPlaybackState;
   currentTime: number;
@@ -23,10 +27,16 @@ export interface SegmentAudioRecord {
   updatedAt: number;
 }
 
+export interface ChunkAudioRecord extends SegmentAudioRecord {
+  cacheKey: string;
+  chunkVersion: string;
+}
+
 let openDbPromise: Promise<IDBDatabase> | null = null;
 let sharedAudio: HTMLAudioElement | null = null;
 let currentAudioUrl: string | null = null;
-let isAudioInitialized = false;
+const initializedAudio = new WeakSet<HTMLAudioElement>();
+let preparedAudio: { key: string; audio: HTMLAudioElement; url: string } | null = null;
 let playbackStatus: AudioPlaybackStatus = {
   activeSegmentId: null,
   state: 'idle',
@@ -51,14 +61,21 @@ const getDb = (): Promise<IDBDatabase> => {
       const request = indexedDB.open(DB_NAME, DB_VERSION);
 
       request.onerror = () => reject(request.error ?? new Error('Failed to open IndexedDB'));
+      request.onblocked = () => reject(new Error('Close other AiStory tabs to upgrade the audio cache.'));
       request.onupgradeneeded = () => {
         const db = request.result;
 
         if (!db.objectStoreNames.contains(STORE_NAME)) {
           db.createObjectStore(STORE_NAME, { keyPath: 'segmentId' });
         }
+        if (!db.objectStoreNames.contains(CHUNK_STORE)) {
+          db.createObjectStore(CHUNK_STORE, { keyPath: 'cacheKey' }).createIndex('segmentId', 'segmentId');
+        }
       };
-      request.onsuccess = () => resolve(request.result);
+      request.onsuccess = () => {
+        request.result.onversionchange = () => { request.result.close(); openDbPromise = null; };
+        resolve(request.result);
+      };
     });
   }
 
@@ -124,16 +141,24 @@ const resetAudioElement = (audio: HTMLAudioElement) => {
 const runTransaction = async <T>(
   mode: IDBTransactionMode,
   executor: (store: IDBObjectStore, resolve: (value: T) => void, reject: (reason?: unknown) => void) => void,
+  storeName = STORE_NAME,
+  signal?: AbortSignal,
 ): Promise<T> => {
   const db = await getDb();
+  signal?.throwIfAborted();
 
   return new Promise<T>((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, mode);
-    const store = transaction.objectStore(STORE_NAME);
-
-    transaction.onerror = () => reject(transaction.error ?? new Error('IndexedDB transaction failed'));
-
-    executor(store, resolve, reject);
+    const transaction = db.transaction(storeName, mode);
+    const store = transaction.objectStore(storeName);
+    let value: T;
+    const abort = () => transaction.abort();
+    const cleanup = () => signal?.removeEventListener('abort', abort);
+    signal?.addEventListener('abort', abort, { once: true });
+    transaction.oncomplete = () => { cleanup(); resolve(value); };
+    transaction.onabort = transaction.onerror = () => {
+      cleanup(); reject(signal?.aborted ? signal.reason : transaction.error ?? new Error('IndexedDB transaction failed'));
+    };
+    executor(store, result => { value = result; }, reject);
   });
 };
 
@@ -149,10 +174,11 @@ export const getSegmentAudio = async (segmentId: string): Promise<SegmentAudioRe
 export const isSegmentAudioRecordCurrent = (
   record: SegmentAudioRecord | null,
   content: string,
+  configId: string,
 ): record is SegmentAudioRecord => {
   return !!record
     && record.content === content
-    && record.configId === TTS_CACHE_CONFIG_ID;
+    && record.configId === configId;
 };
 
 export const saveSegmentAudio = async (record: SegmentAudioRecord): Promise<void> => {
@@ -165,13 +191,30 @@ export const saveSegmentAudio = async (record: SegmentAudioRecord): Promise<void
 };
 
 export const deleteSegmentAudio = async (segmentId: string): Promise<void> => {
-  return runTransaction<void>('readwrite', (store, resolve, reject) => {
-    const request = store.delete(segmentId);
-
-    request.onerror = () => reject(request.error ?? new Error('Failed to delete cached audio'));
-    request.onsuccess = () => resolve();
+  const db = await getDb();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([STORE_NAME, CHUNK_STORE], 'readwrite');
+    transaction.oncomplete = () => resolve();
+    transaction.onabort = transaction.onerror = () => reject(transaction.error ?? new Error('Failed to delete cached audio'));
+    transaction.objectStore(STORE_NAME).delete(segmentId);
+    const cursor = transaction.objectStore(CHUNK_STORE).index('segmentId').openCursor(IDBKeyRange.only(segmentId));
+    cursor.onsuccess = () => { if (cursor.result) { cursor.result.delete(); cursor.result.continue(); } };
   });
 };
+
+export const getChunkAudio = (cacheKey: string): Promise<ChunkAudioRecord | null> =>
+  runTransaction('readonly', (store, resolve, reject) => {
+    const request = store.get(cacheKey);
+    request.onsuccess = () => resolve(request.result ?? null);
+    request.onerror = () => reject(request.error);
+  }, CHUNK_STORE);
+
+export const saveChunkAudio = (record: ChunkAudioRecord, signal?: AbortSignal): Promise<void> =>
+  runTransaction('readwrite', (store, resolve, reject) => {
+    const request = store.put(record);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  }, CHUNK_STORE, signal);
 
 const getSharedAudio = () => {
   ensureBrowserSupport();
@@ -182,8 +225,9 @@ const getSharedAudio = () => {
 
   const audio = sharedAudio;
 
-  if (!isAudioInitialized) {
+  if (!initializedAudio.has(audio)) {
     audio.addEventListener('loadedmetadata', () => {
+      if (audio !== sharedAudio) return;
       updatePlaybackStatus({
         ...getAudioTiming(audio),
         errorMessage: null,
@@ -191,14 +235,17 @@ const getSharedAudio = () => {
     });
 
     audio.addEventListener('durationchange', () => {
+      if (audio !== sharedAudio) return;
       updatePlaybackStatus(getAudioTiming(audio));
     });
 
     audio.addEventListener('timeupdate', () => {
+      if (audio !== sharedAudio) return;
       updatePlaybackStatus(getAudioTiming(audio));
     });
 
     audio.addEventListener('waiting', () => {
+      if (audio !== sharedAudio) return;
       if (!playbackStatus.activeSegmentId) {
         return;
       }
@@ -211,6 +258,7 @@ const getSharedAudio = () => {
     });
 
     audio.addEventListener('playing', () => {
+      if (audio !== sharedAudio) return;
       if (!playbackStatus.activeSegmentId) {
         return;
       }
@@ -223,6 +271,7 @@ const getSharedAudio = () => {
     });
 
     audio.addEventListener('pause', () => {
+      if (audio !== sharedAudio) return;
       if (!playbackStatus.activeSegmentId || audio.ended) {
         return;
       }
@@ -234,6 +283,7 @@ const getSharedAudio = () => {
     });
 
     audio.addEventListener('error', () => {
+      if (audio !== sharedAudio) return;
       if (!playbackStatus.activeSegmentId) {
         return;
       }
@@ -246,6 +296,7 @@ const getSharedAudio = () => {
     });
 
     audio.addEventListener('ended', () => {
+      if (audio !== sharedAudio) return;
       clearCurrentAudioUrl();
       playbackStatus = {
         activeSegmentId: null,
@@ -258,7 +309,7 @@ const getSharedAudio = () => {
       notifyPlaybackListeners();
     });
 
-    isAudioInitialized = true;
+    initializedAudio.add(audio);
   }
 
   return audio;
@@ -273,17 +324,39 @@ export const subscribeToAudioPlayback = (listener: (status: AudioPlaybackStatus)
   };
 };
 
-export const playAudioBlob = async (segmentId: string, audioBlob: Blob | undefined): Promise<void> => {
+export const clearPreloadedAudio = () => {
+  if (!preparedAudio) return;
+  resetAudioElement(preparedAudio.audio);
+  URL.revokeObjectURL(preparedAudio.url);
+  preparedAudio = null;
+};
+
+export const preloadAudioBlob = (key: string, blob: Blob) => {
+  if (preparedAudio?.key === key) return;
+  clearPreloadedAudio();
+  const audio = new Audio();
+  const url = URL.createObjectURL(blob);
+  preparedAudio = { key, audio, url };
+  audio.preload = 'auto'; audio.src = url; audio.load();
+};
+
+export const playAudioBlob = async (
+  segmentId: string, audioBlob: Blob | undefined,
+  part?: { chunkKey: string; partIndex: number; partCount: number },
+): Promise<void> => {
   if(!audioBlob) {
     throw new Error('No audio data available to play.');
   }
 
+  const previous = getSharedAudio();
+  previous.pause();
+  clearCurrentAudioUrl();
+  const prepared = part && preparedAudio?.key === part.chunkKey ? preparedAudio : null;
+  if (prepared) { sharedAudio = prepared.audio; preparedAudio = null; resetAudioElement(previous); }
   const audio = getSharedAudio();
 
-  audio.pause();
-  clearCurrentAudioUrl();
-
   playbackStatus = {
+    ...part,
     activeSegmentId: segmentId,
     state: 'loading',
     currentTime: 0,
@@ -291,13 +364,15 @@ export const playAudioBlob = async (segmentId: string, audioBlob: Blob | undefin
     errorMessage: null,
   };
   notifyPlaybackListeners();
-  currentAudioUrl = URL.createObjectURL(audioBlob);
-  audio.src = currentAudioUrl;
+  currentAudioUrl = prepared?.url ?? URL.createObjectURL(audioBlob);
+  if (!prepared) audio.src = currentAudioUrl;
   audio.currentTime = 0;
 
+  const playbackUrl = currentAudioUrl;
   try {
     await audio.play();
   } catch (error) {
+    if (currentAudioUrl !== playbackUrl) return;
     updatePlaybackStatus({
       state: 'error',
       errorMessage: error instanceof Error ? error.message : 'Audio playback failed.',
@@ -346,9 +421,11 @@ export const resumeAudioPlayback = async (segmentId?: string): Promise<boolean> 
     errorMessage: null,
   });
 
+  const playbackUrl = currentAudioUrl;
   try {
     await audio.play();
   } catch (error) {
+    if (currentAudioUrl !== playbackUrl) return false;
     updatePlaybackStatus({
       state: 'error',
       errorMessage: error instanceof Error ? error.message : 'Audio playback failed.',
@@ -360,6 +437,7 @@ export const resumeAudioPlayback = async (segmentId?: string): Promise<boolean> 
 };
 
 export const stopAudioPlayback = (segmentId?: string): boolean => {
+  if (!sharedAudio) return false;
   const audio = getSharedAudio();
 
   if (!playbackStatus.activeSegmentId) {

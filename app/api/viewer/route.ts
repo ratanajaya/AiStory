@@ -10,9 +10,9 @@ export async function GET(request: Request) {
     getActorGenerationSettings(), remainingTrial(request), actor.kind === 'guest' ? getGuestWorkspace() : Promise.resolve(null),
   ]);
   return NextResponse.json({ kind: actor.kind, isAdmin: actor.isAdmin, expiresAt: guest?.expiresAt ?? null,
-    remaining, selectedLlm: settings.selectedLlm,
+    remaining, selectedLlm: settings.selectedLlm, selectedTts: settings.selectedTts,
     personal: settings.personal,
     textFunding: settings.personal[settings.selectedLlm.service] ? 'personal' : 'trial',
-    audioFunding: settings.personal.together ? 'personal' : 'trial',
+    audioFunding: settings.personal[settings.selectedTts?.service ?? 'together'] ? 'personal' : 'trial',
   });
 }

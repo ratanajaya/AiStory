@@ -1,3 +1,4 @@
+import { validateTtsConfig } from '@/lib/ttsConfig';
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import dbConnect from "@/lib/mongodb";
@@ -18,7 +19,7 @@ export async function GET() {
     await dbConnect();
     const user = await UserModel.findOne(
       { email: session.user.email },
-      { selectedLlm: 1, apiKey: 1, _id: 0 }
+      { selectedLlm: 1, selectedTts: 1, apiKey: 1, _id: 0 }
     ).lean();
 
     if (!user) {
@@ -27,6 +28,7 @@ export async function GET() {
 
     return NextResponse.json({
       ...user,
+      selectedTts: user.selectedTts ?? null,
       apiKey: _util.normalizeApiKeyConfig(user.apiKey),
     });
   } catch (err) {
@@ -34,7 +36,7 @@ export async function GET() {
   }
 }
 
-// PUT update user settings (only selectedLlm and apiKey)
+// PUT update only the current account's generation preferences and keys.
 export async function PUT(request: Request) {
   const session = await auth();
 
@@ -44,10 +46,17 @@ export async function PUT(request: Request) {
 
   try {
     const body = await request.json();
+    if (!body || typeof body !== 'object' || Array.isArray(body)) return errorResponseFromMessage('Invalid settings', 400);
     const { selectedLlm, apiKey } = body;
 
-    // Only allow updating selectedLlm and apiKey
+    // Explicit allowlist; never accept ownership or role fields.
     const updateData: Record<string, unknown> = {};
+
+    if ('selectedTts' in body) {
+      const result = validateTtsConfig(body.selectedTts);
+      if (!result.ok) return errorResponseFromMessage(result.message, 400);
+      updateData.selectedTts = result.value;
+    }
 
     if (selectedLlm !== undefined) {
       const llmResult = validateLlmConfig(selectedLlm, { allowNull: true });

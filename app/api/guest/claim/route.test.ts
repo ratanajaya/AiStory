@@ -21,6 +21,15 @@ beforeEach(() => {
 });
 
 describe('claim workspace', () => {
+  it.each([false, true])('preserves an existing account TTS preference (%s)', async (existing) => {
+    const guestConfig = { service: 'openAi', model: 'tts-1', voice: 'nova' };
+    const guest = await mocks.guest();
+    const user = await mocks.user();
+    mocks.guest.mockResolvedValue({ ...guest, selectedTts: guestConfig });
+    mocks.user.mockResolvedValue({ ...user, selectedTts: existing ? { ...guestConfig, voice: 'alloy' } : null });
+    expect((await claim()).status).toBe(200);
+    expect(mocks.userUpdate.mock.calls[0][1].$set.selectedTts).toEqual(existing ? undefined : guestConfig);
+  });
   it('retains IDs, transfers all ownership, and preserves account keys and lower remaining allowance', async () => {
     const response = await claim();
     expect(await response.json()).toEqual({ claimed: true, preservedKeys: ['together'] });

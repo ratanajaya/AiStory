@@ -1,263 +1,59 @@
-'use client';
+"use client";
 
 import TrialActionNotice from '@/app/_components/TrialActionNotice';
-
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useAlert } from "@/components/AlertBox";
-import { useUiState } from "@/components/UiStateProvider";
-import { ensureSegmentAudioBlob, formatAudioTime } from "@/lib/ttsAudioClient";
-import {
-  AudioPlaybackStatus,
-  pauseAudioPlayback,
-  playAudioBlob,
-  resumeAudioPlayback,
-  stopAudioPlayback,
-  subscribeToAudioPlayback,
-} from "@/lib/ttsIndexedDb";
-import { Chapter, StorySegment } from "@/types";
-
-type QueuePlaybackResult = 'completed' | 'stopped' | 'interrupted';
-type PrefetchedAudioResult = {
-  audioBlob: Blob | null;
-  error: Error | null;
-};
+import { useMemo } from 'react';
+import { useUiState } from '@/components/UiStateProvider';
+import { useBookAudio, useAudioStatus } from '@/app/book/_components/BookAudioProvider';
+import { formatAudioTime } from '@/lib/ttsAudioClient';
+import type { Chapter, StorySegment } from '@/types';
 
 export default function BookAudioControl(props: {
-  segments: StorySegment[];
-  chapters: Chapter[];
-  bookId: string;
-  bookName: string | null;
-  disabled?: boolean;
+  segments: StorySegment[]; chapters: Chapter[]; bookId: string; bookName: string | null; disabled?: boolean;
 }) {
-  const { showAlert } = useAlert();
+  const { manager, playback, generation } = useBookAudio();
+  const playbackStatus = useAudioStatus();
   const { uiState, setBookAudioHidden } = useUiState();
-  const [isQueueActive, setIsQueueActive] = useState(false);
-  const [isPreparingSegment, setIsPreparingSegment] = useState(false);
-  const [currentQueueIndex, setCurrentQueueIndex] = useState<number | null>(null);
-  const [queueTotal, setQueueTotal] = useState(0);
-  const [currentQueueSegmentId, setCurrentQueueSegmentId] = useState<string | null>(null);
-  const [playbackStatus, setPlaybackStatus] = useState<AudioPlaybackStatus>({
-    activeSegmentId: null,
-    state: 'idle',
-    currentTime: 0,
-    duration: 0,
-    errorMessage: null,
-  });
-  const queueRunIdRef = useRef(0);
-
-  const playableSegments = useMemo(
-    () => props.segments.filter(segment => segment.role === 'assistant' && segment.content.trim()),
-    [props.segments],
-  );
-
-  const chapterTitleById = useMemo(
-    () => new Map(props.chapters.map((chapter) => [chapter.id, chapter.title])),
-    [props.chapters],
-  );
-
-  useEffect(() => {
-    return subscribeToAudioPlayback(setPlaybackStatus);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      queueRunIdRef.current += 1;
-      stopAudioPlayback();
-    };
-  }, []);
-
-  const isCurrentQueueSegment = currentQueueSegmentId != null && playbackStatus.activeSegmentId === currentQueueSegmentId;
-  const isQueueLoading = isQueueActive && (isPreparingSegment || (isCurrentQueueSegment && playbackStatus.state === 'loading'));
-  const isQueuePaused = isQueueActive && isCurrentQueueSegment && playbackStatus.state === 'paused';
-  const isQueuePlaying = isQueueActive && isCurrentQueueSegment && (playbackStatus.state === 'playing' || playbackStatus.state === 'waiting');
-  const canStopQueue = isQueueActive && !props.disabled;
+  const playableSegments = useMemo(() => props.segments.filter(segment => segment.role === 'assistant' && segment.content.trim()), [props.segments]);
+  const isQueueActive = playback.mode === 'book' && !['idle', 'error'].includes(playback.state);
+  const isQueueLoading = isQueueActive && playback.state === 'loading';
+  const isQueuePlaying = isQueueActive && playback.state === 'playing';
+  const isQueuePaused = isQueueActive && playback.state === 'paused';
+  const currentQueueSegmentId = isQueueActive ? playback.part?.segmentId ?? playback.targetSegmentId : null;
+  const queueTotal = isQueueActive ? playableSegments.length : 0;
+  const queueProgressLabel = `${Math.max(0, playableSegments.findIndex(segment => segment.id === currentQueueSegmentId)) + 1}/${queueTotal}`;
   const canStartQueue = !props.disabled && playableSegments.length > 0;
-  const queueProgressLabel = queueTotal > 0
-    ? `${(currentQueueIndex ?? 0) + 1}/${queueTotal}`
-    : `${playableSegments.length}`;
-  const audioTimeLabel = isCurrentQueueSegment
-    ? `${formatAudioTime(playbackStatus.currentTime)} / ${formatAudioTime(playbackStatus.duration)}`
-    : null;
-
+  const canStopQueue = isQueueActive && !props.disabled;
+  const currentPart = isQueueActive ? playback.part : null;
+  const audioTimeLabel = currentPart ? `Part ${currentPart.partIndex + 1}/${currentPart.partCount} · ${
+    playbackStatus.chunkKey === currentPart.key ? `${formatAudioTime(playbackStatus.currentTime)} / ${formatAudioTime(playbackStatus.duration)}` : 'Preparing'
+  }` : null;
   const playableSegmentEntries = useMemo(() => {
-    let previousBarrierLabel: string | null = null;
-
+    const titles = new Map(props.chapters.map(chapter => [chapter.id, chapter.title]));
+    const label = (segment: StorySegment) => segment.chapterId ? titles.get(segment.chapterId) ?? 'No Chapter' : 'No Chapter';
     return playableSegments.map((segment, index) => {
-      const barrierLabel = segment.chapterId
-        ? chapterTitleById.get(segment.chapterId) ?? 'No Chapter'
-        : 'No Chapter';
-      const showBarrier = barrierLabel !== previousBarrierLabel;
-
-      previousBarrierLabel = barrierLabel;
-
-      return {
-        segment,
-        index,
-        barrierLabel,
-        showBarrier,
-      };
+      const barrierLabel = label(segment);
+      const showBarrier = index === 0 || barrierLabel !== label(playableSegments[index - 1]);
+      return { segment, index, barrierLabel, showBarrier };
     });
-  }, [chapterTitleById, playableSegments]);
-
-  const createPrefetchTask = (segment: StorySegment): Promise<PrefetchedAudioResult> => {
-    return ensureSegmentAudioBlob(segment.id, segment.content, {
-      feature: 'Book audio playback',
-      bookId: props.bookId,
-      bookName: props.bookName,
-    })
-      .then((audioBlob) => ({ audioBlob, error: null }))
-      .catch((error) => ({
-        audioBlob: null,
-        error: error instanceof Error ? error : new Error('Failed to generate speech.'),
-      }));
+  }, [playableSegments, props.chapters]);
+  const start = (index = 0) => {
+    window.dispatchEvent(new Event('aistory:audio-interrupt'));
+    void manager.play(playableSegments.slice(index), 'book');
   };
-
-  const resetQueueState = () => {
-    setIsQueueActive(false);
-    setIsPreparingSegment(false);
-    setCurrentQueueIndex(null);
-    setQueueTotal(0);
-    setCurrentQueueSegmentId(null);
-  };
-
-  const stopQueue = () => {
-    queueRunIdRef.current += 1;
-    resetQueueState();
-    stopAudioPlayback();
-  };
-
-  const waitForSegmentPlayback = (segmentId: string, runId: number) => {
-    return new Promise<QueuePlaybackResult>((resolve, reject) => {
-      const unsubscribe = subscribeToAudioPlayback((status) => {
-        if (queueRunIdRef.current !== runId) {
-          unsubscribe();
-          resolve('stopped');
-          return;
-        }
-
-        if (status.activeSegmentId === segmentId && status.state === 'error') {
-          unsubscribe();
-          reject(new Error(status.errorMessage || 'Audio playback failed.'));
-          return;
-        }
-
-        if (status.activeSegmentId === segmentId) {
-          return;
-        }
-
-        if (status.activeSegmentId == null && status.state === 'idle') {
-          unsubscribe();
-          resolve('completed');
-          return;
-        }
-
-        if (status.activeSegmentId != null && status.activeSegmentId !== segmentId) {
-          unsubscribe();
-          resolve('interrupted');
-        }
-      });
-    });
-  };
-
-  const startQueuePlayback = async (startIndex = 0) => {
-    if (props.disabled) {
-      return;
-    }
-
-    if (playableSegments.length === 0) {
-      showAlert('There are no assistant segments with audio to play.', 'warning');
-      return;
-    }
-
-    const runId = queueRunIdRef.current + 1;
-    queueRunIdRef.current = runId;
-    setIsQueueActive(true);
-    setQueueTotal(playableSegments.length);
-
-    try {
-      let prefetchedAudioTask: Promise<PrefetchedAudioResult> | null = null;
-
-      for (let index = startIndex; index < playableSegments.length; index += 1) {
-        if (queueRunIdRef.current !== runId) {
-          return;
-        }
-
-        const segment = playableSegments[index];
-        setCurrentQueueIndex(index);
-        setCurrentQueueSegmentId(segment.id);
-        setIsPreparingSegment(true);
-
-        const currentTask = prefetchedAudioTask ?? createPrefetchTask(segment);
-        const { audioBlob, error } = await currentTask;
-
-        if (queueRunIdRef.current !== runId) {
-          return;
-        }
-
-        if (error || !audioBlob) {
-          throw error || new Error('Failed to generate speech.');
-        }
-
-        setIsPreparingSegment(false);
-        await playAudioBlob(segment.id, audioBlob);
-
-        const nextSegment = playableSegments[index + 1];
-        prefetchedAudioTask = nextSegment
-          ? createPrefetchTask(nextSegment)
-          : null;
-
-        const result = await waitForSegmentPlayback(segment.id, runId);
-
-        if (result !== 'completed') {
-          return;
-        }
-      }
-    } catch (error) {
-      console.error('Failed during book audio playback:', error);
-      showAlert(error instanceof Error ? error.message : 'Failed to play book audio.');
-    } finally {
-      if (queueRunIdRef.current === runId) {
-        resetQueueState();
-      }
-    }
-  };
-
-  const jumpToSegment = async (targetIndex: number) => {
-    if (props.disabled || targetIndex < 0 || targetIndex >= playableSegments.length) {
-      return;
-    }
-
-    stopQueue();
-    await startQueuePlayback(targetIndex);
-  };
-
-  const handleMainAction = async () => {
-    if (props.disabled || isQueueLoading) {
-      return;
-    }
-
-    try {
-      if (isQueuePlaying) {
-        pauseAudioPlayback(currentQueueSegmentId ?? undefined);
-        return;
-      }
-
-      if (isQueuePaused) {
-        await resumeAudioPlayback(currentQueueSegmentId ?? undefined);
-        return;
-      }
-
-      await startQueuePlayback();
-    } catch (error) {
-      console.error('Failed to control book audio playback:', error);
-      showAlert(error instanceof Error ? error.message : 'Failed to control book audio playback.');
-    }
+  const stopQueue = () => manager.stop();
+  const jumpToSegment = (index: number) => { if (!props.disabled) start(index); };
+  const handleMainAction = () => {
+    if (props.disabled) return;
+    if (isQueuePlaying || isQueueLoading) manager.pause();
+    else if (isQueuePaused) void manager.resume();
+    else start();
   };
 
   if (uiState.bookAudioHidden) {
     return (
       <button
         type="button"
+        aria-label="Show Book Audio"
         onClick={() => setBookAudioHidden(false)}
         className="fixed bottom-4 right-4 z-20 rounded-md border border-border bg-card p-2 text-foreground transition-all hover:brightness-125 cursor-pointer"
       >
@@ -282,12 +78,13 @@ export default function BookAudioControl(props: {
   }
 
   return (
-    <div className="fixed bottom-6 right-6 z-20 h-80 w-80 rounded-2xl border border-border bg-card/95 shadow-lg backdrop-blur-sm">
+    <div className="fixed bottom-6 right-6 z-20 h-96 w-80 rounded-2xl border border-border bg-card/95 shadow-lg backdrop-blur-sm">
       <div className="flex h-full flex-col p-3">
         <div className="flex items-center justify-between text-[11px] uppercase tracking-wide text-muted-foreground">
           <span>Book Audio</span>
           <button
             type="button"
+            aria-label="Hide Book Audio"
             onClick={() => setBookAudioHidden(true)}
             className="rounded p-1 hover:bg-muted"
           >
@@ -298,13 +95,24 @@ export default function BookAudioControl(props: {
         </div>
 
         <TrialActionNotice kind="audio" />
+        <button type="button" className="my-2 rounded border border-border px-2 py-1 text-sm disabled:opacity-50"
+          disabled={!canStartQueue || generation.state === 'generating'}
+          onClick={() => void manager.generate(playableSegments)}>
+          {generation.state === 'generating' ? 'Generating book audio...' : generation.state === 'paused' ? 'Retry generation' : 'Generate book audio'}
+        </button>
+        {generation.state !== 'idle' && <p role="status" className="text-xs text-muted-foreground">
+          {generation.completed}/{generation.total} parts · {generation.state === 'paused' ? 'Paused on error' : generation.state === 'complete' ? 'Complete' : 'Generating'}
+        </p>}
+        {generation.error && <p role="alert" className="text-xs text-red-400">{generation.error}</p>}
+        {playback.mode === 'book' && playback.error && <p role="alert" className="text-xs text-red-400">{playback.error}</p>}
         <div className="flex flex-1 flex-col gap-3 overflow-hidden">
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={handleMainAction}
+              aria-label={isQueuePlaying || isQueueLoading ? "Pause book audio" : "Play book audio"}
               className="bg-muted/70 hover:bg-muted p-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={!canStartQueue || isQueueLoading}
+              disabled={!canStartQueue}
             >
               {isQueueLoading ? (
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-muted-foreground animate-spin" viewBox="0 0 20 20" fill="currentColor">
@@ -324,6 +132,7 @@ export default function BookAudioControl(props: {
             <button
               type="button"
               onClick={stopQueue}
+              aria-label="Stop book audio"
               className="bg-muted/70 hover:bg-muted p-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={!canStopQueue}
             >

@@ -23,7 +23,7 @@ export default auth((req) => {
     /^\/api\/public\/templates(?:\/[^/]+\/start)?$/,
     /^\/api\/books(?:\/[^/]+(?:\/(?:name|draft|segments|summaries|chapters|memory)(?:\/(?:[^/]+))?)?)?$/,
     /^\/api\/templates(?:\/[^/]+(?:\/merged)?)?$/,
-    /^\/api\/ai(?:\/tts|\/models\/(?:openai|together))?$/,
+    /^\/api\/ai(?:\/tts(?:\/models\/(?:openai|together))?|\/models\/(?:openai|together))?$/,
   ];
   const publicPages = nextUrl.pathname === '/' || /^\/templates(?:\/[^/]+)?$/.test(nextUrl.pathname) || /^\/book\/[^/]+$/.test(nextUrl.pathname);
   const isPublicRoute = publicRoutes.some((route) => route.test(nextUrl.pathname));
