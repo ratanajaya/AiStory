@@ -34,7 +34,7 @@ try {
   assert.deepEqual((await (await call('/api/ai/tts')).json()).selectedTts, selectedTts);
   assert.equal((await call('/api/guest/settings', 'PUT', { selectedTts: null })).status, 200);
   assert.deepEqual((await (await call('/api/ai/tts')).json()).selectedTts, before.selectedTts);
-  assert.equal((await call('/api/ai/tts', 'POST', { input: 'x'.repeat(5001) })).status, 413);
+  assert.equal((await call('/api/ai/tts', 'POST', { input: 'x'.repeat(2001) })).status, 413);
   for (const provider of ['together', 'openai']) {
     const response = await call(`/api/ai/tts/models/${provider}`);
     const body = await response.json();

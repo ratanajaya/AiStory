@@ -8,7 +8,7 @@ import {
   getAiApiLogResponsePreview,
   subscribeToAiApiLogs,
 } from '@/lib/aiApiLog';
-import { getSegmentAudio, playAudioBlob } from '@/lib/ttsIndexedDb';
+import { getChunkAudio, getSegmentAudio, playAudioBlob } from '@/lib/ttsIndexedDb';
 import type { AiApiLogEntry } from '@/types';
 
 const formatTimestamp = (timestamp: number) => new Intl.DateTimeFormat(undefined, {
@@ -57,15 +57,16 @@ export function AiApiLogDrawer({ isOpen, onClose }: { isOpen: boolean; onClose: 
     setAudioMessage(null);
 
     try {
-      const record = await getSegmentAudio(entry.audio.segmentId);
+      const record = entry.audio.cacheKey ? await getChunkAudio(entry.audio.cacheKey) : await getSegmentAudio(entry.audio.segmentId);
       const loggedInput = getPayloadInput(entry);
-      if (!record || record.configId !== entry.audio.configId || (loggedInput !== null && record.content !== loggedInput)) {
+      if (!record || record.segmentId !== entry.audio.segmentId || record.configId !== entry.audio.configId || record.content !== loggedInput) {
         setAudioMessage('The audio cache for this log is no longer available.');
         return;
       }
 
+      window.dispatchEvent(new Event('aistory:audio-interrupt'));
       await playAudioBlob(entry.audio.segmentId, record.audioBlob);
-      setAudioMessage('Playing cached audio.');
+      setAudioMessage(entry.audio.partIndex !== undefined ? `Playing cached audio · Part ${entry.audio.partIndex + 1}/${entry.audio.partCount}.` : 'Playing cached audio.');
     } catch (error) {
       setAudioMessage(error instanceof Error ? error.message : 'Unable to play cached audio.');
     }

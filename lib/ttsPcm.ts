@@ -1,23 +1,3 @@
-// Split without dropping punctuation/whitespace or breaking UTF-16 surrogate pairs.
-export function splitSpeechInput(input: string, maxCharacters = 4096): string[] {
-  if (maxCharacters < 2) throw new Error('Speech chunk size must be at least two characters.');
-  const chunks: string[] = [];
-  let remaining = input;
-  while (remaining.length > maxCharacters) {
-    let end = maxCharacters;
-    if (/[\uD800-\uDBFF]/.test(remaining[end - 1])) end -= 1;
-    const window = remaining.slice(0, end);
-    const sentence = [...window.matchAll(/[.!?。！？](?:\s+|$)/gu)].at(-1);
-    const whitespace = [...window.matchAll(/\s+/gu)].at(-1);
-    const boundary = sentence ?? whitespace;
-    if (boundary?.index !== undefined) end = boundary.index + boundary[0].length;
-    chunks.push(remaining.slice(0, end));
-    remaining = remaining.slice(end);
-  }
-  if (remaining) chunks.push(remaining);
-  return chunks;
-}
-
 export function pcmToWav(chunks: ArrayBuffer[]): ArrayBuffer {
   const length = chunks.reduce((total, chunk) => total + chunk.byteLength, 0);
   if (!length || chunks.some(chunk => chunk.byteLength % 2)) throw new Error('Invalid PCM audio.');

@@ -1,38 +1,39 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { getDynamicTtsEndpoint } from './ttsEndpointDynamic';
-import { pcmToWav, splitSpeechInput } from './ttsPcm';
-import { DEFAULT_TTS_CONFIG } from './ttsConfig';
+import { getDynamicTtsEndpoint } from '@/lib/ttsEndpointDynamic';
+import { pcmToWav } from '@/lib/ttsPcm';
+import { DEFAULT_TTS_CONFIG } from '@/lib/ttsConfig';
 
 afterEach(() => vi.unstubAllGlobals());
-describe('speech synthesis', () => {
-  it('preserves the existing Together payload and MIME fallback', async () => {
+describe('single-chunk speech synthesis', () => {
+  it('preserves Together payload and MIME fallback', async () => {
     const fetch = vi.fn().mockResolvedValue(new Response(new Uint8Array([1, 2]), { headers: { 'content-type': 'application/octet-stream' } })); vi.stubGlobal('fetch', fetch);
     const result = await getDynamicTtsEndpoint(DEFAULT_TTS_CONFIG, 'key').generateAudio('Hello');
     expect(result.contentType).toBe('audio/mpeg');
     expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ model: DEFAULT_TTS_CONFIG.model, voice: 'af_nicole', input: 'Hello', response_format: 'mp3', sample_rate: 48000, stream: false });
   });
-  it('splits long OpenAI requests and combines sequential PCM responses into one WAV', async () => {
-    const fetch = vi.fn().mockResolvedValueOnce(new Response(new Uint8Array([1, 2]))).mockResolvedValueOnce(new Response(new Uint8Array([3, 4]))); vi.stubGlobal('fetch', fetch);
-    const input = 'a'.repeat(4095) + ' ' + 'b'.repeat(904);
-    const result = await getDynamicTtsEndpoint({ service: 'openAi', model: 'tts-1', voice: 'alloy' }, 'key').generateAudio(input);
-    const bodies = fetch.mock.calls.map(call => JSON.parse(call[1].body));
-    expect(bodies.map(body => body.input).join('')).toBe(input);
-    expect(bodies.every(body => body.input.length <= 4096 && body.response_format === 'pcm' && !('sample_rate' in body))).toBe(true);
+  it('makes one OpenAI request and wraps its PCM as WAV', async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response(new Uint8Array([1, 2]))); vi.stubGlobal('fetch', fetch);
+    const result = await getDynamicTtsEndpoint({ service: 'openAi', model: 'tts-1', voice: 'alloy' }, 'key').generateAudio('x'.repeat(2000));
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ model: 'tts-1', voice: 'alloy', input: 'x'.repeat(2000), response_format: 'pcm' });
     expect(result.contentType).toBe('audio/wav');
     expect(new TextDecoder().decode(result.audioBuffer.slice(0, 4))).toBe('RIFF');
     expect(new DataView(result.audioBuffer).getUint32(24, true)).toBe(24000);
-    expect(new Uint8Array(result.audioBuffer).slice(44)).toEqual(new Uint8Array([1, 2, 3, 4]));
+    expect(new Uint8Array(result.audioBuffer).slice(44)).toEqual(new Uint8Array([1, 2]));
   });
-  it('fails the whole request when a later chunk fails', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(new Response(new Uint8Array([1, 2]))).mockResolvedValueOnce(new Response('credentials', { status: 429 })));
-    await expect(getDynamicTtsEndpoint({ service: 'openAi', model: 'tts-1', voice: 'alloy' }, 'key').generateAudio('x'.repeat(5000))).rejects.toMatchObject({ statusCode: 429 });
+  it('surfaces provider rejection without retrying or subdividing', async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response('private provider detail', { status: 400 })); vi.stubGlobal('fetch', fetch);
+    await expect(getDynamicTtsEndpoint({ service: 'openAi', model: 'gpt-4o-mini-tts', voice: 'coral' }, 'key').generateAudio('x'.repeat(2000))).rejects.toMatchObject({ statusCode: 400 });
+    expect(fetch).toHaveBeenCalledOnce();
   });
-  it('prefers sentence boundaries and preserves Unicode and all source text', () => {
-    expect(splitSpeechInput('Hello. Next word', 10)).toEqual(['Hello. ', 'Next word']);
-    const input = 'a'.repeat(4095) + '\u{1F600}' + 'b'.repeat(900);
-    const chunks = splitSpeechInput(input);
-    expect(chunks.join('')).toBe(input);
-    expect(chunks[0].length).toBe(4095);
-    expect(() => pcmToWav([new ArrayBuffer(1)])).toThrow('Invalid PCM');
+  it('forwards book disposal to the provider request', async () => {
+    const controller = new AbortController();
+    const fetch = vi.fn().mockImplementation((_url, options) => new Promise((_resolve, reject) => {
+      options.signal.addEventListener('abort', () => reject(options.signal.reason));
+    })); vi.stubGlobal('fetch', fetch);
+    const result = getDynamicTtsEndpoint(DEFAULT_TTS_CONFIG, 'key', controller.signal).generateAudio('Hello');
+    controller.abort();
+    await expect(result).rejects.toMatchObject({ name: 'AbortError' });
   });
+  it('rejects invalid PCM', () => { expect(() => pcmToWav([new ArrayBuffer(1)])).toThrow('Invalid PCM'); });
 });

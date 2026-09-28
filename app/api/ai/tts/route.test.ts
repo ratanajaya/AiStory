@@ -27,11 +27,11 @@ describe('TTS route', () => {
     expect(response.headers.get('cache-control')).toBe('no-store');
   });
   it('keeps input-only requests compatible and reserves once for the full text', async () => {
-    const response = await post({ input: 'x'.repeat(5000) });
+    const response = await post({ input: 'x'.repeat(2000) });
     expect(response.status).toBe(200);
     expect(response.headers.get('content-type')).toBe('audio/wav');
     expect(mocks.settings).toHaveBeenCalledTimes(1);
-    expect(mocks.reserve).toHaveBeenCalledExactlyOnceWith(expect.any(Request), 'audio', 5000);
+    expect(mocks.reserve).toHaveBeenCalledExactlyOnceWith(expect.any(Request), 'audio', 2000);
     expect(mocks.endpoint).toHaveBeenCalledWith(DEFAULT_TTS_CONFIG, 'together-key', expect.any(AbortSignal));
   });
   it('previews an override without modifying saved settings', async () => {
@@ -45,7 +45,7 @@ describe('TTS route', () => {
     await post({ input: 'Hello', selectedTts: config });
     expect(mocks.reserve).toHaveBeenCalledTimes(personal ? 0 : 1);
   });
-  it.each([null, [], { input: '' }, { input: 'x'.repeat(5001) }, { input: 'Hi', selectedTts: { ...config, voice: 'unsupported' } }, { input: 'Hi', selectedTts: [] }])('rejects invalid input before charging %j', async body => {
+  it.each([null, [], { input: '' }, { input: 'x'.repeat(2001) }, { input: 'Hi', selectedTts: { ...config, voice: 'unsupported' } }, { input: 'Hi', selectedTts: [] }])('rejects invalid input before charging %j', async body => {
     expect((await post(body)).status).toBeGreaterThanOrEqual(400);
     expect(mocks.reserve).not.toHaveBeenCalled(); expect(mocks.generate).not.toHaveBeenCalled();
   });
@@ -59,6 +59,13 @@ describe('TTS route', () => {
     mocks.reserve.mockResolvedValue({ ok: false, status: 429, message: 'Trial exhausted' });
     expect((await post({ input: 'Hello' })).status).toBe(429);
     expect(mocks.generate).not.toHaveBeenCalled();
+  });
+  it('reserves each concurrent chunk before dispatch and honors a rejected reservation', async () => {
+    mocks.reserve.mockResolvedValueOnce({ ok: true }).mockResolvedValueOnce({ ok: false, status: 429, message: 'Trial exhausted' });
+    const responses = await Promise.all([post({ input: 'First chunk' }), post({ input: 'Second chunk' })]);
+    expect(responses.map(response => response.status).sort()).toEqual([200, 429]);
+    expect(mocks.reserve.mock.calls.map(call => call.slice(1))).toEqual([['audio', 11], ['audio', 12]]);
+    expect(mocks.generate).toHaveBeenCalledExactlyOnceWith('First chunk');
   });
   it('sanitizes upstream credentials and forwards admin scope to authorization', async () => {
     mocks.catalog.mockRejectedValue(Object.assign(new Error('secret provider token'), { statusCode: 401 }));

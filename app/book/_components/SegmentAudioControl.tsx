@@ -1,126 +1,39 @@
-import { useEffect, useRef, useState } from "react";
-import { useFetcher } from '@/components/FetcherProvider';
-import type { TtsConfig } from '@/types';
-import { useAlert } from "@/components/AlertBox";
-import { ensureSegmentAudioBlob, formatAudioTime } from "@/lib/ttsAudioClient";
-import {
-  AudioPlaybackStatus,
-  pauseAudioPlayback,
-  playAudioBlob,
-  resumeAudioPlayback,
-  stopAudioPlayback,
-  subscribeToAudioPlayback,
-} from "@/lib/ttsIndexedDb";
+import { useBookAudio, useAudioStatus } from '@/app/book/_components/BookAudioProvider';
+import { formatAudioTime } from '@/lib/ttsAudioClient';
 
 export default function SegmentAudioControl(props: {
-  segmentId: string;
-  content: string;
-  bookId: string;
-  bookName: string | null;
-  disabled?: boolean;
-  className?: string;
+  segmentId: string; content: string; bookId: string; bookName: string | null; disabled?: boolean; className?: string;
 }) {
-  const { showAlert } = useAlert();
-  const { fetcher } = useFetcher();
-  const pending = useRef<AbortController | null>(null);
-  const [isGeneratingTts, setIsGeneratingTts] = useState(false);
-  const [playbackStatus, setPlaybackStatus] = useState<AudioPlaybackStatus>({
-    activeSegmentId: null,
-    state: 'idle',
-    currentTime: 0,
-    duration: 0,
-    errorMessage: null,
-  });
-
-  useEffect(() => {
-    return subscribeToAudioPlayback(setPlaybackStatus);
-  }, []);
-
-  useEffect(() => {
-    const cancel = () => { pending.current?.abort(); setIsGeneratingTts(false); stopAudioPlayback(props.segmentId); };
-    window.addEventListener('aistory:settings', cancel);
-    window.addEventListener('aistory:audio-interrupt', cancel);
-    return () => { window.removeEventListener('aistory:settings', cancel); window.removeEventListener('aistory:audio-interrupt', cancel); pending.current?.abort(); };
-  }, [props.segmentId]);
-
-  const isActiveTtsSegment = playbackStatus.activeSegmentId === props.segmentId;
-  const isTtsLoading = isActiveTtsSegment && playbackStatus.state === 'loading';
-  const isTtsPaused = isActiveTtsSegment && playbackStatus.state === 'paused';
-  const isTtsPlaying = isActiveTtsSegment && (playbackStatus.state === 'playing' || playbackStatus.state === 'waiting');
-  const canStopTts = (isGeneratingTts || (isActiveTtsSegment && playbackStatus.state !== 'idle')) && !props.disabled;
-  const audioTimeLabel = isActiveTtsSegment
-    ? `${formatAudioTime(playbackStatus.currentTime)} / ${formatAudioTime(playbackStatus.duration)}`
-    : null;
-
-  const fetchAndPlayTts = async () => {
-    if (props.disabled || isGeneratingTts) {
-      return;
-    }
-
-    if (!props.content.trim()) {
-      showAlert('This segment has no content to convert.', 'warning');
-      return;
-    }
-
-    window.dispatchEvent(new Event('aistory:audio-interrupt'));
-    const controller = new AbortController(); pending.current = controller;
-    setIsGeneratingTts(true);
-
-    try {
-      const { selectedTts } = await fetcher<{ selectedTts: TtsConfig }>('/api/ai/tts', { silent: true, signal: controller.signal });
-      const audioBlob = await ensureSegmentAudioBlob(props.segmentId, props.content, {
-        feature: 'Segment audio playback',
-        bookId: props.bookId,
-        bookName: props.bookName,
-      }, selectedTts, controller.signal);
-      if (controller.signal.aborted) return;
-
-      await playAudioBlob(props.segmentId, audioBlob);
-    } catch (error) {
-      if (controller.signal.aborted) return;
-      console.error('Failed to play TTS audio:', error);
-      showAlert(error instanceof Error ? error.message : 'Failed to generate speech.');
-    } finally {
-      if (pending.current === controller) setIsGeneratingTts(false);
+  const { manager, playback } = useBookAudio();
+  const playbackStatus = useAudioStatus();
+  const active = (playback.part?.segmentId ?? playback.targetSegmentId) === props.segmentId;
+  const isGeneratingTts = active && playback.state === 'loading';
+  const isTtsLoading = isGeneratingTts;
+  const isTtsPlaying = active && playback.state === 'playing';
+  const canStopTts = active && !['idle', 'error'].includes(playback.state) && !props.disabled;
+  const part = active ? playback.part : null;
+  const audioTimeLabel = part ? `Part ${part.partIndex + 1}/${part.partCount} · ${
+    playbackStatus.chunkKey === part.key ? `${formatAudioTime(playbackStatus.currentTime)} / ${formatAudioTime(playbackStatus.duration)}` : 'Preparing'
+  }` : null;
+  const handleMainTtsAction = () => {
+    if (props.disabled) return;
+    if (isTtsPlaying || isTtsLoading) manager.pause();
+    else if (active && playback.state === 'paused') void manager.resume();
+    else {
+      window.dispatchEvent(new Event('aistory:audio-interrupt'));
+      void manager.play([{ id: props.segmentId, content: props.content }], 'segment');
     }
   };
-
-  const handleMainTtsAction = async () => {
-    if (props.disabled || isGeneratingTts || isTtsLoading) {
-      return;
-    }
-
-    try {
-      if (isTtsPlaying) {
-        pauseAudioPlayback(props.segmentId);
-        return;
-      }
-
-      if (isTtsPaused) {
-        await resumeAudioPlayback(props.segmentId);
-        return;
-      }
-
-      await fetchAndPlayTts();
-    } catch (error) {
-      console.error('Failed to control TTS playback:', error);
-      showAlert(error instanceof Error ? error.message : 'Failed to control audio playback.');
-    }
-  };
-
-  const handleStopTts = () => {
-    pending.current?.abort(); setIsGeneratingTts(false);
-    stopAudioPlayback(props.segmentId);
-  };
+  const handleStopTts = () => manager.stop();
 
   return (
     <div className={props.className ?? 'flex items-center gap-1'}>
       <button
         type="button"
         onClick={handleMainTtsAction}
-        aria-label={isTtsPlaying ? 'Pause segment audio' : 'Play segment audio'}
+        aria-label={isTtsPlaying || isTtsLoading ? 'Pause segment audio' : 'Play segment audio'}
         className="bg-muted/70 hover:bg-muted p-1 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
-        disabled={props.disabled || isGeneratingTts || isTtsLoading}
+        disabled={props.disabled}
       >
         {isGeneratingTts || isTtsLoading ? (
           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-muted-foreground animate-spin" viewBox="0 0 20 20" fill="currentColor">
@@ -148,6 +61,7 @@ export default function SegmentAudioControl(props: {
           <path d="M6 6a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H7a1 1 0 01-1-1V6z" />
         </svg>
       </button>
+      {active && playback.error && <span role="alert" className="text-xs text-red-400">{playback.error}</span>}
       {audioTimeLabel && (
         <span className="ml-2 min-w-20 text-xs tabular-nums text-muted-foreground">
           {audioTimeLabel}

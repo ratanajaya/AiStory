@@ -1,129 +1,24 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULT_TTS_CONFIG, TTS_CACHE_CONFIG_ID, ttsCacheConfigId } from './ttsConfig';
-import type { SegmentAudioRecord } from './ttsIndexedDb';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { requestTtsAudio, formatAudioTime } from '@/lib/ttsAudioClient';
+import { DEFAULT_TTS_CONFIG } from '@/lib/ttsConfig';
 
-const mocks = vi.hoisted(() => ({
-  getSegmentAudio: vi.fn(),
-  deleteSegmentAudio: vi.fn(),
-  saveSegmentAudio: vi.fn(),
-  appendAiApiLog: vi.fn(),
-}));
-
-vi.mock('./ttsIndexedDb', async (importOriginal) => ({
-  ...await importOriginal<typeof import('./ttsIndexedDb')>(),
-  getSegmentAudio: mocks.getSegmentAudio,
-  deleteSegmentAudio: mocks.deleteSegmentAudio,
-  saveSegmentAudio: mocks.saveSegmentAudio,
-}));
-vi.mock('./aiApiLog', async (importOriginal) => ({
-  ...await importOriginal<typeof import('./aiApiLog')>(),
-  appendAiApiLog: mocks.appendAiApiLog,
-}));
-
-import { ensureSegmentAudioBlob, formatAudioTime } from './ttsAudioClient';
-
-const cachedRecord = (overrides: Partial<SegmentAudioRecord> = {}): SegmentAudioRecord => ({
-  segmentId: 'segment-1',
-  content: 'Read this',
-  mimeType: 'audio/mpeg',
-  configId: TTS_CACHE_CONFIG_ID,
-  audioBlob: new Blob(['cached'], { type: 'audio/mpeg' }),
-  updatedAt: 1,
-  ...overrides,
-});
-
-describe('ensureSegmentAudioBlob', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mocks.getSegmentAudio.mockResolvedValue(null);
-    mocks.deleteSegmentAudio.mockResolvedValue(undefined);
-    mocks.saveSegmentAudio.mockResolvedValue(undefined);
+afterEach(() => vi.unstubAllGlobals());
+describe('binary audio client', () => {
+  it('preserves MIME type, config, scope and cancellation signal', async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response(new Blob(['audio']), { headers: { 'Content-Type': 'audio/wav' } })); vi.stubGlobal('fetch', fetch);
+    const signal = new AbortController().signal;
+    const result = await requestTtsAudio('Hello', DEFAULT_TTS_CONFIG, { signal, scope: 'defaults' });
+    expect(result.mimeType).toBe('audio/wav'); expect(result.audioBlob.size).toBe(5);
+    expect(fetch).toHaveBeenCalledWith('/api/ai/tts?scope=defaults', expect.objectContaining({ signal, body: JSON.stringify({ input: 'Hello', selectedTts: DEFAULT_TTS_CONFIG }) }));
   });
-  afterEach(() => vi.unstubAllGlobals());
-
-  it('regenerates when the selected voice changes and records the new identity', async () => {
-    mocks.getSegmentAudio.mockResolvedValue(cachedRecord());
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(new Blob(['new']))));
-    const selectedTts = { ...DEFAULT_TTS_CONFIG, voice: 'af_heart' };
-    await ensureSegmentAudioBlob('segment-1', 'Read this', undefined, selectedTts);
-    expect(mocks.deleteSegmentAudio).toHaveBeenCalledWith('segment-1');
-    expect(mocks.saveSegmentAudio).toHaveBeenCalledWith(expect.objectContaining({ configId: ttsCacheConfigId(selectedTts) }));
+  it('uses MP3 fallback and rejects empty audio', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(new Response(new Blob(['audio']))).mockResolvedValueOnce(new Response(new Blob([]))));
+    expect((await requestTtsAudio('Hi', DEFAULT_TTS_CONFIG)).mimeType).toBe('audio/mpeg');
+    await expect(requestTtsAudio('Hi', DEFAULT_TTS_CONFIG)).rejects.toThrow('No audio');
   });
-
-  it('does not cache or return stale in-flight audio after cancellation', async () => {
-    const controller = new AbortController();
-    let respond!: (value: Response) => void;
-    vi.stubGlobal('fetch', vi.fn().mockImplementation(() => new Promise(resolve => { respond = resolve; })));
-    const pending = ensureSegmentAudioBlob('segment-1', 'Read this', undefined, DEFAULT_TTS_CONFIG, controller.signal);
-    await vi.waitFor(() => expect(fetch).toHaveBeenCalled());
-    controller.abort();
-    respond(new Response(new Blob(['late'])));
-    await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
-    expect(mocks.saveSegmentAudio).not.toHaveBeenCalled();
+  it('preserves an error status and message', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ error: { message: 'Trial exhausted' } }, { status: 429 })));
+    await expect(requestTtsAudio('Hi', DEFAULT_TTS_CONFIG)).rejects.toMatchObject({ message: 'Trial exhausted', statusCode: 429 });
   });
-
-  it('reuses audio only when both the content and synthesis config match', async () => {
-    const cached = cachedRecord();
-    mocks.getSegmentAudio.mockResolvedValue(cached);
-    const fetchMock = vi.fn();
-    vi.stubGlobal('fetch', fetchMock);
-
-    expect(await ensureSegmentAudioBlob('segment-1', 'Read this', undefined, DEFAULT_TTS_CONFIG)).toBe(cached.audioBlob);
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(mocks.deleteSegmentAudio).not.toHaveBeenCalled();
-    expect(mocks.saveSegmentAudio).not.toHaveBeenCalled();
-  });
-
-  it.each([
-    ['changed content', { content: 'Old text' }],
-    ['changed synthesis config', { configId: 'old-model|old-voice' }],
-  ])('invalidates %s before fetching fresh audio', async (_reason, override) => {
-    mocks.getSegmentAudio.mockResolvedValue(cachedRecord(override));
-    const responseBlob = new Blob(['new audio'], { type: 'audio/wav' });
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(responseBlob, {
-      headers: { 'Content-Type': 'audio/wav' },
-    })));
-
-    const result = await ensureSegmentAudioBlob('segment-1', 'Read this', { feature: 'TTS playback' }, DEFAULT_TTS_CONFIG);
-
-    expect(result).toEqual(responseBlob);
-    expect(mocks.deleteSegmentAudio).toHaveBeenCalledWith('segment-1');
-    expect(fetch).toHaveBeenCalledWith('/api/ai/tts', expect.objectContaining({
-      method: 'POST', body: JSON.stringify({ input: 'Read this', selectedTts: DEFAULT_TTS_CONFIG }),
-    }));
-    expect(mocks.saveSegmentAudio).toHaveBeenCalledWith(expect.objectContaining({
-      segmentId: 'segment-1', content: 'Read this', configId: TTS_CACHE_CONFIG_ID,
-      mimeType: 'audio/wav', audioBlob: expect.any(Blob),
-    }));
-    expect(mocks.appendAiApiLog).toHaveBeenCalledWith(expect.objectContaining({
-      kind: 'tts', status: 'success', httpStatus: 200,
-      audio: expect.objectContaining({ mimeType: 'audio/wav', byteSize: responseBlob.size }),
-    }));
-  });
-
-  it('uses the MP3 MIME fallback if the server omits Content-Type', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(new Blob(['audio']))));
-
-    await ensureSegmentAudioBlob('segment-1', 'Read this', undefined, DEFAULT_TTS_CONFIG);
-
-    expect(mocks.saveSegmentAudio).toHaveBeenCalledWith(expect.objectContaining({ mimeType: 'audio/mpeg' }));
-  });
-
-  it('surfaces a JSON error without caching audio', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ error: 'Speech unavailable' }, { status: 503 })));
-
-    await expect(ensureSegmentAudioBlob('segment-1', 'Read this', { feature: 'TTS playback' }, DEFAULT_TTS_CONFIG))
-      .rejects.toThrow('Speech unavailable');
-    expect(mocks.saveSegmentAudio).not.toHaveBeenCalled();
-    expect(mocks.appendAiApiLog).toHaveBeenCalledWith(expect.objectContaining({
-      kind: 'tts', status: 'error', httpStatus: 503,
-    }));
-  });
-});
-
-describe('formatAudioTime', () => {
-  it('floors fractional seconds and clamps negative times', () => {
-    expect(formatAudioTime(125.9)).toBe('2:05');
-    expect(formatAudioTime(-5)).toBe('0:00');
-  });
+  it('formats elapsed time', () => { expect(formatAudioTime(125.9)).toBe('2:05'); expect(formatAudioTime(-5)).toBe('0:00'); });
 });

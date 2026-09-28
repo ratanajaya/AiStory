@@ -212,6 +212,9 @@ export interface AiApiLogContext {
 }
 
 export interface AiApiLogAudioReference {
+  cacheKey?: string;
+  partIndex?: number;
+  partCount?: number;
   segmentId: string;
   mimeType: string;
   byteSize: number;
