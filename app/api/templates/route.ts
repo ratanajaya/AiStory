@@ -45,6 +45,7 @@ async function postHandler(request: Request) {
       name: body.name,
       storyBackground: narrativeFieldsResult.value.storyBackground,
       writingStyle: narrativeFieldsResult.value.writingStyle,
+      starterOutline: narrativeFieldsResult.value.starterOutline,
       imageUrl: body.imageUrl ?? null,
       promptBuilder: _util.normalizePromptBuilderConfig(body.promptBuilder),
       isPublic: actor.isAdmin ? body.isPublic === true : false,

@@ -37,3 +37,15 @@ describe('template publishing', () => {
     expect(mocks.create.mock.calls[0][0]).not.toHaveProperty('guestId');
   });
 });
+
+it('persists the optional starter outline on template creation', async () => {
+  const starterOutline = 'Meet Mara.\nA storm arrives.';
+  const response = await POST(request({ ...body, starterOutline }));
+  expect(response.status).toBe(201);
+  expect(await response.json()).toHaveProperty('starterOutline', starterOutline);
+});
+it('rejects an invalid starter outline before writing', async () => {
+  const response = await POST(request({ ...body, starterOutline: 123 }));
+  expect(response.status).toBe(400);
+  expect(mocks.create).not.toHaveBeenCalled();
+});

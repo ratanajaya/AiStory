@@ -61,6 +61,7 @@ async function putHandler(
       name: body.name,
       storyBackground: narrativeFieldsResult.value.storyBackground,
       writingStyle: narrativeFieldsResult.value.writingStyle,
+      starterOutline: narrativeFieldsResult.value.starterOutline,
       imageUrl: body.imageUrl ?? null,
       promptBuilder: _util.normalizePromptBuilderConfig(body.promptBuilder),
       ...(actor.isAdmin ? { isPublic: body.isPublic === true } : {}),

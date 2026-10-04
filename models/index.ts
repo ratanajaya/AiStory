@@ -63,6 +63,7 @@ const TemplateSchema = new Schema<Template>({
   },
   storyBackground: { type: String, required: true },
   writingStyle: { type: String, required: true },
+  starterOutline: { type: String, default: '' },
   imageUrl: { type: String, default: null },
   ownerEmail: { type: String },
   guestId: { type: String },

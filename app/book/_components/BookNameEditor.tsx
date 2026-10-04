@@ -8,6 +8,7 @@ import { useAlert } from '@/components/AlertBox';
 
 interface BookNameEditorProps {
   bookId: string;
+  disabled?: boolean;
   bookName: string | null;
   onNameUpdate: (newName: string) => void;
   onStatusChange: (status: { loading: boolean; text: string }) => void;
@@ -15,6 +16,7 @@ interface BookNameEditorProps {
 
 export default function BookNameEditor({
   bookId,
+  disabled,
   bookName,
   onNameUpdate,
   onStatusChange,
@@ -26,6 +28,7 @@ export default function BookNameEditor({
   const { showAlert } = useAlert();
 
   const handleSaveBookName = async () => {
+    if (disabled) return;
     try {
       onStatusChange({
         loading: true,
@@ -62,6 +65,7 @@ export default function BookNameEditor({
       {isEditingName ? (
         <>
           <Input
+            disabled={disabled}
             value={editedName}
             onChange={(e) => setEditedName(e.target.value)}
             placeholder="Enter book name"
@@ -78,7 +82,7 @@ export default function BookNameEditor({
           />
           <button
             onClick={handleSaveBookName}
-            disabled={!editedName.trim()}
+            disabled={disabled || !editedName.trim()}
             className="p-1.5 rounded hover:bg-green-600/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             title="Save"
           >
@@ -111,6 +115,7 @@ export default function BookNameEditor({
               setEditedName(bookName || '');
             }}
             className="p-1.5 rounded hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity"
+            disabled={disabled}
             title="Edit Name"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground">

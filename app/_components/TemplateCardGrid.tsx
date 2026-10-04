@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { bookStartUrl, type BookStartResponse } from '@/lib/starterOutline';
 import { useFetcher } from '@/components/FetcherProvider';
 import { Card } from '@/components/Card';
 import {
@@ -49,14 +50,14 @@ export default function TemplateCardGrid() {
 
   const handleCreateBook = async (templateId: string) => {
     try {
-      const result = await fetcher<{ bookId: string }>('/api/books', {
+      const result = await fetcher<BookStartResponse>('/api/books', {
         method: 'POST',
         body: JSON.stringify({ templateId }),
         errorMessage: 'Failed to create book',
       });
 
       if (result?.bookId) {
-        router.push(`/book/${result.bookId}`);
+        router.push(bookStartUrl(result));
       }
     } catch {
     }

@@ -26,6 +26,7 @@ const emptyTemplate: TemplateSafeModel = {
   promptBuilder: { ..._constant.emptyPromptBuilder },
   storyBackground: '',
   writingStyle: '',
+  starterOutline: '',
   imageUrl: null,
   isPublic: false,
 };
@@ -88,6 +89,7 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
           promptBuilder: _util.normalizePromptBuilderConfig(data.promptBuilder),
           storyBackground: _util.toInputString(data.storyBackground),
           writingStyle: _util.toInputString(data.writingStyle),
+          starterOutline: _util.toInputString(data.starterOutline),
           imageUrl: data.imageUrl ?? null,
           isPublic: data.isPublic ?? false,
         });
@@ -109,7 +111,7 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
       const saved = await fetcher<Template>(id ? `/api/templates/${id}` : '/api/templates', {
         method: id ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: formData.name, promptBuilder: formData.promptBuilder, storyBackground: formData.storyBackground, writingStyle: formData.writingStyle, imageUrl: formData.imageUrl, ...(isAdmin ? { isPublic: formData.isPublic === true } : {}) }),
+        body: JSON.stringify({ name: formData.name, promptBuilder: formData.promptBuilder, storyBackground: formData.storyBackground, writingStyle: formData.writingStyle, starterOutline: formData.starterOutline, imageUrl: formData.imageUrl, ...(isAdmin ? { isPublic: formData.isPublic === true } : {}) }),
         errorMessage: 'Failed to save template',
       });
       savedId.current = saved.templateId ?? undefined;
@@ -212,6 +214,17 @@ export default function TemplateForm({ templateId }: TemplateFormProps) {
             rows={8}
             required
           />
+        </FormField>
+
+        <FormField label="Starter Outline:">
+          <Textarea
+            aria-label="Starter Outline"
+            value={_util.toInputString(formData.starterOutline)}
+            onChange={(e) => handleInputChange('starterOutline', e.target.value)}
+            rows={6}
+            placeholder="Optional outline submitted automatically when starting a new book"
+          />
+          <p className="text-sm text-muted-foreground">The first narration is generated and saved automatically.</p>
         </FormField>
 
         {isAdmin && <FormField label="Public template:"><label className="flex items-center gap-2"><input type="checkbox" checked={formData.isPublic === true} onChange={(event) => { dirty.current = true; setFormData((previous) => ({ ...previous, isPublic: event.target.checked })); }} /> Make this template visible to everyone</label></FormField>}

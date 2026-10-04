@@ -25,12 +25,11 @@ import ChapterWrapperModal from '../_components/ChapterWrapperModal';
 import BookNameEditor from '../_components/BookNameEditor';
 import _constant from '@/utils/_constant';
 import { BookUIModel } from '@/types/extendedTypes';
-import _promptUtil from '@/utils/_promptUtil';
+import { createNarrationRequest } from '@/lib/narrationRequest';
+import useStarterNarration from '@/app/book/_components/useStarterNarration';
 import SegmentCandidateDisplay from '@/app/book/_components/SegmentCandidateDisplay';
 import LongTermMemoryModal from '../_components/LongTermMemoryModal';
 import {
-  appendLongTermMemorySystemInstruction,
-  appendLongTermMemoryToNarrationContext,
   createEmptyLongTermMemoryState,
   normalizeLongTermMemoryState,
 } from '@/lib/bookMemory';
@@ -102,18 +101,33 @@ function BookPageContent({ bookId }: { bookId: string }) {
     book: bookUiModel,
   });
 
+  const starter = useStarterNarration({
+    ready: !loading,
+    book: bookUiModel,
+    template,
+    onStatusChange: setSbp,
+    onSaved: (segment) => setBookUiModel(prev => ({
+      ...prev,
+      storySegments: prev.storySegments.some(item => item.id === segment.id)
+        ? prev.storySegments : [...prev.storySegments, segment],
+    })),
+  });
+
+
   const { element: inputPanelElement, getUserInput, flushDraft, isGenerating } = useInputPanel({
     ready: !loading,
+    disabled: starter.pending,
     inputTag: _constant.inputTag,
     template,
     book: bookUiModel,
     onStatusChange: setSbp,
   });
 
+
   useEffect(() => {
     const beforeSignIn = (event: Event) => {
       const handoff = event as CustomEvent<BeforeSignInDetail>;
-      if (sbp.loading || isGenerating || candidateSaving || segmentCandidate || enhancer.visible || summarizer.visible || chapterWrapper.visible || memoryVisible) {
+      if (starter.pending || sbp.loading || isGenerating || candidateSaving || segmentCandidate || enhancer.visible || summarizer.visible || chapterWrapper.visible || memoryVisible) {
         handoff.preventDefault();
         showAlert('Finish generation and save or dismiss open edits before signing in.', { type: 'info' });
         return;
@@ -125,7 +139,7 @@ function BookPageContent({ bookId }: { bookId: string }) {
     };
     window.addEventListener('aistory:before-signin', beforeSignIn);
     return () => window.removeEventListener('aistory:before-signin', beforeSignIn);
-  }, [sbp.loading, isGenerating, candidateSaving, segmentCandidate, enhancer.visible, summarizer.visible, chapterWrapper.visible, memoryVisible, flushDraft, showAlert]);
+  }, [starter.pending, sbp.loading, isGenerating, candidateSaving, segmentCandidate, enhancer.visible, summarizer.visible, chapterWrapper.visible, memoryVisible, flushDraft, showAlert]);
 
   const createSegment = async (segment: StorySegment) => {
     try {
@@ -214,29 +228,7 @@ function BookPageContent({ bookId }: { bookId: string }) {
         text: 'Making call to LLM api...',
       });
 
-      const narrationContext = _promptUtil.craftBookPrompt(
-        template.promptBuilder.narration1,
-        template,
-        options.promptBook,
-        options.idLimitExclusive,
-        true,
-      );
-      const userMessage1 = appendLongTermMemoryToNarrationContext(
-        narrationContext,
-        options.promptBook.longTermMemory,
-      );
-
-      const userMessage2 = _promptUtil.craftBookPrompt(
-        template.promptBuilder.narration2,
-        template,
-        options.promptBook,
-        options.idLimitExclusive,
-        true,
-        {
-          textboxInput: options.userSegmentContent,
-        },
-      );
-      const userMessage = [userMessage1, userMessage2].filter(Boolean).join(_constant.newLine2);
+      const narrationRequest = createNarrationRequest(template, options.promptBook, options.userSegmentContent, options.idLimitExclusive);
 
       const candidateId = options.candidateId ?? new Date().getTime().toString();
       const contentIndex = options.appendToExisting ? options.contentIndex ?? 0 : 0;
@@ -267,15 +259,7 @@ function BookPageContent({ bookId }: { bookId: string }) {
     
       try {
         const finalContent = await streamAiRequest(
-          {
-            feature: 'narration',
-            systemMessage: appendLongTermMemorySystemInstruction(
-              template.promptBuilder.narrationSystem,
-              options.promptBook.longTermMemory,
-            ),
-            messages: [{ role: 'user', content: userMessage }],
-            logContext: { feature: 'Narration', bookId: bookUiModel.bookId, bookName: bookUiModel.name },
-          },
+          narrationRequest,
           {
             onModel: (narrationModel) => {
               setSegmentCandidate(prev => prev?.id === candidateId ? {
@@ -654,7 +638,7 @@ function BookPageContent({ bookId }: { bookId: string }) {
     return <div className="p-8">Book not found</div>;
   }
 
-  const disableStoryAction = loading || segmentCandidate !== null;
+  const disableStoryAction = loading || starter.pending || segmentCandidate !== null;
   const disableCandidateAction = loading || candidateSaving || (segmentCandidate?.isLoading ?? false);
 
   return (
@@ -664,6 +648,7 @@ function BookPageContent({ bookId }: { bookId: string }) {
           <div className='h-full px-0 py-2 sm:p-3'>
             <div className='flex h-full w-full flex-col'>
               <BookNameEditor
+                disabled={starter.pending}
                 bookId={bookId}
                 bookName={bookUiModel.name}
                 onNameUpdate={(newName) => {
@@ -680,7 +665,7 @@ function BookPageContent({ bookId }: { bookId: string }) {
                   variant="outline"
                   size="small"
                   onClick={() => setMemoryVisible(true)}
-                  disabled={loading || segmentCandidate !== null}
+                  disabled={disableStoryAction}
                 >
                   Memory ({Object.keys(bookUiModel.longTermMemory.content.entries).length} entries,{' '}
                   {(() => {
@@ -793,6 +778,14 @@ function BookPageContent({ bookId }: { bookId: string }) {
                             );
                           })}
 
+                          {starter.pending && (
+                            <div className="my-2 rounded-md border border-border p-3" aria-label="Starter narration" aria-busy={starter.busy}>
+                              <p className="text-sm text-muted-foreground">{starter.label}</p>
+                              <div className="whitespace-pre-wrap">{starter.preview?.content}</div>
+                              {starter.error && <p role="alert" className="mt-2 text-sm text-destructive">{starter.error}</p>}
+                              {!starter.busy && <Button size="small" onClick={starter.retry}>{starter.canSave ? 'Retry saving narration' : 'Retry starter narration'}</Button>}
+                            </div>
+                          )}
                           {segmentCandidate && (
                             <SegmentCandidateDisplay
                               candidate={segmentCandidate}
@@ -904,7 +897,7 @@ function BookPageContent({ bookId }: { bookId: string }) {
           chapters={bookUiModel.chapters}
           bookId={bookUiModel.bookId}
           bookName={bookUiModel.name}
-          disabled={loading}
+          disabled={loading || starter.pending}
         />
         {debugPanel.element}
         <LongTermMemoryModal

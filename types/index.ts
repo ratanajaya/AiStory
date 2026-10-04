@@ -112,6 +112,7 @@ export interface Template {
   promptBuilder: PromptBuilderConfig;
   storyBackground: string;
   writingStyle: string;
+  starterOutline?: string;
   imageUrl: string | null;
   ownerEmail?: string;
   guestId?: string;

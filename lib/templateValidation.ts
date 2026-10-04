@@ -1,7 +1,7 @@
 import _util from '@/utils/_util';
 
 type TemplateNarrativeFieldsResult =
-  | { ok: true; value: { storyBackground: string; writingStyle: string } }
+  | { ok: true; value: { storyBackground: string; writingStyle: string; starterOutline: string } }
   | { ok: false; message: string };
 
 export function validateTemplateNarrativeFields(input: unknown): TemplateNarrativeFieldsResult {
@@ -9,7 +9,7 @@ export function validateTemplateNarrativeFields(input: unknown): TemplateNarrati
     return { ok: false, message: 'Template data is required.' };
   }
 
-  const candidate = input as { storyBackground?: unknown; writingStyle?: unknown };
+  const candidate = input as { storyBackground?: unknown; writingStyle?: unknown; starterOutline?: unknown };
   const storyBackground = typeof candidate.storyBackground === 'string'
     ? _util.toInputString(candidate.storyBackground)
     : '';
@@ -24,5 +24,9 @@ export function validateTemplateNarrativeFields(input: unknown): TemplateNarrati
     return { ok: false, message: 'Writing Style cannot be empty.' };
   }
 
-  return { ok: true, value: { storyBackground, writingStyle } };
+  if (candidate.starterOutline != null && typeof candidate.starterOutline !== 'string') {
+    return { ok: false, message: 'Starter Outline must be a string.' };
+  }
+  const starterOutline = _util.toInputString(candidate.starterOutline as string | null | undefined);
+  return { ok: true, value: { storyBackground, writingStyle, starterOutline } };
 }

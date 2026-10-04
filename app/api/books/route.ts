@@ -1,6 +1,7 @@
 import { GUEST_STORAGE_LIMITS } from '@/lib/guestLimits';
 import { NextResponse } from 'next/server';
 import shortid from 'shortid';
+import { createStarterSegments } from '@/lib/starterOutline';
 import dbConnect from '@/lib/mongodb';
 import { BookModel, TemplateModel } from '@/models';
 import { getActor, getOrCreateActor, getGuestWorkspace, sameOrigin, guardGuestMutation } from '@/lib/guest';
@@ -45,14 +46,16 @@ async function postHandler(request: Request) {
       return errorResponseFromMessage('templateId is required', 400);
     }
 
-    if (!await TemplateModel.exists({ templateId, ...ownership })) return errorResponseFromMessage('Template not found', 404);
+    const template = await TemplateModel.findOne({ templateId, ...ownership });
+    if (!template) return errorResponseFromMessage('Template not found', 404);
+    const storySegments = createStarterSegments(template.starterOutline);
     if (actor.kind === 'guest' && await BookModel.countDocuments({ guestId: actor.guestId }) >= GUEST_STORAGE_LIMITS.books) return errorResponseFromMessage('Guest book limit reached', 429);
     const expiresAt = actor.kind === 'guest' ? { expiresAt: (await getGuestWorkspace())!.expiresAt } : {};
     const newBook = {
       bookId: shortid.generate(),
       templateId,
       name: null,
-      storySegments: [],
+      storySegments,
       segmentSummaries: [],
       chapters: [],
       longTermMemory: {
@@ -66,7 +69,7 @@ async function postHandler(request: Request) {
     };
 
     const book = await BookModel.create(newBook);
-    return NextResponse.json({ bookId: book.bookId }, { status: 201 });
+    return NextResponse.json({ bookId: book.bookId, ...(storySegments[0] && { starterSegmentId: storySegments[0].id }) }, { status: 201 });
   } catch (err) {
     return errorResponse(err);
   }

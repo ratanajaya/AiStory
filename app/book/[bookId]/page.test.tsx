@@ -224,3 +224,39 @@ describe('redo narration candidate lifecycle', () => {
     expect(screen.getByText('first-model')).toBeTruthy();
   });
 });
+
+describe('starter narration', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    window.history.replaceState(null, '', '/book/book-1?starterSegmentId=100');
+    mocks.fetcher.mockImplementation(async (path: string) => {
+      if (path === '/api/books/book-1') return { ...book, storySegments: [{ id: '100', role: 'user', day: 0, content: 'Meet Mara.' }] };
+      if (path === '/api/templates/template-1/merged') return template;
+      return {};
+    });
+  });
+  afterEach(() => { cleanup(); window.history.replaceState(null, '', '/'); });
+  it('streams directly, blocks conflicting actions, and saves without a candidate', async () => {
+    let finish!: (content: string) => void;
+    mocks.streamAiRequest.mockImplementation(async (_request, handlers) => {
+      handlers.onModel({ service: 'together', model: 'starter-model' });
+      handlers.onChunk('Starter story');
+      return new Promise<string>(resolve => { finish = resolve; });
+    });
+    await act(async () => {
+      render(<Suspense fallback={null}><BookPage params={Promise.resolve({ bookId: 'book-1' })} /></Suspense>);
+    });
+    await screen.findByLabelText('Starter narration');
+    expect(screen.queryByTestId('candidate')).toBeNull();
+    expect((screen.getByRole('button', { name: 'SEND' }) as HTMLButtonElement).disabled).toBe(true);
+    const event = new CustomEvent('aistory:before-signin', { cancelable: true, detail: { pending: [] } });
+    window.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+    await act(async () => finish('Starter story'));
+    await waitFor(() => expect(screen.queryByLabelText('Starter narration')).toBeNull());
+    expect(screen.queryByTestId('candidate')).toBeNull();
+    const writes = mocks.fetcher.mock.calls.filter(([path, options]) => path.endsWith('/segments') && options?.method === 'POST');
+    expect(writes).toHaveLength(1);
+    expect(JSON.parse(writes[0][1].body).segment).toMatchObject({ role: 'assistant', content: 'Starter story', narrationModel: { service: 'together', model: 'starter-model' } });
+  });
+});

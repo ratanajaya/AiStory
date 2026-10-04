@@ -2,6 +2,7 @@ import { GUEST_STORAGE_LIMITS } from '@/lib/guestLimits';
 import { NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import shortid from 'shortid';
+import { createStarterSegments } from '@/lib/starterOutline';
 import dbConnect from '@/lib/mongodb';
 import { BookModel, GuestWorkspaceModel, KeyValueModel, TemplateModel } from '@/models';
 import { getOrCreateActor, sameOrigin } from '@/lib/guest';
@@ -16,6 +17,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     await dbConnect();
     const { id } = await params;
     let bookId: string | null = null;
+    let starterSegmentId: string | undefined;
     await mongoose.connection.transaction(async (session) => {
       if (actor.kind === 'guest') {
         const alive = await GuestWorkspaceModel.updateOne({ guestId: actor.guestId, state: 'active', expiresAt: { $gt: new Date() } }, { $set: { lastMutationAt: new Date() } }, { session });
@@ -29,14 +31,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       const defaultDoc = await KeyValueModel.findOne({ key: 'defaultValue' }).session(session).lean();
       const defaults = (defaultDoc?.value as DefaultValue | undefined)?.promptBuilder;
       const promptBuilder = Object.fromEntries(Object.entries(_util.normalizePromptBuilderConfig(original.promptBuilder)).map(([key, value]) => [key, defaults ? _util.mergeNormalizedString(value, defaults[key as keyof PromptBuilderConfig]) : value]));
+      const storySegments = createStarterSegments(original.starterOutline);
+      starterSegmentId = storySegments[0]?.id;
       const templateId = shortid.generate();
       bookId = shortid.generate();
       const expiresAt = actor.kind === 'guest' ? (await GuestWorkspaceModel.findOne({ guestId: actor.guestId }).session(session))?.expiresAt : undefined;
       const ownership = { ...actor.filter, ...(expiresAt ? { expiresAt } : {}) };
-      await TemplateModel.create([{ templateId, name: original.name, storyBackground: original.storyBackground, writingStyle: original.writingStyle, imageUrl: original.imageUrl, promptBuilder, isPublic: false, ...ownership }], { session });
-      await BookModel.create([{ bookId, templateId, name: null, storySegments: [], segmentSummaries: [], chapters: [], ...ownership }], { session });
+      await TemplateModel.create([{ templateId, name: original.name, storyBackground: original.storyBackground, writingStyle: original.writingStyle, starterOutline: _util.toInputString(original.starterOutline), imageUrl: original.imageUrl, promptBuilder, isPublic: false, ...ownership }], { session });
+      await BookModel.create([{ bookId, templateId, name: null, storySegments, segmentSummaries: [], chapters: [], ...ownership }], { session });
     });
-    return NextResponse.json({ bookId }, { status: 201 });
+    return NextResponse.json({ bookId, ...(starterSegmentId && { starterSegmentId }) }, { status: 201 });
   } catch (error) {
     if (error instanceof Error && error.message === 'Public template not found') return errorResponseFromMessage(error.message, 404);
     if (error instanceof Error && (error.message === 'Guest storage limit reached' || error.message === 'Guest workspace expired')) return errorResponseFromMessage(error.message, 409);

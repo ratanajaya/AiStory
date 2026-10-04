@@ -11,6 +11,7 @@ describe('validateTemplateNarrativeFields', () => {
       value: {
         storyBackground: 'A low-fantasy kingdom.',
         writingStyle: 'Use third-person narration.',
+        starterOutline: '',
       },
     });
   });
@@ -28,4 +29,16 @@ describe('validateTemplateNarrativeFields', () => {
       writingStyle: '\n\t',
     })).toEqual({ ok: false, message: 'Writing Style cannot be empty.' });
   });
+});
+
+const narrative = { storyBackground: 'Background', writingStyle: 'Style' };
+it.each([undefined, null, '', ' \n\t'])('normalizes unset starter outline %j', starterOutline => {
+  expect(validateTemplateNarrativeFields({ ...narrative, starterOutline })).toEqual({ ok: true, value: { ...narrative, starterOutline: '' } });
+});
+it('preserves a multiline starter outline', () => {
+  const starterOutline = 'Meet Mara.\nA storm arrives.';
+  expect(validateTemplateNarrativeFields({ ...narrative, starterOutline })).toEqual({ ok: true, value: { ...narrative, starterOutline } });
+});
+it.each([12, {}, [], false])('rejects non-string starter outline %j', starterOutline => {
+  expect(validateTemplateNarrativeFields({ ...narrative, starterOutline }).ok).toBe(false);
 });

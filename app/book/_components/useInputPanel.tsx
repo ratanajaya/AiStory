@@ -15,6 +15,7 @@ import { StatusBarProps } from "./StatusBar";
 
 export default function useInputPanel(props:{
   ready: boolean;
+  disabled?: boolean;
   inputTag: string;
   template: Template | null;
   book: BookUIModel;
@@ -55,7 +56,7 @@ export default function useInputPanel(props:{
   });
 
   const handleGenerateOutline = async () => {
-    if (isGenerating || !props.template || !hasGenerator) return;
+    if (props.disabled || isGenerating || !props.template || !hasGenerator) return;
     setIsGenerating(true);
     props.onStatusChange({
       loading: true,
@@ -146,13 +147,13 @@ export default function useInputPanel(props:{
             size='small'
             ref={ideaRef}
             onChange={scheduleDraftSave}
-            disabled={isGenerating}
+            disabled={props.disabled || isGenerating}
           />
           <Button
             variant='secondary'
             size='small'
             onClick={handleGenerateOutline}
-            disabled={isGenerating || !hasGenerator}
+            disabled={props.disabled || isGenerating || !hasGenerator}
             title={hasGenerator
               ? 'Generate outline (uses promptBuilder.outlineIdeaGenerator)'
               : 'Set promptBuilder.outlineIdeaGenerator on this template to enable'}
@@ -163,6 +164,7 @@ export default function useInputPanel(props:{
         <Textarea
           className='flex-1 min-h-0'
           placeholder={props.inputTag}
+          disabled={props.disabled}
           ref={inputRef}
           onChange={scheduleDraftSave}
         />

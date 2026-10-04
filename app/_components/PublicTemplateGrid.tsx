@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { bookStartUrl, type BookStartResponse } from '@/lib/starterOutline';
 import Image from 'next/image';
 import { useFetcher } from '@/components/FetcherProvider';
 import { Card } from '@/components/Card';
@@ -22,8 +23,8 @@ export default function PublicTemplateGrid() {
   async function start(templateId: string) {
     setStarting(templateId);
     try {
-      const result = await fetcher<{ bookId: string }>(`/api/public/templates/${templateId}/start`, { method: 'POST' });
-      router.push(`/book/${result.bookId}`);
+      const result = await fetcher<BookStartResponse>(`/api/public/templates/${templateId}/start`, { method: 'POST' });
+      router.push(bookStartUrl(result));
     } catch { setStarting(null); }
   }
   if (loading) return <p className="text-muted-foreground">Loading public templates...</p>;
