@@ -117,10 +117,12 @@ export interface Template {
   ownerEmail?: string;
   guestId?: string;
   expiresAt?: Date;
+  isActive?: boolean;
   isPublic?: boolean;
 }
 
 export interface Book {
+  isActive?: boolean;
   bookId: string;
   name: string | null;
   templateId: string;

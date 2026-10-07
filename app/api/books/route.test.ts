@@ -1,10 +1,10 @@
 import { beforeEach, expect, it, vi } from 'vitest';
-const mocks = vi.hoisted(() => ({ actor: vi.fn(), template: vi.fn(), create: vi.fn(), count: vi.fn(), workspace: vi.fn() }));
+const mocks = vi.hoisted(() => ({ actor: vi.fn(), template: vi.fn(), create: vi.fn(), count: vi.fn(), workspace: vi.fn(), findBooks: vi.fn(), findTemplates: vi.fn() }));
 vi.mock('@/lib/guest', () => ({ getActor: mocks.actor, getOrCreateActor: mocks.actor, sameOrigin: () => true,
   getGuestWorkspace: mocks.workspace, guardGuestMutation: (handler: unknown) => handler }));
 vi.mock('@/lib/mongodb', () => ({ default: vi.fn() }));
-vi.mock('@/models', () => ({ TemplateModel: { findOne: mocks.template }, BookModel: { create: mocks.create, countDocuments: mocks.count } }));
-import { POST } from './route';
+vi.mock('@/models', () => ({ TemplateModel: { find: mocks.findTemplates, findOne: mocks.template }, BookModel: { find: mocks.findBooks, create: mocks.create, countDocuments: mocks.count } }));
+import { GET, POST } from './route';
 const request = () => new Request('http://localhost/api/books', { method: 'POST', body: JSON.stringify({ templateId: 't1', starterOutline: 'Forged outline', ownerEmail: 'forged' }) });
 beforeEach(() => {
   vi.resetAllMocks();
@@ -35,4 +35,28 @@ it('rejects a template outside the actor ownership scope', async () => {
   mocks.template.mockResolvedValue(null);
   expect((await POST(request())).status).toBe(404);
   expect(mocks.create).not.toHaveBeenCalled();
+});
+
+it('rejects new books from inactive templates without consuming storage', async () => {
+  mocks.template.mockResolvedValue({ isActive: false });
+  expect((await POST(request())).status).toBe(409);
+  expect(mocks.create).not.toHaveBeenCalled();
+});
+it.each(['user', 'guest'])('filters Library books by own status and inactive templates for a %s', async kind => {
+  const filter = kind === 'user' ? { ownerEmail: 'owner@example.com' } : { guestId: 'g1' };
+  mocks.actor.mockResolvedValue({ kind, filter });
+  mocks.findTemplates.mockReturnValue({ select: () => ({ lean: async () => [{ templateId: 'inactive' }] }) });
+  const select = vi.fn().mockResolvedValue([{ bookId: 'active' }]);
+  mocks.findBooks.mockReturnValue({ select });
+  const response = await GET(new Request('http://localhost/api/books?activeOnly=true&select=bookId,name'));
+  expect(response.status).toBe(200);
+  expect(mocks.findTemplates).toHaveBeenCalledWith({ ...filter, isActive: false });
+  expect(mocks.findBooks).toHaveBeenCalledWith({ ...filter, isActive: { $ne: false }, templateId: { $nin: ['inactive'] } });
+  expect(select).toHaveBeenCalledWith('bookId name');
+});
+it('keeps the default book list inclusive for management', async () => {
+  mocks.findBooks.mockResolvedValue([{ bookId: 'inactive', isActive: false }]);
+  expect(await (await GET(new Request('http://localhost/api/books'))).json()).toEqual([{ bookId: 'inactive', isActive: false }]);
+  expect(mocks.findBooks).toHaveBeenCalledWith({ ownerEmail: 'owner@example.com' });
+  expect(mocks.findTemplates).not.toHaveBeenCalled();
 });

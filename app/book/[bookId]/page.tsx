@@ -1,6 +1,7 @@
 'use client';
 
 import type { BeforeSignInDetail } from '@/lib/guestSignInClient';
+import ReleaseBookButton from '@/app/book/_components/ReleaseBookButton';
 import TrialActionNotice from '@/app/_components/TrialActionNotice';
 
 import { useEffect, useState, use } from 'react';
@@ -76,6 +77,7 @@ function BookPageContent({ bookId }: { bookId: string }) {
     text: '',
   });
   const [segmentCandidate, setSegmentCandidate] = useState<StorySegmentCandidate | null>(null);
+  const [releaseBusy, setReleaseBusy] = useState(false);
   const [candidateSaving, setCandidateSaving] = useState(false);
 
   const [enhancer, setEnhancer] = useState({
@@ -116,7 +118,7 @@ function BookPageContent({ bookId }: { bookId: string }) {
 
   const { element: inputPanelElement, getUserInput, flushDraft, isGenerating } = useInputPanel({
     ready: !loading,
-    disabled: starter.pending,
+    disabled: starter.pending || releaseBusy,
     inputTag: _constant.inputTag,
     template,
     book: bookUiModel,
@@ -127,7 +129,7 @@ function BookPageContent({ bookId }: { bookId: string }) {
   useEffect(() => {
     const beforeSignIn = (event: Event) => {
       const handoff = event as CustomEvent<BeforeSignInDetail>;
-      if (starter.pending || sbp.loading || isGenerating || candidateSaving || segmentCandidate || enhancer.visible || summarizer.visible || chapterWrapper.visible || memoryVisible) {
+      if (releaseBusy || starter.pending || sbp.loading || isGenerating || candidateSaving || segmentCandidate || enhancer.visible || summarizer.visible || chapterWrapper.visible || memoryVisible) {
         handoff.preventDefault();
         showAlert('Finish generation and save or dismiss open edits before signing in.', { type: 'info' });
         return;
@@ -139,7 +141,7 @@ function BookPageContent({ bookId }: { bookId: string }) {
     };
     window.addEventListener('aistory:before-signin', beforeSignIn);
     return () => window.removeEventListener('aistory:before-signin', beforeSignIn);
-  }, [starter.pending, sbp.loading, isGenerating, candidateSaving, segmentCandidate, enhancer.visible, summarizer.visible, chapterWrapper.visible, memoryVisible, flushDraft, showAlert]);
+  }, [releaseBusy, starter.pending, sbp.loading, isGenerating, candidateSaving, segmentCandidate, enhancer.visible, summarizer.visible, chapterWrapper.visible, memoryVisible, flushDraft, showAlert]);
 
   const createSegment = async (segment: StorySegment) => {
     try {
@@ -638,7 +640,7 @@ function BookPageContent({ bookId }: { bookId: string }) {
     return <div className="p-8">Book not found</div>;
   }
 
-  const disableStoryAction = loading || starter.pending || segmentCandidate !== null;
+  const disableStoryAction = releaseBusy || loading || starter.pending || segmentCandidate !== null;
   const disableCandidateAction = loading || candidateSaving || (segmentCandidate?.isLoading ?? false);
 
   return (
@@ -648,7 +650,7 @@ function BookPageContent({ bookId }: { bookId: string }) {
           <div className='h-full px-0 py-2 sm:p-3'>
             <div className='flex h-full w-full flex-col'>
               <BookNameEditor
-                disabled={starter.pending}
+                disabled={starter.pending || releaseBusy}
                 bookId={bookId}
                 bookName={bookUiModel.name}
                 onNameUpdate={(newName) => {
@@ -659,7 +661,9 @@ function BookPageContent({ bookId }: { bookId: string }) {
                 }}
                 onStatusChange={setSbp}
               />
-              <div className="mb-2 flex justify-end">
+              <div className="mb-2 flex justify-end gap-2">
+                <ReleaseBookButton bookId={bookId} onBusyChange={setReleaseBusy}
+                  disabled={loading || starter.pending || sbp.loading || isGenerating || candidateSaving || segmentCandidate !== null || enhancer.visible || summarizer.visible || chapterWrapper.visible || memoryVisible} />
                 <Button
                   type="button"
                   variant="outline"

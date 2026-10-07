@@ -27,10 +27,10 @@ export default function TemplateCardGrid() {
       try {
         setLoading(true);
         const [templatesData, booksData] = await Promise.all([
-          fetcher<HomepageTemplate[]>('/api/templates', {
+          fetcher<HomepageTemplate[]>('/api/templates?activeOnly=true', {
             errorMessage: 'Failed to fetch templates',
           }),
-          fetcher<HomepageBook[]>('/api/books?select=bookId,name,templateId,updatedAt,storySegments.id', {
+          fetcher<HomepageBook[]>('/api/books?activeOnly=true&select=bookId,name,templateId,updatedAt,storySegments.id', {
             errorMessage: 'Failed to fetch books',
           }),
         ]);

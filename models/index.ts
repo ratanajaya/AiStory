@@ -68,6 +68,7 @@ const TemplateSchema = new Schema<Template>({
   ownerEmail: { type: String },
   guestId: { type: String },
   expiresAt: { type: Date },
+  isActive: { type: Boolean, default: true },
   isPublic: { type: Boolean, default: false }
 }, {
   timestamps: true,
@@ -79,6 +80,7 @@ TemplateSchema.index({ guestId: 1 });
 TemplateSchema.index({ isPublic: 1, createdAt: -1 });
 
 const BookSchema = new Schema<Book>({
+  isActive: { type: Boolean, default: true },
   bookId: { type: String, required: true, unique: true },
   templateId: { type: String, required: true },
   name: { type: String, default: null },
@@ -201,3 +203,29 @@ const GuestIpUsageSchema = new Schema({
 });
 GuestIpUsageSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 export const GuestIpUsageModel = mongoose.models.GuestIpUsage || mongoose.model('GuestIpUsage', GuestIpUsageSchema, 'guestIpUsage');
+
+// Releases hold only reader content. Attempts track immutable private uploads until publication/cleanup.
+const ReleasedSegmentSchema = new Schema({
+  id: { type: String, required: true }, content: { type: String, required: true },
+  expectedAudioParts: { type: Number, required: true },
+  audio: [{ _id: false, partIndex: Number, objectKey: String, mimeType: String, byteSize: Number }],
+}, { _id: false });
+const ReleasedBookSchema = new Schema({
+  releaseId: { type: String, required: true, unique: true }, sourceBookId: { type: String, required: true },
+  ownerEmail: { type: String, required: true }, title: { type: String, required: true },
+  releasedAt: { type: String, required: true }, revision: { type: Number, required: true }, segments: [ReleasedSegmentSchema],
+});
+ReleasedBookSchema.index({ ownerEmail: 1, sourceBookId: 1 }, { unique: true });
+ReleasedBookSchema.index({ ownerEmail: 1, releasedAt: -1 });
+export const ReleasedBookModel = mongoose.models.ReleasedBook || mongoose.model('ReleasedBook', ReleasedBookSchema, 'releasedBooks');
+const ReleaseAttemptSchema = new Schema({
+  attemptId: { type: String, required: true, unique: true }, ownerEmail: { type: String, required: true },
+  sourceBookId: { type: String, required: true }, releaseId: { type: String, required: true },
+  baseRevision: { type: Number, required: true }, fingerprint: { type: String, required: true },
+  title: { type: String, required: true }, segments: [ReleasedSegmentSchema],
+  selectedTts: { type: TtsConfigSchema, required: true }, files: { type: Schema.Types.Mixed, default: [] },
+  manifestSet: { type: Boolean, default: false }, state: { type: String, enum: ['staging', 'published', 'superseded', 'cleaning'], default: 'staging' },
+  expiresAt: { type: Date, required: true }, committedRevision: Number,
+});
+ReleaseAttemptSchema.index({ state: 1, expiresAt: 1 });
+export const ReleaseAttemptModel = mongoose.models.ReleaseAttempt || mongoose.model('ReleaseAttempt', ReleaseAttemptSchema, 'releaseAttempts');

@@ -11,7 +11,7 @@ describe('public template cards', () => {
     mocks.find.mockReturnValue({ select: () => ({ sort: () => ({ lean: async () => [{ templateId: 'public-1', name: 'Forest', storyBackground: 'Trees', imageUrl: null, ownerEmail: 'private@example.com', promptBuilder: { narration1: 'secret' } }] }) }) });
     const response = await GET();
     expect(response.status).toBe(200);
-    expect(mocks.find).toHaveBeenCalledWith({ isPublic: true, ownerEmail: { $exists: true } });
+    expect(mocks.find).toHaveBeenCalledWith({ isPublic: true, isActive: { $ne: false }, ownerEmail: { $exists: true } });
     expect(await response.json()).toEqual([{ templateId: 'public-1', name: 'Forest', storyBackground: 'Trees', imageUrl: null }]);
   });
 });

@@ -153,3 +153,18 @@ Generation belongs to the book view: leaving the book, switching books, reloadin
 Completed audio remains in IndexedDB. Chunk records match segment ID, exact content, synthesis configuration, and chunking version; different content/voice variants coexist. Valid older whole-segment recordings play as a single cached part without regeneration. Cache hits consume no trial allowance; each uncached part retains the endpoint's atomic quota reservation and existing failure/abort charging behavior. Cache-write failures pause preparation. Existing recordings need no backfill; restart a running development server after the schema update.
 
 `node scripts/verify-tts-flow.mjs` checks local guest persistence, fallback, permissions, and catalogs on port 7002 and removes its isolated test workspace. It requires the configured MongoDB connection and guest setup. Set `TTS_SMOKE_GENERATE=true` to additionally synthesize one sample using app credentials and verify allowance accounting. Add `TTS_SMOKE_PROVIDER=openai` to verify an OpenAI preview override and WAV output. No real synthesis occurs by default.
+
+
+### Private released books
+
+Release creates or replaces a private reading copy of saved assistant text. Its URL stays stable. Available audio is copied from the current browser cache for the current TTS voice/model; no audio is generated. Releases require an account and survive source edits, deletion, and deactivation. Text-only releases need no audio bucket.
+
+For audio releases, set `GCS_RELEASE_BUCKET_NAME` to a **dedicated private bucket**, distinct from the public template-image bucket. Reuse `GCS_PROJECT_ID` and `GCS_CREDENTIALS` (a service account able to sign V4 URLs). Enable uniform bucket-level access and public access prevention. Grant the service account object read/create/delete permissions and `storage.buckets.get` so the application can verify bucket privacy. Do not grant `allUsers` or `allAuthenticatedUsers` access. Signed uploads expire after 15 minutes, are size-bound and create-only; each release attempt is limited to 100 MiB.
+
+Configure that bucket's CORS for the exact deployed application origin(s), with `PUT` as an allowed method, `Content-Type` as a response header, and a 3600-second max age. Include `http://localhost:7002` only for development. Example CORS configuration:
+
+```json
+[{ "origin": ["https://your-app.example"], "method": ["PUT"], "responseHeader": ["Content-Type"], "maxAgeSeconds": 3600 }]
+```
+
+Before rollout, run `npm run setup:releases` to provision the release/attempt indexes. This checks that an audio bucket, when configured, has public access prevention enforced and uniform access enabled. The existing hourly `/api/internal/cleanup` cron also retries cleanup of abandoned and superseded audio after 24 hours; use `npm run cleanup:releases` for manual cleanup. Retain `CRON_SECRET` and hourly scheduling. Published audio is never removed by guest cleanup. A release becomes visible only after every declared upload is verified and the MongoDB transaction commits; account releases require transaction-capable MongoDB, as public-template starts already do.

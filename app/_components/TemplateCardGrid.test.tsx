@@ -37,6 +37,9 @@ describe('TemplateCardGrid', () => {
 
     render(<TemplateCardGrid />);
 
+    expect(fetcher.mock.calls[0][0]).toBe('/api/templates?activeOnly=true');
+    expect(fetcher.mock.calls[1][0]).toContain('/api/books?activeOnly=true&select=');
+
     const editLink = await screen.findByRole('link', { name: 'Edit template' });
     expect(editLink.getAttribute('href')).toBe('/templates/forest-template');
 

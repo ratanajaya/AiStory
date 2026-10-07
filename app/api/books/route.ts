@@ -17,7 +17,14 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const select = searchParams.get('select');
 
-    let query = BookModel.find({ ...ownership });
+    const activeOnly = searchParams.get('activeOnly') === 'true';
+    const inactiveTemplates = activeOnly
+      ? await TemplateModel.find({ ...ownership, isActive: false }).select('templateId').lean()
+      : [];
+    let query = BookModel.find({ ...ownership, ...(activeOnly ? {
+      isActive: { $ne: false },
+      templateId: { $nin: inactiveTemplates.map(template => template.templateId) },
+    } : {}) });
 
     if (select) {
       // Convert comma-separated string to space-separated string for Mongoose select
@@ -48,6 +55,7 @@ async function postHandler(request: Request) {
 
     const template = await TemplateModel.findOne({ templateId, ...ownership });
     if (!template) return errorResponseFromMessage('Template not found', 404);
+    if (template.isActive === false) return errorResponseFromMessage('Reactivate the template before creating a book', 409);
     const storySegments = createStarterSegments(template.starterOutline);
     if (actor.kind === 'guest' && await BookModel.countDocuments({ guestId: actor.guestId }) >= GUEST_STORAGE_LIMITS.books) return errorResponseFromMessage('Guest book limit reached', 429);
     const expiresAt = actor.kind === 'guest' ? { expiresAt: (await getGuestWorkspace())!.expiresAt } : {};

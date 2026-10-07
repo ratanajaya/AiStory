@@ -71,3 +71,9 @@ export function parseSegmentIds(value: unknown): string[] | null {
   const ids = [...new Set(value)];
   return ids.length === value.length ? ids : null;
 }
+
+export function parseActiveStatus(value: unknown): { isActive: boolean } | null {
+  if (!isRecord(value) || typeof value.isActive !== 'boolean'
+    || Object.keys(value).some(key => key !== 'isActive')) return null;
+  return { isActive: value.isActive };
+}

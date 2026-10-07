@@ -26,7 +26,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const templateCount = await TemplateModel.countDocuments({ guestId: actor.guestId }).session(session);
         if (bookCount >= GUEST_STORAGE_LIMITS.books || templateCount >= GUEST_STORAGE_LIMITS.templates) throw new Error('Guest storage limit reached');
       }
-      const original = await TemplateModel.findOne({ templateId: id, isPublic: true, ownerEmail: { $exists: true } }).session(session).lean();
+      const original = await TemplateModel.findOne({ templateId: id, isPublic: true, isActive: { $ne: false }, ownerEmail: { $exists: true } }).session(session).lean();
       if (!original) throw new Error('Public template not found');
       const defaultDoc = await KeyValueModel.findOne({ key: 'defaultValue' }).session(session).lean();
       const defaults = (defaultDoc?.value as DefaultValue | undefined)?.promptBuilder;

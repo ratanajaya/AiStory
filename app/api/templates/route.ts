@@ -9,14 +9,15 @@ import { visibleTemplate } from '@/lib/templateVisibility';
 import { errorResponse, errorResponseFromMessage } from '@/lib/apiError';
 import { validateTemplateNarrativeFields } from '@/lib/templateValidation';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const actor = await getActor();
     if (!actor) return NextResponse.json([]);
     const ownership = actor.filter;
 
     await dbConnect();
-    const templates = await TemplateModel.find({ ...ownership });
+    const activeOnly = new URL(request.url).searchParams.get('activeOnly') === 'true';
+    const templates = await TemplateModel.find({ ...ownership, ...(activeOnly ? { isActive: { $ne: false } } : {}) });
     return NextResponse.json(templates.map((template) => visibleTemplate(template.toObject(), actor.isAdmin)));
   } catch (err) {
     return errorResponse(err);
