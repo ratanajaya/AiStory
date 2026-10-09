@@ -347,8 +347,10 @@ export function appendLongTermMemoryToNarrationContext(
 export function appendLongTermMemorySystemInstruction(
   systemMessage: string | null,
   state: LongTermMemoryState,
+  requestLabel: 'OUTLINE' | 'SEGMENT DIRECTION' = 'OUTLINE',
 ) {
   const memory = normalizeLongTermMemoryState(state);
   if (Object.keys(memory.content.entries).length === 0) return systemMessage;
-  return [systemMessage, narrationMemorySystemInstruction].filter(Boolean).join('\n\n');
+  const instruction = narrationMemorySystemInstruction.replace('current OUTLINE', `current ${requestLabel}`);
+  return [systemMessage, instruction].filter(Boolean).join('\n\n');
 }

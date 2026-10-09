@@ -5,7 +5,7 @@ import ReleaseBookButton from '@/app/book/_components/ReleaseBookButton';
 import TrialActionNotice from '@/app/_components/TrialActionNotice';
 
 import { useEffect, useState, use } from 'react';
-import { Book, Chapter, SegmentSummary, StorySegment, StorySegmentCandidate, StorySegmentCandidateVersion, Template } from '@/types';
+import { Book, Chapter, NarrationMode, SegmentSummary, StorySegment, StorySegmentCandidate, StorySegmentCandidateVersion, Template } from '@/types';
 import { useFetcher } from '@/components/FetcherProvider';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { Button } from '@/components/Button';
@@ -27,6 +27,7 @@ import BookNameEditor from '../_components/BookNameEditor';
 import _constant from '@/utils/_constant';
 import { BookUIModel } from '@/types/extendedTypes';
 import { createNarrationRequest } from '@/lib/narrationRequest';
+import { narrationModes } from '@/lib/narrationModes';
 import useStarterNarration from '@/app/book/_components/useStarterNarration';
 import SegmentCandidateDisplay from '@/app/book/_components/SegmentCandidateDisplay';
 import LongTermMemoryModal from '../_components/LongTermMemoryModal';
@@ -119,6 +120,7 @@ function BookPageContent({ bookId }: { bookId: string }) {
   const { element: inputPanelElement, getUserInput, flushDraft, isGenerating } = useInputPanel({
     ready: !loading,
     disabled: starter.pending || releaseBusy,
+    modeDisabled: loading || sbp.loading || candidateSaving || segmentCandidate !== null,
     inputTag: _constant.inputTag,
     template,
     book: bookUiModel,
@@ -213,6 +215,7 @@ function BookPageContent({ bookId }: { bookId: string }) {
     _streamSegmentCandidate: async (options: {
       promptBook: BookUIModel;
       userSegmentContent: string;
+      narrationMode: NarrationMode;
       userSegmentId: string;
       idLimitExclusive: string | null;
       appendToExisting: boolean;
@@ -230,7 +233,7 @@ function BookPageContent({ bookId }: { bookId: string }) {
         text: 'Making call to LLM api...',
       });
 
-      const narrationRequest = createNarrationRequest(template, options.promptBook, options.userSegmentContent, options.idLimitExclusive);
+      const narrationRequest = createNarrationRequest(template, options.promptBook, options.userSegmentContent, options.idLimitExclusive, options.narrationMode);
 
       const candidateId = options.candidateId ?? new Date().getTime().toString();
       const contentIndex = options.appendToExisting ? options.contentIndex ?? 0 : 0;
@@ -252,6 +255,7 @@ function BookPageContent({ bookId }: { bookId: string }) {
         setSegmentCandidate({
           id: candidateId,
           userSegmentId: options.userSegmentId,
+          narrationMode: options.narrationMode,
           replacesSegmentId: options.replacesSegmentId,
           versions: [{ content: '', narrationModel: null }],
           selectedContentIndex: 0,
@@ -341,7 +345,7 @@ function BookPageContent({ bookId }: { bookId: string }) {
         });
       }
     },
-    _applyNarration: async (userSegmentContent: string, idLimitExclusive: string | null) => {
+    _applyNarration: async (userSegmentContent: string, idLimitExclusive: string | null, narrationMode: NarrationMode) => {
       if(!template) {
         console.error('Template not loaded');
         return;
@@ -353,6 +357,7 @@ function BookPageContent({ bookId }: { bookId: string }) {
         day: 0,
         content: userSegmentContent,
         role: 'user',
+        narrationMode,
       };
 
       if (!await createSegment(userSegment)) {
@@ -367,6 +372,7 @@ function BookPageContent({ bookId }: { bookId: string }) {
       await bookAction._streamSegmentCandidate({
         promptBook,
         userSegmentContent,
+        narrationMode,
         userSegmentId: userSegment.id,
         idLimitExclusive,
         appendToExisting: false,
@@ -385,7 +391,9 @@ function BookPageContent({ bookId }: { bookId: string }) {
 
       await bookAction._streamSegmentCandidate({
         promptBook: bookUiModel,
-        userSegmentContent: normalizeStoredOutline(sourceUserSegment.content),
+        userSegmentContent: segmentCandidate.narrationMode === undefined || segmentCandidate.narrationMode === 'outline'
+          ? normalizeStoredOutline(sourceUserSegment.content) : sourceUserSegment.content.trim(),
+        narrationMode: segmentCandidate.narrationMode ?? 'outline',
         userSegmentId: sourceUserSegment.id,
         idLimitExclusive: segmentCandidate.replacesSegmentId ?? null,
         appendToExisting: true,
@@ -470,13 +478,14 @@ function BookPageContent({ bookId }: { bookId: string }) {
 
       const userInput = getUserInput();
 
-      const outline = userInput.input1.trim();
-      if (!outline) {
-        showAlert('Provide an outline, or use Generate to create one.');
+      const direction = userInput.input1.trim();
+      const narrationMode = userInput.narrationMode ?? 'outline';
+      if (!direction) {
+        showAlert(narrationModes[narrationMode].emptyMessage);
         return;
       }
 
-      await bookAction._applyNarration(outline, null);
+      await bookAction._applyNarration(direction, null, narrationMode);
     },
     redoNarration: async (segmentId: string) => {
       const segmentIndex = bookUiModel.storySegments.findIndex(seg => seg.id === segmentId);
@@ -495,7 +504,9 @@ function BookPageContent({ bookId }: { bookId: string }) {
       
       await bookAction._streamSegmentCandidate({
         promptBook: bookUiModel,
-        userSegmentContent: normalizeStoredOutline(prevUserSegment.content),
+        userSegmentContent: prevUserSegment.narrationMode === undefined || prevUserSegment.narrationMode === 'outline'
+          ? normalizeStoredOutline(prevUserSegment.content) : prevUserSegment.content.trim(),
+        narrationMode: prevUserSegment.narrationMode ?? 'outline',
         userSegmentId: prevUserSegment.id,
         idLimitExclusive: segmentId,
         appendToExisting: false,

@@ -1,4 +1,5 @@
 import { beforeEach, expect, it, vi } from 'vitest';
+import { defaultNarrationModePrompts } from '@/lib/narrationModes';
 const mocks = vi.hoisted(() => ({ actor: vi.fn(), original: vi.fn(), templateCreate: vi.fn(), bookCreate: vi.fn(), alive: vi.fn(), count: vi.fn(), workspace: vi.fn(), findOriginal: vi.fn(), session: {} }));
 vi.mock('mongoose', () => ({ default: { connection: { transaction: async (fn: (session: object) => Promise<void>) => fn(mocks.session) } } }));
 vi.mock('@/lib/guest', () => ({ getOrCreateActor: mocks.actor, sameOrigin: () => true }));
@@ -28,6 +29,7 @@ it.each(['user', 'guest'])('copies and starts a public template for a %s inside 
   const copy = mocks.templateCreate.mock.calls[0][0][0];
   const book = mocks.bookCreate.mock.calls[0][0][0];
   expect(copy).toMatchObject({ ...filter, starterOutline: 'Meet Mara.', isPublic: false });
+  expect(copy.promptBuilder).toMatchObject(defaultNarrationModePrompts);
   expect(book).toMatchObject({ ...filter, bookId: result.bookId, templateId: copy.templateId, storySegments: [{ id: result.starterSegmentId, role: 'user', day: 0, content: 'Meet Mara.' }] });
   expect(mocks.bookCreate.mock.calls[0][1]).toEqual({ session: mocks.session });
   if (kind === 'guest') expect(book.expiresAt).toEqual(new Date('2026-10-11'));

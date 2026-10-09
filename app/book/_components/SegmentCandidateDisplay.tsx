@@ -4,6 +4,7 @@ import { Button } from '@/components/Button';
 import { Textarea } from '@/components/Textarea';
 import { StorySegmentCandidate } from '@/types';
 import NarrationModelLabel from './NarrationModelLabel';
+import { narrationModes } from '@/lib/narrationModes';
 
 export default function SegmentCandidateDisplay(props: {
   candidate: StorySegmentCandidate;
@@ -51,6 +52,7 @@ export default function SegmentCandidateDisplay(props: {
           ? <NarrationModelLabel model={selectedVersion.narrationModel} prominent />
           : <span className="text-sm font-medium text-muted-foreground">Narration model unavailable</span>}
         <div className="text-xs text-muted-foreground">
+          <span className="mr-2">{narrationModes[props.candidate.narrationMode ?? 'outline'].label}</span>
           Version {props.candidate.selectedContentIndex + 1} / {props.candidate.versions.length}
         </div>
       </div>

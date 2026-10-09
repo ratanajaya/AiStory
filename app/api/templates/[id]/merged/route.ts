@@ -1,48 +1,11 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import { TemplateModel, KeyValueModel } from '@/models';
-import { DefaultValue, KeyValue, PromptBuilderConfig } from '@/types';
+import { DefaultValue, KeyValue } from '@/types';
 import { getActor } from '@/lib/guest';
-import _util from '@/utils/_util';
+import { mergePromptBuilderWithDefaults } from '@/lib/promptBuilderConfig';
 import { visibleTemplate } from '@/lib/templateVisibility';
 import { errorResponse, errorResponseFromMessage } from '@/lib/apiError';
-
-function mergePromptBuilderWithDefaults(
-  promptBuilder: PromptBuilderConfig,
-  defaultPromptBuilder: PromptBuilderConfig
-): PromptBuilderConfig {
-  return {
-    narration1: _util.mergeNormalizedString(promptBuilder.narration1, defaultPromptBuilder.narration1),
-    narration2: _util.mergeNormalizedString(promptBuilder.narration2, defaultPromptBuilder.narration2),
-    narrationSystem: _util.mergeNormalizedString(promptBuilder.narrationSystem, defaultPromptBuilder.narrationSystem),
-    enhancer: _util.mergeNormalizedString(promptBuilder.enhancer, defaultPromptBuilder.enhancer),
-    enhancerSystem: _util.mergeNormalizedString(promptBuilder.enhancerSystem, defaultPromptBuilder.enhancerSystem),
-    segmentSummarizer: _util.mergeNormalizedString(
-      promptBuilder.segmentSummarizer,
-      defaultPromptBuilder.segmentSummarizer
-    ),
-    segmentSummarizerSystem: _util.mergeNormalizedString(
-      promptBuilder.segmentSummarizerSystem,
-      defaultPromptBuilder.segmentSummarizerSystem
-    ),
-    chapterSummarizer: _util.mergeNormalizedString(
-      promptBuilder.chapterSummarizer,
-      defaultPromptBuilder.chapterSummarizer
-    ),
-    chapterSummarizerSystem: _util.mergeNormalizedString(
-      promptBuilder.chapterSummarizerSystem,
-      defaultPromptBuilder.chapterSummarizerSystem
-    ),
-    outlineIdeaGenerator: _util.mergeNormalizedString(
-      promptBuilder.outlineIdeaGenerator,
-      defaultPromptBuilder.outlineIdeaGenerator
-    ),
-    outlineIdeaGeneratorSystem: _util.mergeNormalizedString(
-      promptBuilder.outlineIdeaGeneratorSystem,
-      defaultPromptBuilder.outlineIdeaGeneratorSystem
-    ),
-  };
-}
 
 export async function GET(
   request: Request,
@@ -79,7 +42,10 @@ export async function GET(
       });
     }
 
-    return NextResponse.json(visibleTemplate(template.toObject(), actor.isAdmin));
+    return NextResponse.json({
+      ...visibleTemplate(template.toObject(), actor.isAdmin),
+      promptBuilder: mergePromptBuilderWithDefaults(template.promptBuilder),
+    });
   } catch (err) {
     return errorResponse(err);
   }

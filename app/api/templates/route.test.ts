@@ -50,6 +50,18 @@ it('rejects an invalid starter outline before writing', async () => {
   expect(mocks.create).not.toHaveBeenCalled();
 });
 
+it('persists creative prompt overrides without dropping deprecated fields', async () => {
+  const promptBuilder = { narrationStartEndSystem: 'Bridge system', narrationStartEndRequest: '{textboxInput}', outlineIdeaGenerator: 'Legacy' };
+  const response = await POST(request({ ...body, promptBuilder }));
+  expect(response.status).toBe(201);
+  expect((await response.json()).promptBuilder).toMatchObject(promptBuilder);
+});
+
+it('rejects invalid creative prompts before creating a template', async () => {
+  expect((await POST(request({ ...body, promptBuilder: { narrationEventsSystem: 1 } }))).status).toBe(400);
+  expect(mocks.create).not.toHaveBeenCalled();
+});
+
 it.each([false, true])('lists templates with activeOnly=%s without excluding legacy records', async activeOnly => {
   mocks.find.mockResolvedValue([{ toObject: () => ({ templateId: 't1' }) }]);
   const response = await GET(new Request(`http://localhost/api/templates?activeOnly=${activeOnly}`));

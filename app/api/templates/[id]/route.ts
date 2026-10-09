@@ -6,6 +6,7 @@ import _util from '@/utils/_util';
 import { visibleTemplate } from '@/lib/templateVisibility';
 import { errorResponse, errorResponseFromMessage } from '@/lib/apiError';
 import { validateTemplateNarrativeFields } from '@/lib/templateValidation';
+import { validatePromptBuilderConfig } from '@/lib/promptBuilderConfig';
 
 export async function GET(
   request: Request,
@@ -55,6 +56,8 @@ async function putHandler(
     if (!narrativeFieldsResult.ok) {
       return errorResponseFromMessage(narrativeFieldsResult.message, 400);
     }
+    const promptResult = validatePromptBuilderConfig(body.promptBuilder);
+    if (!promptResult.ok) return errorResponseFromMessage(promptResult.message, 400);
 
     await dbConnect();
     const normalizedBody = {
@@ -63,7 +66,7 @@ async function putHandler(
       writingStyle: narrativeFieldsResult.value.writingStyle,
       starterOutline: narrativeFieldsResult.value.starterOutline,
       imageUrl: body.imageUrl ?? null,
-      promptBuilder: _util.normalizePromptBuilderConfig(body.promptBuilder),
+      promptBuilder: promptResult.value,
       ...(actor.isAdmin ? { isPublic: body.isPublic === true } : {}),
     };
     const template = await TemplateModel.findOneAndUpdate(

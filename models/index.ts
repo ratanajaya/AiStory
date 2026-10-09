@@ -1,6 +1,7 @@
 import { KeyValue } from './../types/index';
 import mongoose, { Schema } from 'mongoose';
 import { StorySegment, SegmentSummary, Chapter, Template, Book, User, ApiKeyConfig, LlmConfig, LongTermMemoryState } from '@/types';
+import { narrationModeIds } from '@/lib/narrationModes';
 
 // Sub-schemas for Book components
 const StorySegmentSchema = new Schema<StorySegment>({
@@ -12,6 +13,7 @@ const StorySegmentSchema = new Schema<StorySegment>({
   toSummarize: { type: Boolean },
   segmentSummaryId: { type: String },
   chapterId: { type: String },
+  narrationMode: { type: String, enum: narrationModeIds, default: undefined },
   narrationModel: {
     type: new Schema<LlmConfig>({
       service: { type: String, enum: ['together', 'openAi'], required: true },
@@ -52,6 +54,12 @@ const TemplateSchema = new Schema<Template>({
     narration1: { type: String, default: null },
     narration2: { type: String, default: null },
     narrationSystem: { type: String, default: null },
+    narrationStartEndSystem: { type: String, default: null },
+    narrationStartEndRequest: { type: String, default: null },
+    narrationStartOnlySystem: { type: String, default: null },
+    narrationStartOnlyRequest: { type: String, default: null },
+    narrationEventsSystem: { type: String, default: null },
+    narrationEventsRequest: { type: String, default: null },
     enhancer: { type: String, default: null },
     enhancerSystem: { type: String, default: null },
     segmentSummarizer: { type: String, default: null },

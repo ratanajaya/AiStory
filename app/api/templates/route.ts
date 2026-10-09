@@ -4,10 +4,10 @@ import shortid from 'shortid';
 import dbConnect from '@/lib/mongodb';
 import { TemplateModel } from '@/models';
 import { getActor, getOrCreateActor, getGuestWorkspace, sameOrigin, guardGuestMutation } from '@/lib/guest';
-import _util from '@/utils/_util';
 import { visibleTemplate } from '@/lib/templateVisibility';
 import { errorResponse, errorResponseFromMessage } from '@/lib/apiError';
 import { validateTemplateNarrativeFields } from '@/lib/templateValidation';
+import { validatePromptBuilderConfig } from '@/lib/promptBuilderConfig';
 
 export async function GET(request: Request) {
   try {
@@ -38,6 +38,8 @@ async function postHandler(request: Request) {
     if (!narrativeFieldsResult.ok) {
       return errorResponseFromMessage(narrativeFieldsResult.message, 400);
     }
+    const promptResult = validatePromptBuilderConfig(body.promptBuilder);
+    if (!promptResult.ok) return errorResponseFromMessage(promptResult.message, 400);
 
     await dbConnect();
     if (actor.kind === 'guest' && await TemplateModel.countDocuments({ guestId: actor.guestId }) >= GUEST_STORAGE_LIMITS.templates) return errorResponseFromMessage('Guest template limit reached', 429);
@@ -48,7 +50,7 @@ async function postHandler(request: Request) {
       writingStyle: narrativeFieldsResult.value.writingStyle,
       starterOutline: narrativeFieldsResult.value.starterOutline,
       imageUrl: body.imageUrl ?? null,
-      promptBuilder: _util.normalizePromptBuilderConfig(body.promptBuilder),
+      promptBuilder: promptResult.value,
       isPublic: actor.isAdmin ? body.isPublic === true : false,
     };
     const expiresAt = actor.kind === 'guest' ? { expiresAt: (await getGuestWorkspace())!.expiresAt } : {};
