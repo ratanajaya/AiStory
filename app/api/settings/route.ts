@@ -9,6 +9,7 @@ import { normalizeGenerationProfileConfig, validateGenerationProfileConfig } fro
 import _constant from '@/utils/_constant';
 import _util from '@/utils/_util';
 import { errorResponse, errorResponseFromMessage } from '@/lib/apiError';
+import { mergePromptBuilderWithDefaults, validatePromptBuilderConfig } from '@/lib/promptBuilderConfig';
 
 const DEFAULT_KEY = 'defaultValue';
 
@@ -40,7 +41,7 @@ export async function GET() {
       // This should never happen in practice, but keep a safe fallback for unset data.
       const emptyDefaultValue: DefaultValue = {
         selectedTts: resolveTtsConfig(null),
-        promptBuilder: { ..._constant.emptyPromptBuilder },
+        promptBuilder: mergePromptBuilderWithDefaults(null),
         generationProfiles: normalizeGenerationProfileConfig(null),
         apiKey: { ..._constant.emptyApiKey },
         selectedLlm: { ..._constant.defaultSelectedLlm },
@@ -52,7 +53,7 @@ export async function GET() {
 
     const responseValue: DefaultValue = {
       selectedTts: resolveTtsConfig(value.selectedTts),
-      promptBuilder: _util.normalizePromptBuilderConfig(value.promptBuilder),
+      promptBuilder: mergePromptBuilderWithDefaults(value.promptBuilder),
       generationProfiles: normalizeGenerationProfileConfig(value.generationProfiles),
       apiKey: _util.normalizeApiKeyConfig(value.apiKey),
       selectedLlm: {
@@ -76,6 +77,9 @@ export async function PUT(request: Request) {
 
     await dbConnect();
     const body: DefaultValue = await request.json();
+    if (!body || typeof body !== 'object' || Array.isArray(body)) return errorResponseFromMessage('Invalid settings', 400);
+    const promptResult = validatePromptBuilderConfig(body.promptBuilder);
+    if (!promptResult.ok) return errorResponseFromMessage(promptResult.message, 400);
     const llmResult = validateLlmConfig(body.selectedLlm);
     if (!llmResult.ok) {
       return errorResponseFromMessage(llmResult.message, 400);
@@ -93,7 +97,7 @@ export async function PUT(request: Request) {
     const existing = body.selectedTts === undefined ? await KeyValueModel.findOne({ key: DEFAULT_KEY }).lean() : null;
     const normalizedValue: DefaultValue = {
       selectedTts: resolveTtsConfig(ttsResult.value, existing?.value?.selectedTts),
-      promptBuilder: _util.normalizePromptBuilderConfig(body.promptBuilder),
+      promptBuilder: promptResult.value,
       generationProfiles: generationProfileResult.value,
       apiKey: _util.normalizeApiKeyConfig(body.apiKey),
       selectedLlm: llmResult.value,

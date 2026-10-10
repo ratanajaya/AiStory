@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   fetcher: vi.fn(),
   streamAiRequest: vi.fn(),
   showAlert: vi.fn(),
+  readInput: vi.fn(),
 }));
 
 vi.mock('@/components/FetcherProvider', () => ({ useFetcher: () => ({ fetcher: mocks.fetcher }) }));
@@ -25,23 +26,25 @@ vi.mock('react-resizable-panels', () => ({
   PanelResizeHandle: () => null,
 }));
 vi.mock('@/app/book/_components/useInputPanel', () => ({
-  default: () => ({ element: null, getUserInput: () => ({ input1: 'New outline' }) }),
+  default: () => ({ element: null, getUserInput: mocks.readInput }),
 }));
 vi.mock('@/app/book/_components/useDebugPanel', () => ({ default: () => ({ element: null }) }));
 vi.mock('@/app/book/_components/SegmentDisplay', () => ({
-  default: ({ segment, onRedoNarration, isLastMessage }: {
-    segment: { id: string; content: string; role: string };
+  default: ({ segment, onRedoNarration, onUpdateSegment, isLastMessage }: {
+    segment: import('@/types').StorySegment;
     onRedoNarration: (id: string) => void;
+    onUpdateSegment: (segment: import('@/types').StorySegment) => Promise<boolean>;
     isLastMessage: boolean;
   }) => <div data-testid={`segment-${segment.id}`}>
     {segment.content}
     {segment.role === 'assistant' && isLastMessage &&
       <button onClick={() => onRedoNarration(segment.id)}>Redo</button>}
+    {segment.role === 'user' && <button onClick={() => void onUpdateSegment({ ...segment, content: 'Edited direction' })}>Edit source</button>}
   </div>,
 }));
 vi.mock('@/app/book/_components/SegmentCandidateDisplay', () => ({
   default: ({ candidate, onTryAgain, onAccept, onReject, onSelectContent, disabled }: {
-    candidate: { versions: { content: string; narrationModel: { model: string } | null }[]; selectedContentIndex: number };
+    candidate: { versions: { content: string; narrationModel: { model: string } | null }[]; selectedContentIndex: number; narrationMode?: string };
     onTryAgain: () => void;
     onAccept: () => void;
     onReject: () => void;
@@ -50,6 +53,7 @@ vi.mock('@/app/book/_components/SegmentCandidateDisplay', () => ({
   }) => <div data-testid="candidate">
     <span>{candidate.versions[candidate.selectedContentIndex]?.content}</span>
     <span>{candidate.versions[candidate.selectedContentIndex]?.narrationModel?.model}</span>
+    <span data-testid="candidate-mode">{candidate.narrationMode}</span>
     {candidate.versions.map((_, index) =>
       <button key={index} onClick={() => onSelectContent(index)}>Version {index + 1}</button>)}
     <button onClick={onTryAgain} disabled={disabled}>Try Again</button>
@@ -120,6 +124,7 @@ async function redo() {
 describe('redo narration candidate lifecycle', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.readInput.mockReturnValue({ input1: 'New outline', narrationMode: 'outline' });
     mocks.fetcher.mockImplementation(async (path: string) => {
       if (path === '/api/books/book-1') return book;
       if (path === '/api/templates/template-1/merged') return template;
@@ -222,6 +227,80 @@ describe('redo narration candidate lifecycle', () => {
     }
     await userEvent.setup().click(screen.getByRole('button', { name: 'Version 1' }));
     expect(screen.getByText('first-model')).toBeTruthy();
+  });
+});
+
+describe('writing mode candidate lifecycle', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mocks.fetcher.mockImplementation(async (path: string) => {
+      if (path === '/api/books/book-1') return book;
+      if (path === '/api/templates/template-1/merged') return template;
+      return {};
+    });
+    mocks.streamAiRequest.mockResolvedValue('Creative story');
+  });
+  afterEach(cleanup);
+
+  it.each(['startEnd', 'startOnly', 'events'])('saves %s on the source and makes one narration call with flexible input', async narrationMode => {
+    mocks.readInput.mockReturnValue({ input1: 'John confronts Bob. They forgive.', narrationMode });
+    await openBook();
+    await userEvent.setup().click(screen.getByRole('button', { name: 'SEND' }));
+    await screen.findByTestId('candidate');
+    const write = mocks.fetcher.mock.calls.find(([path, options]) => path.endsWith('/segments') && options.method === 'POST');
+    expect(JSON.parse(write![1].body).segment).toMatchObject({ role: 'user', narrationMode, content: 'John confronts Bob. They forgive.' });
+    expect(screen.getByTestId('candidate-mode').textContent).toBe(narrationMode);
+    expect(mocks.streamAiRequest).toHaveBeenCalledTimes(1);
+    expect(mocks.streamAiRequest.mock.calls[0][0]).toMatchObject({ feature: 'narration' });
+    expect(mocks.streamAiRequest.mock.calls[0][0].systemMessage).not.toBe('System');
+  });
+
+  it('retries with the captured mode and latest source edit rather than the next-input mode', async () => {
+    mocks.readInput.mockReturnValue({ input1: 'Confrontation and forgiveness', narrationMode: 'events' });
+    const user = userEvent.setup();
+    await openBook();
+    await user.click(screen.getByRole('button', { name: 'SEND' }));
+    await waitFor(() => expect((screen.getByRole('button', { name: 'Try Again' }) as HTMLButtonElement).disabled).toBe(false));
+    const editButtons = screen.getAllByRole('button', { name: 'Edit source' });
+    await user.click(editButtons.at(-1)!);
+    await screen.findByText('Edited direction');
+    mocks.readInput.mockReturnValue({ input1: 'Next outline', narrationMode: 'outline' });
+    await user.click(screen.getByRole('button', { name: 'Try Again' }));
+    await waitFor(() => expect(mocks.streamAiRequest).toHaveBeenCalledTimes(2));
+    const retry = mocks.streamAiRequest.mock.calls[1][0];
+    expect(retry.systemMessage).toBe(mocks.streamAiRequest.mock.calls[0][0].systemMessage);
+    expect(retry.messages[0].content).toContain('Edited direction');
+    expect(retry.messages[0].content).not.toContain('Next outline');
+    expect(screen.getByTestId('candidate-mode').textContent).toBe('events');
+  });
+
+  it.each(['startEnd', 'startOnly', 'events'] as const)('redoes a reloaded %s source with its saved mode', async narrationMode => {
+    const reloadedBook = { ...book, storySegments: book.storySegments.map(segment => segment.id === 'user-1'
+      ? { ...segment, narrationMode, content: 'OUTLINE: Keep this literal direction.' } : segment) };
+    mocks.fetcher.mockImplementation(async (path: string) => {
+      if (path === '/api/books/book-1') return reloadedBook;
+      if (path === '/api/templates/template-1/merged') return template;
+      return {};
+    });
+    mocks.readInput.mockReturnValue({ input1: 'Next outline', narrationMode: 'outline' });
+    await openBook();
+    await redo();
+    const request = mocks.streamAiRequest.mock.calls[0][0];
+    expect(request.systemMessage).not.toBe('System');
+    expect(request.messages[0].content).toContain('OUTLINE: Keep this literal direction.');
+    expect(request.messages[0].content).not.toContain('Original story');
+    expect(screen.getByTestId('candidate-mode').textContent).toBe(narrationMode);
+    expect(mocks.fetcher.mock.calls.filter(([path]) => path.includes('/segments'))).toHaveLength(0);
+  });
+
+  it.each(['outline', 'startEnd', 'startOnly', 'events'])('rejects empty %s input before saving or generating', async narrationMode => {
+    mocks.readInput.mockReturnValue({ input1: '  ', narrationMode });
+    await openBook();
+    await userEvent.setup().click(screen.getByRole('button', { name: 'SEND' }));
+    expect(mocks.showAlert).toHaveBeenCalled();
+    expect(mocks.showAlert.mock.calls[0][0]).not.toContain('Generate');
+    expect(mocks.streamAiRequest).not.toHaveBeenCalled();
+    expect(mocks.fetcher.mock.calls.filter(([path]) => path.includes('/segments'))).toHaveLength(0);
   });
 });
 

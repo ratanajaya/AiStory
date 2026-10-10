@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import ReleasedBookGrid from './_components/ReleasedBookGrid';
 import TemplateCardGrid from './_components/TemplateCardGrid';
 import PublicTemplateGrid from './_components/PublicTemplateGrid';
 import Link from 'next/link';
@@ -26,6 +27,7 @@ export default function Home() {
       <PublicTemplateGrid />
       <h2 className="mt-10 text-xl font-semibold text-secondary mb-4">Your Library</h2>
       <TemplateCardGrid />
+      <ReleasedBookGrid />
     </div>
   );
 }

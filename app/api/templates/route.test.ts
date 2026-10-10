@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({ actor: vi.fn(), create: vi.fn(), countDocuments: vi.fn(), connect: vi.fn(), workspace: vi.fn() }));
+const mocks = vi.hoisted(() => ({ actor: vi.fn(), create: vi.fn(), countDocuments: vi.fn(), connect: vi.fn(), workspace: vi.fn(), find: vi.fn() }));
 vi.mock('@/lib/guest', () => ({
   getActor: mocks.actor,
   getOrCreateActor: mocks.actor,
@@ -9,9 +9,9 @@ vi.mock('@/lib/guest', () => ({
   guardGuestMutation: (handler: unknown) => handler,
 }));
 vi.mock('@/lib/mongodb', () => ({ default: mocks.connect }));
-vi.mock('@/models', () => ({ TemplateModel: { create: mocks.create, countDocuments: mocks.countDocuments } }));
+vi.mock('@/models', () => ({ TemplateModel: { find: mocks.find, create: mocks.create, countDocuments: mocks.countDocuments } }));
 
-import { POST } from './route';
+import { GET, POST } from './route';
 
 const body = { name: 'A story', storyBackground: 'A quiet city', writingStyle: 'Plain', promptBuilder: {} };
 const request = (value: object) => new Request('http://localhost/api/templates', { method: 'POST', body: JSON.stringify(value) });
@@ -48,4 +48,23 @@ it('rejects an invalid starter outline before writing', async () => {
   const response = await POST(request({ ...body, starterOutline: 123 }));
   expect(response.status).toBe(400);
   expect(mocks.create).not.toHaveBeenCalled();
+});
+
+it('persists creative prompt overrides without dropping deprecated fields', async () => {
+  const promptBuilder = { narrationStartEndSystem: 'Bridge system', narrationStartEndRequest: '{textboxInput}', outlineIdeaGenerator: 'Legacy' };
+  const response = await POST(request({ ...body, promptBuilder }));
+  expect(response.status).toBe(201);
+  expect((await response.json()).promptBuilder).toMatchObject(promptBuilder);
+});
+
+it('rejects invalid creative prompts before creating a template', async () => {
+  expect((await POST(request({ ...body, promptBuilder: { narrationEventsSystem: 1 } }))).status).toBe(400);
+  expect(mocks.create).not.toHaveBeenCalled();
+});
+
+it.each([false, true])('lists templates with activeOnly=%s without excluding legacy records', async activeOnly => {
+  mocks.find.mockResolvedValue([{ toObject: () => ({ templateId: 't1' }) }]);
+  const response = await GET(new Request(`http://localhost/api/templates?activeOnly=${activeOnly}`));
+  expect(response.status).toBe(200);
+  expect(mocks.find).toHaveBeenCalledWith({ ownerEmail: 'member@example.com', ...(activeOnly ? { isActive: { $ne: false } } : {}) });
 });

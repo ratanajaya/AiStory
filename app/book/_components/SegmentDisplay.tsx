@@ -10,6 +10,7 @@ import { SegmentSummary, StorySegment } from "@/types";
 import { ConfirmPopover } from "@/components/ConfirmPopover";
 import { Tooltip } from "@/components/Tooltip";
 import NarrationModelLabel from "./NarrationModelLabel";
+import { narrationModes } from '@/lib/narrationModes';
 
 const colors = [
   'border-blue-500',
@@ -192,7 +193,7 @@ export default function SegmentDisplay(props: {
         >
           <div className='flex h-4 w-full items-center text-sm text-muted-foreground' tabIndex={0}>
             <div className='flex-grow border-t border-border'></div>
-            <span className='mx-2'>{props.index}</span>
+            <span className='mx-2'>{props.index} · {narrationModes[props.segment.narrationMode ?? 'outline'].label}</span>
             <div className='flex-grow border-t border-border'></div>
           </div>
         </Tooltip>

@@ -1,5 +1,6 @@
 import { Chapter, SegmentSummary, StorySegment } from '@/types';
 import { validateLlmConfig } from '@/lib/llmSettings';
+import { isNarrationMode } from '@/lib/narrationModes';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -20,7 +21,8 @@ export function parseStorySegment(value: unknown): StorySegment | null {
   if ((value.excludeFromPrevStory !== undefined && typeof value.excludeFromPrevStory !== 'boolean')
     || (value.toSummarize !== undefined && typeof value.toSummarize !== 'boolean')
     || (value.segmentSummaryId !== undefined && !isNonEmptyString(value.segmentSummaryId))
-    || (value.chapterId !== undefined && !isNonEmptyString(value.chapterId))) {
+    || (value.chapterId !== undefined && !isNonEmptyString(value.chapterId))
+    || (value.narrationMode !== undefined && !isNarrationMode(value.narrationMode))) {
     return null;
   }
 
@@ -40,6 +42,7 @@ export function parseStorySegment(value: unknown): StorySegment | null {
     ...(value.toSummarize !== undefined && { toSummarize: value.toSummarize }),
     ...(value.segmentSummaryId !== undefined && { segmentSummaryId: value.segmentSummaryId }),
     ...(value.chapterId !== undefined && { chapterId: value.chapterId }),
+    ...(value.narrationMode !== undefined && { narrationMode: value.narrationMode }),
     ...(narrationModel !== null && narrationModel.ok && narrationModel.value && { narrationModel: narrationModel.value }),
   };
 }
@@ -70,4 +73,10 @@ export function parseSegmentIds(value: unknown): string[] | null {
 
   const ids = [...new Set(value)];
   return ids.length === value.length ? ids : null;
+}
+
+export function parseActiveStatus(value: unknown): { isActive: boolean } | null {
+  if (!isRecord(value) || typeof value.isActive !== 'boolean'
+    || Object.keys(value).some(key => key !== 'isActive')) return null;
+  return { isActive: value.isActive };
 }

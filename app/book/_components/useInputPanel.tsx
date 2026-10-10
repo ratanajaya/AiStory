@@ -1,10 +1,12 @@
 import { useFetcher } from '@/components/FetcherProvider';
 import { Textarea } from "@/components/Textarea";
 import { Button } from "@/components/Button";
+import { Select } from '@/components/Select';
 import { useAlert } from "@/components/AlertBox";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Panel } from "react-resizable-panels";
-import { Template } from "@/types";
+import { NarrationMode, Template } from "@/types";
+import { isNarrationMode, narrationModeIds, narrationModes } from '@/lib/narrationModes';
 import { BookUIModel } from "@/types/extendedTypes";
 import _promptUtil from "@/utils/_promptUtil";
 import _constant from "@/utils/_constant";
@@ -16,6 +18,7 @@ import { StatusBarProps } from "./StatusBar";
 export default function useInputPanel(props:{
   ready: boolean;
   disabled?: boolean;
+  modeDisabled?: boolean;
   inputTag: string;
   template: Template | null;
   book: BookUIModel;
@@ -30,6 +33,11 @@ export default function useInputPanel(props:{
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const ideaRef = useRef<HTMLTextAreaElement>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [modeSelection, setModeSelection] = useState<{ bookId: string; mode: NarrationMode }>({ bookId: props.book.bookId, mode: 'outline' });
+  if (modeSelection.bookId !== props.book.bookId) {
+    setModeSelection({ bookId: props.book.bookId, mode: 'outline' });
+  }
+  const mode = modeSelection.bookId === props.book.bookId ? modeSelection.mode : 'outline';
 
   useEffect(() => {
     if (!props.ready || !inputRef.current || !ideaRef.current || !props.book.bookId || restoredBook.current === props.book.bookId) return;
@@ -52,7 +60,8 @@ export default function useInputPanel(props:{
 
   // Function to get current values from refs
   const getUserInput = () => ({
-    input1: inputRef.current?.value || '',
+    input1: _util.toInputString(inputRef.current?.value),
+    narrationMode: mode,
   });
 
   const handleGenerateOutline = async () => {
@@ -139,6 +148,21 @@ export default function useInputPanel(props:{
   const element = (
     <Panel defaultSize={18} minSize={5} order={3}>
       <div className='flex h-full flex-col gap-1'>
+        <div className='flex flex-wrap items-center gap-x-2 gap-y-1'>
+          <label htmlFor='narration-mode' className='text-sm font-medium'>Writing mode</label>
+          <Select
+            id='narration-mode'
+            className='h-7 w-auto py-0 text-sm'
+            value={mode}
+            options={narrationModeIds.map(value => ({ value, label: narrationModes[value].label }))}
+            disabled={!props.ready || props.disabled || props.modeDisabled || isGenerating}
+            onChange={event => {
+              if (isNarrationMode(event.target.value)) setModeSelection({ bookId: props.book.bookId, mode: event.target.value });
+            }}
+            aria-describedby='narration-mode-hint'
+          />
+          <span id='narration-mode-hint' className='text-xs text-muted-foreground'>{narrationModes[mode].description}</span>
+        </div>
         <div className='flex items-start gap-1'>
           <Textarea
             className='flex-1 min-h-0'
@@ -163,7 +187,8 @@ export default function useInputPanel(props:{
         </div>
         <Textarea
           className='flex-1 min-h-0'
-          placeholder={props.inputTag}
+          aria-label='Segment direction'
+          placeholder={mode === 'outline' ? `${props.inputTag} ${narrationModes[mode].placeholder}` : narrationModes[mode].placeholder}
           disabled={props.disabled}
           ref={inputRef}
           onChange={scheduleDraftSave}

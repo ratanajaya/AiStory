@@ -1,3 +1,5 @@
+export type NarrationMode = 'outline' | 'startEnd' | 'startOnly' | 'events';
+
 export interface StorySegment {
   id: string;
   day: number;
@@ -8,6 +10,7 @@ export interface StorySegment {
   segmentSummaryId?: string;
   chapterId?: string;
   narrationModel?: LlmConfig;
+  narrationMode?: NarrationMode;
 }
 
 export interface StorySegmentCandidateVersion {
@@ -22,6 +25,7 @@ export interface StorySegmentCandidate {
   versions: StorySegmentCandidateVersion[];
   selectedContentIndex: number;
   isLoading: boolean;
+  narrationMode?: NarrationMode;
 }
 
 export interface SegmentSummary {
@@ -91,13 +95,21 @@ export interface PromptBuilderConfig {
   narration1: string | null;
   narration2: string | null;
   narrationSystem: string | null;
+  narrationStartEndSystem?: string | null;
+  narrationStartEndRequest?: string | null;
+  narrationStartOnlySystem?: string | null;
+  narrationStartOnlyRequest?: string | null;
+  narrationEventsSystem?: string | null;
+  narrationEventsRequest?: string | null;
   enhancer: string | null;
   enhancerSystem: string | null;
   segmentSummarizer: string | null;
   segmentSummarizerSystem: string | null;
   chapterSummarizer: string | null;
   chapterSummarizerSystem: string | null;
+  /** @deprecated Retained for compatibility; scheduled for removal. */
   outlineIdeaGenerator: string | null;
+  /** @deprecated Retained for compatibility; scheduled for removal. */
   outlineIdeaGeneratorSystem: string | null;
 }
 
@@ -117,10 +129,12 @@ export interface Template {
   ownerEmail?: string;
   guestId?: string;
   expiresAt?: Date;
+  isActive?: boolean;
   isPublic?: boolean;
 }
 
 export interface Book {
+  isActive?: boolean;
   bookId: string;
   name: string | null;
   templateId: string;
@@ -146,6 +160,7 @@ export interface DefaultValue {
 export type AiGenerationFeature =
   | 'default'
   | 'narration'
+  /** @deprecated Retained for the legacy outline generator until removal. */
   | 'outlineIdeaGenerator'
   | 'enhancer'
   | 'segmentSummarizer'

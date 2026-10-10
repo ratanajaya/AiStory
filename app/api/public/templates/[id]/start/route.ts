@@ -7,8 +7,9 @@ import dbConnect from '@/lib/mongodb';
 import { BookModel, GuestWorkspaceModel, KeyValueModel, TemplateModel } from '@/models';
 import { getOrCreateActor, sameOrigin } from '@/lib/guest';
 import { errorResponse, errorResponseFromMessage } from '@/lib/apiError';
-import type { DefaultValue, PromptBuilderConfig } from '@/types';
+import type { DefaultValue } from '@/types';
 import _util from '@/utils/_util';
+import { mergePromptBuilderWithDefaults } from '@/lib/promptBuilderConfig';
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!sameOrigin(request)) return errorResponseFromMessage('Invalid origin', 403);
@@ -26,11 +27,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const templateCount = await TemplateModel.countDocuments({ guestId: actor.guestId }).session(session);
         if (bookCount >= GUEST_STORAGE_LIMITS.books || templateCount >= GUEST_STORAGE_LIMITS.templates) throw new Error('Guest storage limit reached');
       }
-      const original = await TemplateModel.findOne({ templateId: id, isPublic: true, ownerEmail: { $exists: true } }).session(session).lean();
+      const original = await TemplateModel.findOne({ templateId: id, isPublic: true, isActive: { $ne: false }, ownerEmail: { $exists: true } }).session(session).lean();
       if (!original) throw new Error('Public template not found');
       const defaultDoc = await KeyValueModel.findOne({ key: 'defaultValue' }).session(session).lean();
       const defaults = (defaultDoc?.value as DefaultValue | undefined)?.promptBuilder;
-      const promptBuilder = Object.fromEntries(Object.entries(_util.normalizePromptBuilderConfig(original.promptBuilder)).map(([key, value]) => [key, defaults ? _util.mergeNormalizedString(value, defaults[key as keyof PromptBuilderConfig]) : value]));
+      const promptBuilder = mergePromptBuilderWithDefaults(original.promptBuilder, defaults);
       const storySegments = createStarterSegments(original.starterOutline);
       starterSegmentId = storySegments[0]?.id;
       const templateId = shortid.generate();

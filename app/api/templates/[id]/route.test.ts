@@ -27,3 +27,11 @@ it('rejects invalid outlines before updating', async () => {
   expect((await update({})).status).toBe(400);
   expect(mocks.update).not.toHaveBeenCalled();
 });
+
+it('rejects malformed creative prompts before updating the template', async () => {
+  const response = await PUT(new Request('http://localhost/api/templates/t1', { method: 'PUT', body: JSON.stringify({
+    name: 'Template', storyBackground: 'Background', writingStyle: 'Style', promptBuilder: { narrationStartEndRequest: false },
+  }) }), { params: Promise.resolve({ id: 't1' }) });
+  expect(response.status).toBe(400);
+  expect(mocks.update).not.toHaveBeenCalled();
+});

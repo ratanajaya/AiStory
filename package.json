@@ -9,7 +9,9 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "cleanup:guests": "node scripts/cleanup-guests.mjs"
+    "cleanup:guests": "node scripts/cleanup-guests.mjs",
+    "setup:releases": "node scripts/setup-releases.mjs",
+    "cleanup:releases": "node scripts/cleanup-releases.mjs"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.7",

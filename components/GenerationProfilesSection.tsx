@@ -7,7 +7,7 @@ import type { AiGenerationFeature, GenerationProfileConfig } from '@/types';
 const profileLabels: Record<AiGenerationFeature, string> = {
   default: 'Default / connectivity test',
   narration: 'Narration',
-  outlineIdeaGenerator: 'Outline generator',
+  outlineIdeaGenerator: 'Outline generator (deprecated)',
   enhancer: 'Enhancer',
   segmentSummarizer: 'Segment summarizer',
   chapterSummarizer: 'Chapter summarizer',

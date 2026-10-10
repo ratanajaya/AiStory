@@ -7,6 +7,15 @@ import {
 } from '@/lib/bookMutationValidation';
 
 describe('book mutation validation', () => {
+  it.each(['outline', 'startEnd', 'startOnly', 'events'])('preserves the %s mode on source segments', narrationMode => {
+    expect(parseStorySegment({ id: 'source', day: 0, role: 'user', content: 'Direction', narrationMode }))
+      .toEqual({ id: 'source', day: 0, role: 'user', content: 'Direction', narrationMode });
+  });
+
+  it.each(['unknown', '', null, 1, {}])('rejects invalid narration mode metadata: %j', narrationMode => {
+    expect(parseStorySegment({ id: 'source', day: 0, role: 'user', content: 'Direction', narrationMode })).toBeNull();
+  });
+
   it('accepts a complete story segment and its supported optional fields', () => {
     expect(parseStorySegment({
       id: 'segment-1',
