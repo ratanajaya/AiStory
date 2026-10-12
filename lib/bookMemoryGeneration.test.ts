@@ -34,8 +34,6 @@ const template: Template = {
     segmentSummarizerSystem: null,
     chapterSummarizer: null,
     chapterSummarizerSystem: null,
-    outlineIdeaGenerator: null,
-    outlineIdeaGeneratorSystem: null,
   },
   storyBackground: 'A coastal city.',
   writingStyle: 'Close third person.',

@@ -26,7 +26,7 @@ vi.mock('react-resizable-panels', () => ({
   PanelResizeHandle: () => null,
 }));
 vi.mock('@/app/book/_components/useInputPanel', () => ({
-  default: () => ({ element: null, getUserInput: mocks.readInput }),
+  default: () => ({ element: null, getUserInput: mocks.readInput, flushDraft: async () => {} }),
 }));
 vi.mock('@/app/book/_components/useDebugPanel', () => ({ default: () => ({ element: null }) }));
 vi.mock('@/app/book/_components/SegmentDisplay', () => ({
@@ -103,8 +103,7 @@ const template = {
     narration1: '{currentChapter}', narration2: '{textboxInput}', narrationSystem: 'System',
     enhancer: null, enhancerSystem: null, segmentSummarizer: null,
     segmentSummarizerSystem: null, chapterSummarizer: null,
-    chapterSummarizerSystem: null, outlineIdeaGenerator: null,
-    outlineIdeaGeneratorSystem: null,
+    chapterSummarizerSystem: null,
   },
 } satisfies Template;
 

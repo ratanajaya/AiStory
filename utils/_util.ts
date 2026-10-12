@@ -50,8 +50,6 @@ const _util = {
       segmentSummarizerSystem: _util.toInputString(promptBuilder?.segmentSummarizerSystem),
       chapterSummarizer: _util.toInputString(promptBuilder?.chapterSummarizer),
       chapterSummarizerSystem: _util.toInputString(promptBuilder?.chapterSummarizerSystem),
-      outlineIdeaGenerator: _util.toInputString(promptBuilder?.outlineIdeaGenerator),
-      outlineIdeaGeneratorSystem: _util.toInputString(promptBuilder?.outlineIdeaGeneratorSystem),
     };
   },
   normalizeApiKeyConfig: (apiKey: Partial<ApiKeyConfig> | null | undefined): ApiKeyConfig => {

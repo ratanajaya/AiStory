@@ -117,21 +117,19 @@ function BookPageContent({ bookId }: { bookId: string }) {
   });
 
 
-  const { element: inputPanelElement, getUserInput, flushDraft, isGenerating } = useInputPanel({
+  const { element: inputPanelElement, getUserInput, flushDraft } = useInputPanel({
     ready: !loading,
     disabled: starter.pending || releaseBusy,
     modeDisabled: loading || sbp.loading || candidateSaving || segmentCandidate !== null,
     inputTag: _constant.inputTag,
-    template,
     book: bookUiModel,
-    onStatusChange: setSbp,
   });
 
 
   useEffect(() => {
     const beforeSignIn = (event: Event) => {
       const handoff = event as CustomEvent<BeforeSignInDetail>;
-      if (releaseBusy || starter.pending || sbp.loading || isGenerating || candidateSaving || segmentCandidate || enhancer.visible || summarizer.visible || chapterWrapper.visible || memoryVisible) {
+      if (releaseBusy || starter.pending || sbp.loading || candidateSaving || segmentCandidate || enhancer.visible || summarizer.visible || chapterWrapper.visible || memoryVisible) {
         handoff.preventDefault();
         showAlert('Finish generation and save or dismiss open edits before signing in.', { type: 'info' });
         return;
@@ -143,7 +141,7 @@ function BookPageContent({ bookId }: { bookId: string }) {
     };
     window.addEventListener('aistory:before-signin', beforeSignIn);
     return () => window.removeEventListener('aistory:before-signin', beforeSignIn);
-  }, [releaseBusy, starter.pending, sbp.loading, isGenerating, candidateSaving, segmentCandidate, enhancer.visible, summarizer.visible, chapterWrapper.visible, memoryVisible, flushDraft, showAlert]);
+  }, [releaseBusy, starter.pending, sbp.loading, candidateSaving, segmentCandidate, enhancer.visible, summarizer.visible, chapterWrapper.visible, memoryVisible, flushDraft, showAlert]);
 
   const createSegment = async (segment: StorySegment) => {
     try {
@@ -674,7 +672,7 @@ function BookPageContent({ bookId }: { bookId: string }) {
               />
               <div className="mb-2 flex justify-end gap-2">
                 <ReleaseBookButton bookId={bookId} onBusyChange={setReleaseBusy}
-                  disabled={loading || starter.pending || sbp.loading || isGenerating || candidateSaving || segmentCandidate !== null || enhancer.visible || summarizer.visible || chapterWrapper.visible || memoryVisible} />
+                  disabled={loading || starter.pending || sbp.loading || candidateSaving || segmentCandidate !== null || enhancer.visible || summarizer.visible || chapterWrapper.visible || memoryVisible} />
                 <Button
                   type="button"
                   variant="outline"

@@ -9,14 +9,13 @@ import _constant from '@/utils/_constant';
 
 function Harness() {
   const [config, setConfig] = useState<PromptBuilderConfig>({ ..._constant.emptyPromptBuilder,
-    narrationSystem: 'Original renderer', narration2: 'Original request', narration1: 'Shared context',
-    outlineIdeaGenerator: 'Legacy request', outlineIdeaGeneratorSystem: 'Legacy system' });
+    narrationSystem: 'Original renderer', narration2: 'Original request', narration1: 'Shared context' });
   return <><PromptEditorSection promptBuilder={config} onPromptBuilderChange={(field, value) => setConfig(prev => ({ ...prev, [field]: value }))} />
     <output data-testid='config'>{JSON.stringify(config)}</output></>;
 }
 afterEach(cleanup);
 
-it('edits mode-specific prompts without replacing original prompts, context, or deprecated fields', async () => {
+it('edits mode-specific prompts without replacing original prompts, context', async () => {
   const user = userEvent.setup();
   render(<Harness />);
   expect(screen.getAllByRole('tab')).toHaveLength(4);
@@ -30,8 +29,6 @@ it('edits mode-specific prompts without replacing original prompts, context, or 
   expect(JSON.parse(screen.getByTestId('config').textContent!)).toMatchObject({
     narrationSystem: 'Original renderer', narration2: 'Original request', narration1: 'Shared context',
     narrationStartEndSystem: 'Custom bridge system', narrationStartEndRequest: '{textboxInput} with {writingStyle}',
-    outlineIdeaGenerator: 'Legacy request', outlineIdeaGeneratorSystem: 'Legacy system',
   });
-  expect(screen.getByText('Outline generator system prompt (deprecated):')).toBeTruthy();
-  expect(screen.getByText('Outline generator request (deprecated):')).toBeTruthy();
+  expect(screen.queryByText(/Outline generator/)).toBeNull();
 });

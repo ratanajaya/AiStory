@@ -107,10 +107,6 @@ export interface PromptBuilderConfig {
   segmentSummarizerSystem: string | null;
   chapterSummarizer: string | null;
   chapterSummarizerSystem: string | null;
-  /** @deprecated Retained for compatibility; scheduled for removal. */
-  outlineIdeaGenerator: string | null;
-  /** @deprecated Retained for compatibility; scheduled for removal. */
-  outlineIdeaGeneratorSystem: string | null;
 }
 
 export interface ApiKeyConfig {
@@ -139,7 +135,6 @@ export interface Book {
   name: string | null;
   templateId: string;
   draftOutline?: string;
-  draftIdea?: string;
   storySegments: StorySegment[];
   segmentSummaries: SegmentSummary[];
   chapters: Chapter[];
@@ -160,8 +155,6 @@ export interface DefaultValue {
 export type AiGenerationFeature =
   | 'default'
   | 'narration'
-  /** @deprecated Retained for the legacy outline generator until removal. */
-  | 'outlineIdeaGenerator'
   | 'enhancer'
   | 'segmentSummarizer'
   | 'chapterSummarizer'

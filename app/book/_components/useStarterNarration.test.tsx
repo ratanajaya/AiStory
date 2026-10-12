@@ -15,8 +15,7 @@ const book: Book = { bookId: 'b1', templateId: 't1', name: null,
   segmentSummaries: [], chapters: [], longTermMemory: createEmptyLongTermMemoryState() };
 const template: Template = { templateId: 't1', name: 'Template', storyBackground: 'Background', writingStyle: 'Style', imageUrl: null,
   promptBuilder: { narration1: '{currentChapter}', narration2: '{textboxInput}', narrationSystem: 'System', enhancer: null, enhancerSystem: null,
-    segmentSummarizer: null, segmentSummarizerSystem: null, chapterSummarizer: null, chapterSummarizerSystem: null,
-    outlineIdeaGenerator: null, outlineIdeaGeneratorSystem: null } };
+    segmentSummarizer: null, segmentSummarizerSystem: null, chapterSummarizer: null, chapterSummarizerSystem: null } };
 function open(overrides: Partial<Parameters<typeof useStarterNarration>[0]> = {}) {
   const onSaved = vi.fn();
   const options = { ready: true, book, template, onSaved, onStatusChange: vi.fn(), ...overrides };

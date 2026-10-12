@@ -66,8 +66,6 @@ const TemplateSchema = new Schema<Template>({
     segmentSummarizerSystem: { type: String, default: null },
     chapterSummarizer: { type: String, default: null },
     chapterSummarizerSystem: { type: String, default: null },
-    outlineIdeaGenerator: { type: String, default: null },
-    outlineIdeaGeneratorSystem: { type: String, default: null }
   },
   storyBackground: { type: String, required: true },
   writingStyle: { type: String, required: true },
@@ -93,7 +91,6 @@ const BookSchema = new Schema<Book>({
   templateId: { type: String, required: true },
   name: { type: String, default: null },
   draftOutline: { type: String, default: '' },
-  draftIdea: { type: String, default: '' },
   storySegments: [StorySegmentSchema],
   segmentSummaries: [SegmentSummarySchema],
   chapters: [ChapterSchema],

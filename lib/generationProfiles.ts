@@ -8,7 +8,6 @@ import _constant from '@/utils/_constant';
 export const aiGenerationFeatures = [
   'default',
   'narration',
-  'outlineIdeaGenerator',
   'enhancer',
   'segmentSummarizer',
   'chapterSummarizer',

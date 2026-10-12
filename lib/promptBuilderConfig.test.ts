@@ -8,11 +8,10 @@ describe('Prompt Builder configuration', () => {
       narrationStartEndSystem: 'Template system', narrationStartEndRequest: '  ',
       narrationStartOnlySystem: null, narrationEventsRequest: undefined,
       narrationSystem: 'Existing renderer', narration2: 'Existing outline request',
-      outlineIdeaGenerator: 'Legacy generator',
     }, {
       narrationStartEndSystem: 'Global system', narrationStartEndRequest: 'Global request',
       narrationStartOnlySystem: ' ', narrationEventsRequest: 'Global events',
-      narration1: 'Shared context', outlineIdeaGeneratorSystem: 'Legacy generator system',
+      narration1: 'Shared context',
     });
     expect(config).toMatchObject({
       narrationStartEndSystem: 'Template system', narrationStartEndRequest: 'Global request',
@@ -20,7 +19,6 @@ describe('Prompt Builder configuration', () => {
       narrationStartOnlyRequest: defaultNarrationModePrompts.narrationStartOnlyRequest,
       narrationEventsRequest: 'Global events', narration1: 'Shared context',
       narrationSystem: 'Existing renderer', narration2: 'Existing outline request',
-      outlineIdeaGenerator: 'Legacy generator', outlineIdeaGeneratorSystem: 'Legacy generator system',
     });
   });
 
@@ -30,11 +28,22 @@ describe('Prompt Builder configuration', () => {
     expect(mergePromptBuilderWithDefaults(null)).toMatchObject(defaultNarrationModePrompts);
   });
 
-  it('normalizes unset fields and preserves custom and deprecated prompt values', () => {
+  it('normalizes unset fields and discards retired prompt values', () => {
     expect(validatePromptBuilderConfig({ narrationEventsSystem: '  ', narrationEventsRequest: null,
       narrationStartEndSystem: 'Custom', outlineIdeaGenerator: 'Legacy', outlineIdeaGeneratorSystem: 'Legacy system' }))
       .toMatchObject({ ok: true, value: { narrationEventsSystem: '', narrationEventsRequest: '',
-        narrationStartEndSystem: 'Custom', outlineIdeaGenerator: 'Legacy', outlineIdeaGeneratorSystem: 'Legacy system' } });
+        narrationStartEndSystem: 'Custom' } });
+    const legacy = { outlineIdeaGenerator: 'Legacy', outlineIdeaGeneratorSystem: 'Legacy system' };
+    const result = validatePromptBuilderConfig(legacy);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value).not.toHaveProperty('outlineIdeaGenerator');
+      expect(result.value).not.toHaveProperty('outlineIdeaGeneratorSystem');
+    }
+    const merged = mergePromptBuilderWithDefaults({ ...legacy, narration2: 'Original request' });
+    expect(merged.narration2).toBe('Original request');
+    expect(merged).not.toHaveProperty('outlineIdeaGenerator');
+    expect(merged).not.toHaveProperty('outlineIdeaGeneratorSystem');
     expect(validatePromptBuilderConfig(undefined).ok).toBe(true);
   });
 

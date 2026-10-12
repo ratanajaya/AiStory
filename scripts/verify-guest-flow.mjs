@@ -37,7 +37,7 @@ try {
   assert.equal(book.status, 201);
   const bookPath = `/api/books/${book.body.bookId}`;
   const saves = await Promise.all([
-    first(`${bookPath}/draft`, 'PATCH', { draftOutline: 'A visitor arrives.', draftIdea: 'A garden mystery.' }),
+    first(`${bookPath}/draft`, 'PATCH', { draftOutline: 'A visitor arrives.' }),
     first(`${bookPath}/name`, 'PATCH', { name: 'Smoke test book' }),
   ]);
   assert.ok(saves.every((result) => result.status === 200), 'concurrent narrow saves');

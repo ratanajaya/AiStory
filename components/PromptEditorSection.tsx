@@ -121,21 +121,6 @@ export function PromptEditorSection({
         />
       </FormField>
 
-      <FormField label="Outline generator system prompt (deprecated):">
-        <Textarea
-          value={_util.toInputString(promptBuilder.outlineIdeaGeneratorSystem)}
-          onChange={(e) => onPromptBuilderChange('outlineIdeaGeneratorSystem', e.target.value)}
-          rows={5}
-        />
-      </FormField>
-
-      <FormField label="Outline generator request (deprecated):">
-        <Textarea
-          value={_util.toInputString(promptBuilder.outlineIdeaGenerator)}
-          onChange={(e) => onPromptBuilderChange('outlineIdeaGenerator', e.target.value)}
-          rows={4}
-        />
-      </FormField>
     </fieldset>
   );
 }

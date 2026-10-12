@@ -1,12 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import {
   parseChapter,
+  parseBookDraft,
   parseSegmentIds,
   parseSegmentSummary,
   parseStorySegment,
 } from '@/lib/bookMutationValidation';
 
 describe('book mutation validation', () => {
+  it('normalizes draft direction and ignores legacy idea and unrelated fields', () => {
+    expect(parseBookDraft({ draftOutline: '  ', draftIdea: 'Legacy', chapters: [] })).toEqual({ draftOutline: '' });
+    expect(parseBookDraft({ draftOutline: '  Keep spacing\n' })).toEqual({ draftOutline: '  Keep spacing\n' });
+    expect(parseBookDraft({ draftOutline: 'x'.repeat(65_536) })).not.toBeNull();
+  });
+
+  it.each([null, [], {}, { draftOutline: false }, { draftOutline: 'x'.repeat(65_537) }])('rejects invalid draft payloads', value => {
+    expect(parseBookDraft(value)).toBeNull();
+  });
   it.each(['outline', 'startEnd', 'startOnly', 'events'])('preserves the %s mode on source segments', narrationMode => {
     expect(parseStorySegment({ id: 'source', day: 0, role: 'user', content: 'Direction', narrationMode }))
       .toEqual({ id: 'source', day: 0, role: 'user', content: 'Direction', narrationMode });

@@ -16,8 +16,6 @@ const emptyPromptBuilder: PromptBuilderConfig = {
   segmentSummarizerSystem: '',
   chapterSummarizer: '',
   chapterSummarizerSystem: '',
-  outlineIdeaGenerator: '',
-  outlineIdeaGeneratorSystem: '',
 };
 
 const emptyApiKey: ApiKeyConfig = {
@@ -33,7 +31,6 @@ const defaultSelectedLlm: LlmConfig = {
 const defaultGenerationProfiles: GenerationProfileConfig = {
   default: { temperature: null, maxOutputTokens: 600, timeoutMs: 60_000, maxRetries: 1 },
   narration: { temperature: null, maxOutputTokens: 1_200, timeoutMs: 60_000, maxRetries: 1 },
-  outlineIdeaGenerator: { temperature: null, maxOutputTokens: 600, timeoutMs: 60_000, maxRetries: 1 },
   enhancer: { temperature: null, maxOutputTokens: 1_200, timeoutMs: 60_000, maxRetries: 1 },
   segmentSummarizer: { temperature: null, maxOutputTokens: 500, timeoutMs: 60_000, maxRetries: 1 },
   chapterSummarizer: { temperature: null, maxOutputTokens: 700, timeoutMs: 60_000, maxRetries: 1 },

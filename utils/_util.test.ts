@@ -96,8 +96,6 @@ describe("_util", () => {
           segmentSummarizerSystem: "",
           chapterSummarizer: "",
           chapterSummarizerSystem: "",
-          outlineIdeaGenerator: "",
-          outlineIdeaGeneratorSystem: "",
       });
     });
 

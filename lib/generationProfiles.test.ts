@@ -32,6 +32,13 @@ describe('generationProfiles', () => {
     expect(isAiGenerationFeature('default')).toBe(true);
     expect(isAiGenerationFeature('longTermMemory')).toBe(true);
     expect(isAiGenerationFeature('unknown')).toBe(false);
+    expect(isAiGenerationFeature('outlineIdeaGenerator')).toBe(false);
+  });
+
+  it('drops retired profiles from legacy settings', () => {
+    const legacy = { ...getDefaultGenerationProfiles(), outlineIdeaGenerator: getDefaultGenerationProfiles().default };
+    expect(normalizeGenerationProfileConfig(legacy)).toEqual(getDefaultGenerationProfiles());
+    expect(validateGenerationProfileConfig(legacy)).toEqual({ ok: true, value: getDefaultGenerationProfiles() });
   });
 
   it('uses defaults when legacy configuration has no profiles', () => {

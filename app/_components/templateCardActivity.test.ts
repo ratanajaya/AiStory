@@ -14,8 +14,6 @@ const template = (templateId: string, updatedAt?: string): HomepageTemplate => (
     segmentSummarizerSystem: null,
     chapterSummarizer: null,
     chapterSummarizerSystem: null,
-    outlineIdeaGenerator: null,
-    outlineIdeaGeneratorSystem: null,
   },
   storyBackground: '',
   writingStyle: '',

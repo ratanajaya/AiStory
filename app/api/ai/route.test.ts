@@ -14,6 +14,15 @@ describe('POST /api/ai stream metadata', () => {
     mocks.reserve.mockResolvedValue({ ok: true });
     mocks.getDynamicAiEndpoint.mockResolvedValue({ endpoint: { chatCompletionFull: vi.fn(async () => 'OK') }, generationProfiles: getDefaultGenerationProfiles(), selectedLlm: { service: 'together', model: 'org/model-v2' }, trialFunded: false });
   });
+  it('rejects the removed generator before resolving a provider or charging the trial', async () => {
+    const response = await POST(new Request('http://localhost/api/ai', {
+      method: 'POST', body: JSON.stringify({ feature: 'outlineIdeaGenerator', messages: [{ role: 'user', content: 'Idea' }] }),
+    }));
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: { message: 'feature is required and must be supported' } });
+    expect(mocks.getDynamicAiEndpoint).not.toHaveBeenCalled();
+    expect(mocks.reserve).not.toHaveBeenCalled();
+  });
   it('returns the resolved provider and model in headers while keeping plain-text chunks', async () => {
     mocks.getDynamicAiEndpoint.mockResolvedValue({
       endpoint: {

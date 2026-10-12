@@ -8,7 +8,7 @@ vi.mock('@/lib/mongodb', () => ({ default: vi.fn() }));
 vi.mock('@/models', () => ({ KeyValueModel: { findOne: mocks.find, findOneAndUpdate: mocks.update } }));
 import { GET, PUT } from './route';
 
-const settings = { selectedTts: null, selectedLlm: _constant.defaultSelectedLlm, generationProfiles: _constant.defaultGenerationProfiles,
+const settings = { selectedTts: null, selectedLlm: _constant.defaultSelectedLlm, generationProfiles: { ..._constant.defaultGenerationProfiles, outlineIdeaGenerator: _constant.defaultGenerationProfiles.default },
   apiKey: _constant.emptyApiKey, promptBuilder: { narrationSystem: 'Original system', narration2: 'Original request',
     narrationEventsSystem: 'Custom events', outlineIdeaGenerator: 'Legacy request', outlineIdeaGeneratorSystem: 'Legacy system' } };
 const save = (value: unknown) => PUT(new Request('http://localhost/api/settings', { method: 'PUT', body: JSON.stringify(value) }));
@@ -19,16 +19,22 @@ beforeEach(() => {
   mocks.update.mockImplementation(async (_filter, value) => ({ value: value.value }));
 });
 
-it('returns editable creative defaults without changing configured or deprecated prompts', async () => {
+it('returns editable creative defaults while dropping retired prompts', async () => {
   const result = await (await GET()).json();
-  expect(result.promptBuilder).toMatchObject({ ...defaultNarrationModePrompts, ...settings.promptBuilder });
+  expect(result.promptBuilder).toMatchObject({ ...defaultNarrationModePrompts, narrationSystem: 'Original system', narration2: 'Original request', narrationEventsSystem: 'Custom events' });
+  expect(result.promptBuilder).not.toHaveProperty('outlineIdeaGenerator');
+  expect(result.promptBuilder).not.toHaveProperty('outlineIdeaGeneratorSystem');
+  expect(result.generationProfiles).not.toHaveProperty('outlineIdeaGenerator');
 });
 
-it('retains deprecated settings while saving the new mode prompts', async () => {
+it('drops retired settings while saving the new mode prompts', async () => {
   const response = await save(settings);
   expect(response.status).toBe(200);
-  expect((await response.json()).promptBuilder).toMatchObject(settings.promptBuilder);
-  expect(mocks.update.mock.calls[0][1].value.generationProfiles.outlineIdeaGenerator).toEqual(_constant.defaultGenerationProfiles.outlineIdeaGenerator);
+  expect((await response.json()).promptBuilder).toHaveProperty('narrationEventsSystem', 'Custom events');
+  const saved = mocks.update.mock.calls[0][1].value;
+  expect(saved.promptBuilder).not.toHaveProperty('outlineIdeaGenerator');
+  expect(saved.promptBuilder).not.toHaveProperty('outlineIdeaGeneratorSystem');
+  expect(saved.generationProfiles).not.toHaveProperty('outlineIdeaGenerator');
 });
 
 it('rejects malformed mode prompts before writing settings', async () => {

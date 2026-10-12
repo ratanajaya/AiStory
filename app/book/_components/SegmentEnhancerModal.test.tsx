@@ -32,7 +32,6 @@ describe('redo candidate enhancer prompt', () => {
         enhancer: '{currentChapter}\n{selectedSegment}', enhancerSystem: null,
         segmentSummarizer: null, segmentSummarizerSystem: null,
         chapterSummarizer: null, chapterSummarizerSystem: null,
-        outlineIdeaGenerator: null, outlineIdeaGeneratorSystem: null,
       },
     };
     render(<SegmentEnhancerModal

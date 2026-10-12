@@ -1,12 +1,18 @@
 import { Chapter, SegmentSummary, StorySegment } from '@/types';
 import { validateLlmConfig } from '@/lib/llmSettings';
 import { isNarrationMode } from '@/lib/narrationModes';
+import _util from '@/utils/_util';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === 'string' && value.trim().length > 0;
+
+export function parseBookDraft(value: unknown): { draftOutline: string } | null {
+  if (!isRecord(value) || typeof value.draftOutline !== 'string' || value.draftOutline.length > 65_536) return null;
+  return { draftOutline: _util.toInputString(value.draftOutline) };
+}
 
 export function parseStorySegment(value: unknown): StorySegment | null {
   if (!isRecord(value)

@@ -17,8 +17,6 @@ const template: Template = {
     segmentSummarizerSystem: null,
     chapterSummarizer: null,
     chapterSummarizerSystem: null,
-    outlineIdeaGenerator: null,
-    outlineIdeaGeneratorSystem: null,
   },
   storyBackground: "A storm is coming.",
   writingStyle: "Use close third-person narration.",

@@ -50,11 +50,13 @@ it('rejects an invalid starter outline before writing', async () => {
   expect(mocks.create).not.toHaveBeenCalled();
 });
 
-it('persists creative prompt overrides without dropping deprecated fields', async () => {
+it('persists creative prompt overrides while dropping retired fields', async () => {
   const promptBuilder = { narrationStartEndSystem: 'Bridge system', narrationStartEndRequest: '{textboxInput}', outlineIdeaGenerator: 'Legacy' };
   const response = await POST(request({ ...body, promptBuilder }));
   expect(response.status).toBe(201);
-  expect((await response.json()).promptBuilder).toMatchObject(promptBuilder);
+  const saved = (await response.json()).promptBuilder;
+  expect(saved).toMatchObject({ narrationStartEndSystem: 'Bridge system', narrationStartEndRequest: '{textboxInput}' });
+  expect(saved).not.toHaveProperty('outlineIdeaGenerator');
 });
 
 it('rejects invalid creative prompts before creating a template', async () => {
