@@ -23,7 +23,7 @@ AiStory is a Next.js 16 App Router app for creating template-driven stories, gro
 ### Public and guest behavior
 
 - `isPublic` defaults to false. Only admins may set it on their own templates; public card responses expose no private fields. Starting a public template creates a private copy and book.
-- Guest books, templates, images, and keys use a temporary workspace. Keep guest mutations coordinated with claim and cleanup through workspace state and MongoDB transactions. Run hourly cleanup via the Vercel cron or `npm run cleanup:guests`.
+- Guest books, templates, images, and keys use a temporary workspace. Keep guest mutations coordinated with claim and cleanup through workspace state and MongoDB transactions. No Vercel cron job is configured; run `npm run cleanup:guests` manually or through an external hourly scheduler.
 - App-funded guest/new-account generation uses a 20-call text and 10,000-character audio trial; guest IP limits are 60 calls and 30,000 characters per UTC day. Personal provider keys bypass trial consumption only for the corresponding provider. Do not expose keys in logs or API responses.
 
 ### Book mutations
