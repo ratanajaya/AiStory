@@ -3,6 +3,7 @@
 import { FormField } from '@/components/FormField';
 import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
+import { AutocompleteModelSelect, type AutocompleteModelSelectProps } from '@/components/AutocompleteModelSelect';
 import { AiModelOption, ApiKeyConfig, LLMService } from '@/types';
 import _constant from '@/utils/_constant';
 import _util from '@/utils/_util';
@@ -27,11 +28,12 @@ interface AiSettingsSectionProps {
   variant?: 'page' | 'sidebar';
   llmTitle?: string;
   apiKeyTitle?: string;
+  autocomplete: AutocompleteModelSelectProps;
 }
 
-function PageSection({ title, children }: { title: string; children: React.ReactNode }) {
+function PageSection({ title, children, id }: { title: string; children: React.ReactNode; id?: string }) {
   return (
-    <fieldset className="mb-4 p-4 border border-border rounded bg-card/50">
+    <fieldset id={id} className="mb-4 p-4 border border-border rounded bg-card/50">
       <legend className="font-semibold text-secondary px-2">{title}</legend>
       {children}
     </fieldset>
@@ -70,6 +72,7 @@ export function AiSettingsSection({
   variant = 'page',
   llmTitle = 'LLM Configuration',
   apiKeyTitle = 'API Keys',
+  autocomplete,
 }: AiSettingsSectionProps) {
   const isPage = variant === 'page';
   const isSupportedService = selectedService in _constant.llmServices;
@@ -158,7 +161,8 @@ export function AiSettingsSection({
     return (
       <>
         <PageSection title={llmTitle}>{llmFields}</PageSection>
-        <PageSection title={apiKeyTitle}>{apiKeyFields}</PageSection>
+        <AutocompleteModelSelect {...autocomplete} />
+        <PageSection title={apiKeyTitle} id="api-keys">{apiKeyFields}</PageSection>
       </>
     );
   }
@@ -166,6 +170,7 @@ export function AiSettingsSection({
   return (
     <>
       <SidebarSection title={llmTitle}>{llmFields}</SidebarSection>
+      <AutocompleteModelSelect {...autocomplete} />
       <SidebarSection title={apiKeyTitle} titleClassName="font-semibold text-secondary text-sm pt-2">
         {apiKeyFields}
       </SidebarSection>

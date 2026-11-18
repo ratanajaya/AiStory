@@ -7,11 +7,12 @@ interface SelectOption {
 
 interface SelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, 'children'> {
   options: SelectOption[];
+  groups?: { label: string; options: SelectOption[] }[];
   placeholder?: string;
 }
 
 export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
-  ({ className = '', options, placeholder, ...props }, ref) => {
+  ({ className = '', options, groups, placeholder, ...props }, ref) => {
     return (
       <select
         ref={ref}
@@ -25,6 +26,13 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
           <option key={option.value} value={option.value}>
             {option.label}
           </option>
+        ))}
+        {groups?.map((group) => (
+          <optgroup key={group.label} label={group.label}>
+            {group.options.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </optgroup>
         ))}
       </select>
     );

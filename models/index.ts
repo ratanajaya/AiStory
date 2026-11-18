@@ -158,6 +158,10 @@ const UserSchema = new Schema<User>({
   registeredAt: { type: Date, default: Date.now },
   lastLoginAt: { type: Date, default: Date.now },
   selectedLlm: { type: LlmConfigSchema, default: null },
+  autocomplete: {
+    type: new Schema({ model: { type: LlmConfigSchema, default: null } }, { _id: false }),
+    default: null,
+  },
   selectedTts: { type: TtsConfigSchema, default: null },
   apiKey: { type: ApiKeyConfigSchema, default: () => ({ together: null, openAi: null }) },
   trialTextUsed: { type: Number, default: 0 },

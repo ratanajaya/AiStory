@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import dbConnect from "@/lib/mongodb";
 import { UserModel } from "@/models";
 import { validateLlmConfig } from "@/lib/llmSettings";
+import { normalizeAutocompletePreference, validateAutocompletePreference } from "@/lib/autocompleteSettings";
 import _util from "@/utils/_util";
 import { errorResponse, errorResponseFromMessage } from "@/lib/apiError";
 
@@ -19,7 +20,7 @@ export async function GET() {
     await dbConnect();
     const user = await UserModel.findOne(
       { email: session.user.email },
-      { selectedLlm: 1, selectedTts: 1, apiKey: 1, _id: 0 }
+      { selectedLlm: 1, selectedTts: 1, autocomplete: 1, apiKey: 1, _id: 0 }
     ).lean();
 
     if (!user) {
@@ -29,6 +30,7 @@ export async function GET() {
     return NextResponse.json({
       ...user,
       selectedTts: user.selectedTts ?? null,
+      autocomplete: normalizeAutocompletePreference(user.autocomplete),
       apiKey: _util.normalizeApiKeyConfig(user.apiKey),
     });
   } catch (err) {
@@ -51,6 +53,12 @@ export async function PUT(request: Request) {
 
     // Explicit allowlist; never accept ownership or role fields.
     const updateData: Record<string, unknown> = {};
+
+    if ('autocomplete' in body) {
+      const result = validateAutocompletePreference(body.autocomplete);
+      if (!result.ok) return errorResponseFromMessage(result.message, 400);
+      updateData.autocomplete = result.value;
+    }
 
     if ('selectedTts' in body) {
       const result = validateTtsConfig(body.selectedTts);

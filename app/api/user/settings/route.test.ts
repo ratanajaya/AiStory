@@ -26,3 +26,20 @@ describe('account TTS preferences', () => {
     expect(mocks.update).not.toHaveBeenCalled();
   });
 });
+
+describe('account autocomplete preferences', () => {
+  const autocomplete = { model: { service: 'together', model: 'org/test-chat' } };
+
+  it.each([autocomplete, { model: null }, null])('saves %j for the current account', async preference => {
+    mocks.find.mockResolvedValueOnce({ autocomplete: preference });
+    expect((await (await GET()).json()).autocomplete).toEqual(preference);
+    expect((await put({ autocomplete: preference, isAdmin: true })).status).toBe(200);
+    expect(mocks.update).toHaveBeenCalledWith({ email: 'owner@example.com' }, { $set: { autocomplete: preference } });
+  });
+
+  it('rejects invalid preferences', async () => {
+    expect((await put({ autocomplete: { model: { service: 'mistral', model: 'test' } } })).status).toBe(400);
+    expect((await put({ autocomplete: {} })).status).toBe(400);
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+});

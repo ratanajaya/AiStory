@@ -2,16 +2,18 @@ import { resolveTtsConfig } from '@/lib/ttsConfig';
 import { getUserSettingWithFallback } from '@/auth';
 import dbConnect from '@/lib/mongodb';
 import { KeyValueModel } from '@/models';
-import { getActor, guestSettings } from '@/lib/guest';
+import { getActor, guestSettings, type Actor } from '@/lib/guest';
 import { normalizeGenerationProfileConfig } from '@/lib/generationProfiles';
+import { resolveAutocompleteModel } from '@/lib/autocompleteSettings';
 import type { ApiKeyConfig, DefaultValue, GenerationProfileConfig, LlmConfig, LLMService, TtsConfig } from '@/types';
 
-export async function getActorGenerationSettings(): Promise<{
+export async function getActorGenerationSettings(resolvedActor?: Actor): Promise<{
   selectedTts: TtsConfig;
+  autocompleteModel: LlmConfig | null;
   selectedLlm: LlmConfig; apiKey: ApiKeyConfig; generationProfiles: GenerationProfileConfig;
   personal: Record<LLMService, boolean>; trialAccount: boolean;
 }> {
-  const actor = await getActor();
+  const actor = resolvedActor ?? await getActor();
   if (!actor) throw new Error('Unauthorized');
   await dbConnect();
   if (actor.kind === 'user') {
@@ -25,6 +27,7 @@ export async function getActorGenerationSettings(): Promise<{
   const defaults = defaultDoc.value as DefaultValue;
   return {
     selectedLlm: guest.selectedLlm || defaults.selectedLlm,
+    autocompleteModel: resolveAutocompleteModel(null, defaults.autocomplete),
     selectedTts: resolveTtsConfig(guest.guest.selectedTts, defaults.selectedTts),
     apiKey: {
       together: guest.apiKey.together || defaults.apiKey.together,

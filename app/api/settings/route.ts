@@ -5,6 +5,7 @@ import dbConnect from '@/lib/mongodb';
 import { KeyValueModel } from '@/models';
 import { DefaultValue } from '@/types';
 import { validateLlmConfig } from '@/lib/llmSettings';
+import { normalizeAutocompletePreference, validateAutocompletePreference } from '@/lib/autocompleteSettings';
 import { normalizeGenerationProfileConfig, validateGenerationProfileConfig } from '@/lib/generationProfiles';
 import _constant from '@/utils/_constant';
 import _util from '@/utils/_util';
@@ -41,6 +42,7 @@ export async function GET() {
       // This should never happen in practice, but keep a safe fallback for unset data.
       const emptyDefaultValue: DefaultValue = {
         selectedTts: resolveTtsConfig(null),
+        autocomplete: null,
         promptBuilder: mergePromptBuilderWithDefaults(null),
         generationProfiles: normalizeGenerationProfileConfig(null),
         apiKey: { ..._constant.emptyApiKey },
@@ -53,6 +55,7 @@ export async function GET() {
 
     const responseValue: DefaultValue = {
       selectedTts: resolveTtsConfig(value.selectedTts),
+      autocomplete: normalizeAutocompletePreference(value.autocomplete),
       promptBuilder: mergePromptBuilderWithDefaults(value.promptBuilder),
       generationProfiles: normalizeGenerationProfileConfig(value.generationProfiles),
       apiKey: _util.normalizeApiKeyConfig(value.apiKey),
@@ -94,22 +97,31 @@ export async function PUT(request: Request) {
 
     const ttsResult = validateTtsConfig(body.selectedTts);
     if (!ttsResult.ok) return errorResponseFromMessage(ttsResult.message, 400);
-    const existing = body.selectedTts === undefined ? await KeyValueModel.findOne({ key: DEFAULT_KEY }).lean() : null;
-    const normalizedValue: DefaultValue = {
-      selectedTts: resolveTtsConfig(ttsResult.value, existing?.value?.selectedTts),
-      promptBuilder: promptResult.value,
-      generationProfiles: generationProfileResult.value,
-      apiKey: _util.normalizeApiKeyConfig(body.apiKey),
-      selectedLlm: llmResult.value,
+    const update: Record<string, unknown> = {
+      'value.promptBuilder': promptResult.value,
+      'value.generationProfiles': generationProfileResult.value,
+      'value.apiKey': _util.normalizeApiKeyConfig(body.apiKey),
+      'value.selectedLlm': llmResult.value,
     };
+    if ('selectedTts' in body) update['value.selectedTts'] = resolveTtsConfig(ttsResult.value);
+    if ('autocomplete' in body) {
+      const result = validateAutocompletePreference(body.autocomplete);
+      if (!result.ok) return errorResponseFromMessage(result.message, 400);
+      update['value.autocomplete'] = result.value;
+    }
 
     const doc = await KeyValueModel.findOneAndUpdate(
       { key: DEFAULT_KEY },
-      { key: DEFAULT_KEY, value: normalizedValue },
+      { $set: update },
       { upsert: true, new: true }
     );
 
-    return NextResponse.json(doc.value as DefaultValue);
+    const saved = doc.value as DefaultValue;
+    return NextResponse.json({
+      ...saved,
+      selectedTts: resolveTtsConfig(saved.selectedTts),
+      autocomplete: normalizeAutocompletePreference(saved.autocomplete),
+    });
   } catch (err) {
     return errorResponse(err);
   }

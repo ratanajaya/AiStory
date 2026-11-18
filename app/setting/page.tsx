@@ -25,6 +25,7 @@ const emptyModels: AiModelOption[] = [];
 
 const emptyDefaultValue: SettingsFormData = {
   selectedTts: resolveTtsConfig(null),
+  autocomplete: null,
   promptBuilder: { ..._constant.emptyPromptBuilder },
   generationProfiles: normalizeGenerationProfileConfig(null),
   apiKey: { ..._constant.emptyApiKey },
@@ -53,6 +54,7 @@ export default function SettingPage() {
         const apiKey = _util.normalizeApiKeyConfig(data.apiKey);
         setFormData({
           selectedTts: resolveTtsConfig(data.selectedTts),
+          autocomplete: data.autocomplete ?? null,
           promptBuilder: _util.normalizePromptBuilderConfig(data.promptBuilder),
           generationProfiles: normalizeGenerationProfileConfig(data.generationProfiles),
           apiKey,
@@ -232,6 +234,12 @@ export default function SettingPage() {
           modelLoading={modelLoading}
           modelLoadError={modelLoadError}
           llmError={llmError}
+          autocomplete={{
+            value: formData.autocomplete,
+            onChange: autocomplete => setFormData(previous => ({ ...previous, autocomplete })),
+            modelKeys,
+            disabled: loading,
+          }}
           variant="page"
         />
 

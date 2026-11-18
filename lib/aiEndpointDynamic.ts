@@ -9,7 +9,10 @@ import { toAiSdkGenerationOptions } from '@/lib/generationProfiles';
 
 export interface AiEndpoint {
   chatCompletion: (systemMsg: string | null, userMsg: string, profile: GenerationProfile) => Promise<string>;
-  chatCompletionFull: (systemMsg: string | null, messages: unknown[], profile: GenerationProfile) => Promise<string>;
+  chatCompletionFull: (systemMsg: string | null, messages: unknown[], profile: GenerationProfile, options?: {
+    abortSignal?: AbortSignal;
+    allowEmpty?: boolean;
+  }) => Promise<string>;
   chatStream: (systemMsg: string | null, userMsg: string, profile: GenerationProfile, onReceiveChunk: (content: string) => void) => Promise<void>;
   chatStreamFull: (systemMsg: string | null, messages: unknown[], profile: GenerationProfile, onReceiveChunk: (content: string) => void) => Promise<void>;
   chatObjectFull: <T>(systemMsg: string | null, messages: unknown[], profile: GenerationProfile, schema: Record<string, unknown>) => Promise<T>;
@@ -148,7 +151,7 @@ const createAiSdkEndpoint = (model: LanguageModel, structuredOutputModel: Langua
       { attempts },
     );
   },
-  chatCompletionFull: async (systemMsg: string | null, messages: unknown[], profile: GenerationProfile) => {
+  chatCompletionFull: async (systemMsg, messages, profile, options) => {
     const systemPrompt: ModelMessage[] = systemMsg ? [{ role: 'system', content: systemMsg }] : [];
 
     const { text } = await generateText({
@@ -159,13 +162,14 @@ const createAiSdkEndpoint = (model: LanguageModel, structuredOutputModel: Langua
       ] as ModelMessage[],
       ...toAiSdkGenerationOptions(profile),
       ...(trialFunded ? { maxRetries: 0 } : {}),
+      ...(options?.abortSignal ? { abortSignal: options.abortSignal } : {}),
     });
 
-    if (!text || !text.trim()) {
+    if (!options?.allowEmpty && !text?.trim()) {
       throw new Error('LLM returned no content (empty response)');
     }
 
-    return text;
+    return text ?? '';
   },
   chatCompletion: async (systemMsg: string | null, userMsg: string, profile: GenerationProfile) => {
     return createAiSdkEndpoint(model).chatCompletionFull(systemMsg, [
@@ -213,6 +217,29 @@ const createAiSdkEndpoint = (model: LanguageModel, structuredOutputModel: Langua
   }
 });
 
+export function createConfiguredAiEndpoint(selectedLlm: LlmConfig, apiKey: string, trialFunded = false): AiEndpoint {
+  assertSupportedLlmConfig(selectedLlm);
+  if (selectedLlm.service === 'together') {
+    if (!apiKey) throw new Error('Together API key is not configured');
+    const together = createTogetherAI({ apiKey });
+    // The installed Together provider is based on the generic OpenAI-compatible
+    // adapter but does not advertise Together's JSON Schema capability. Use a
+    // dedicated model instance for structured calls so the adapter sends
+    // response_format.type=json_schema instead of silently degrading to JSON mode.
+    const togetherStructured = createOpenAICompatible({
+      name: 'togetherai',
+      baseURL: 'https://api.together.xyz/v1',
+      apiKey,
+      supportsStructuredOutputs: true,
+    });
+    return createAiSdkEndpoint(together(selectedLlm.model), togetherStructured(selectedLlm.model), trialFunded);
+  }
+
+  if (!apiKey) throw new Error('OpenAI API key is not configured');
+  const openai = createOpenAI({ apiKey });
+  return createAiSdkEndpoint(openai(selectedLlm.model), undefined, trialFunded);
+}
+
 // Get the endpoint based on current user configuration
 export const getDynamicAiEndpoint = async (): Promise<{
   endpoint: AiEndpoint;
@@ -221,42 +248,8 @@ export const getDynamicAiEndpoint = async (): Promise<{
   trialFunded: boolean;
 }> => {
   const { selectedLlm, apiKey, generationProfiles, personal, trialAccount } = await getActorGenerationSettings();
-  assertSupportedLlmConfig(selectedLlm);
   // Keep accounting tied to these credentials even if settings change mid-request.
   const trialFunded = trialAccount && !personal[selectedLlm.service];
-  
-  if (selectedLlm.service === 'together') {
-    if (!apiKey.together) {
-      throw new Error('Together API key is not configured');
-    }
-    const together = createTogetherAI({ apiKey: apiKey.together });
-    // The installed Together provider is based on the generic OpenAI-compatible
-    // adapter but does not advertise Together's JSON Schema capability. Use a
-    // dedicated model instance for structured calls so the adapter sends
-    // response_format.type=json_schema instead of silently degrading to JSON mode.
-    const togetherStructured = createOpenAICompatible({
-      name: 'togetherai',
-      baseURL: 'https://api.together.xyz/v1',
-      apiKey: apiKey.together,
-      supportsStructuredOutputs: true,
-    });
-    return {
-      endpoint: createAiSdkEndpoint(
-        together(selectedLlm.model),
-        togetherStructured(selectedLlm.model),
-        trialFunded,
-      ),
-      generationProfiles,
-      selectedLlm,
-      trialFunded,
-    };
-  } else if (selectedLlm.service === 'openAi') {
-    if (!apiKey.openAi) {
-      throw new Error('OpenAI API key is not configured');
-    }
-    const openai = createOpenAI({ apiKey: apiKey.openAi });
-    return { endpoint: createAiSdkEndpoint(openai(selectedLlm.model), undefined, trialFunded), generationProfiles, selectedLlm, trialFunded };
-  }
-
-  throw new Error('Unsupported LLM service configured');
+  const endpoint = createConfiguredAiEndpoint(selectedLlm, apiKey[selectedLlm.service] ?? '', trialFunded);
+  return { endpoint, generationProfiles, selectedLlm, trialFunded };
 };

@@ -16,7 +16,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.user.mockResolvedValue({ isAdmin: true });
   mocks.find.mockResolvedValue({ value: settings });
-  mocks.update.mockImplementation(async (_filter, value) => ({ value: value.value }));
+  mocks.update.mockImplementation(async (_filter, { $set }) => ({
+    value: { ...settings, ...Object.fromEntries(Object.entries($set).map(([path, value]) => [path.slice('value.'.length), value])) },
+  }));
 });
 
 it('returns editable creative defaults while dropping retired prompts', async () => {
@@ -31,10 +33,25 @@ it('drops retired settings while saving the new mode prompts', async () => {
   const response = await save(settings);
   expect(response.status).toBe(200);
   expect((await response.json()).promptBuilder).toHaveProperty('narrationEventsSystem', 'Custom events');
-  const saved = mocks.update.mock.calls[0][1].value;
-  expect(saved.promptBuilder).not.toHaveProperty('outlineIdeaGenerator');
-  expect(saved.promptBuilder).not.toHaveProperty('outlineIdeaGeneratorSystem');
-  expect(saved.generationProfiles).not.toHaveProperty('outlineIdeaGenerator');
+  const saved = mocks.update.mock.calls[0][1].$set;
+  expect(saved['value.promptBuilder']).not.toHaveProperty('outlineIdeaGenerator');
+  expect(saved['value.promptBuilder']).not.toHaveProperty('outlineIdeaGeneratorSystem');
+  expect(saved['value.generationProfiles']).not.toHaveProperty('outlineIdeaGenerator');
+  expect(saved).not.toHaveProperty('value.autocomplete');
+});
+
+it('reads and saves the default autocomplete selection independently of narration', async () => {
+  expect((await (await GET()).json()).autocomplete).toBeNull();
+  const autocomplete = { model: { service: 'openAi', model: 'test-autocomplete' } };
+  expect((await (await save({ ...settings, autocomplete })).json()).autocomplete).toEqual(autocomplete);
+  expect(mocks.update.mock.calls[0][1].$set).toMatchObject({
+    'value.autocomplete': autocomplete,
+    'value.selectedLlm': settings.selectedLlm,
+  });
+  mocks.find.mockResolvedValueOnce({ value: { ...settings, autocomplete } });
+  expect((await (await GET()).json()).autocomplete).toEqual(autocomplete);
+  expect((await save({ ...settings, autocomplete: { model: { service: 'openAi', model: ' ' } } })).status).toBe(400);
+  expect(mocks.update).toHaveBeenCalledOnce();
 });
 
 it('rejects malformed mode prompts before writing settings', async () => {

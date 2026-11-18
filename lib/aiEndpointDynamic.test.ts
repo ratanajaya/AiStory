@@ -20,7 +20,8 @@ vi.mock('ai', async (importOriginal) => ({
   streamText: mocks.streamText,
 }));
 
-import { getDynamicAiEndpoint } from './aiEndpointDynamic';
+import { createConfiguredAiEndpoint, getDynamicAiEndpoint } from './aiEndpointDynamic';
+import { autocompleteProfile } from './autocomplete';
 
 describe('toAiSdkGenerationOptions', () => {
   it('omits temperature when the profile uses the provider default', () => {
@@ -61,6 +62,20 @@ describe('Together structured output', () => {
     });
     mocks.createTogetherAI.mockReturnValue(textProvider);
     mocks.createOpenAICompatible.mockReturnValue(structuredProvider);
+  });
+
+  it('passes the autocomplete timeout, cancellation, and zero retries to the SDK', async () => {
+    const { signal } = new AbortController();
+    mocks.generateText.mockResolvedValueOnce({ text: '' });
+    const endpoint = createConfiguredAiEndpoint({ service: 'together', model: 'test-chat' }, 'personal-key');
+    await expect(endpoint.chatCompletionFull(null, [], autocompleteProfile, { abortSignal: signal, allowEmpty: true })).resolves.toBe('');
+    expect(mocks.createTogetherAI).toHaveBeenCalledWith({ apiKey: 'personal-key' });
+    expect(mocks.generateText).toHaveBeenCalledWith(expect.objectContaining({
+      abortSignal: signal,
+      maxOutputTokens: 128,
+      maxRetries: 0,
+      timeout: { totalMs: 5_000 },
+    }));
   });
 
   it('uses a JSON-Schema-capable Together model only for object generation', async () => {

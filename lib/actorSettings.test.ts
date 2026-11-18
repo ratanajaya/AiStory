@@ -35,4 +35,18 @@ describe('account generation credentials and funding', () => {
     });
     expect(mocks.user).toHaveBeenCalledTimes(1);
   });
+
+  it.each([
+    [undefined, { service: 'openAi', model: 'default-autocomplete' }],
+    [{ model: null }, null],
+    [{ model: { service: 'together', model: 'account-autocomplete' } }, { service: 'together', model: 'account-autocomplete' }],
+  ])('resolves an account autocomplete preference of %j', async (autocomplete, expected) => {
+    mocks.defaults.mockResolvedValueOnce({ value: {
+      selectedLlm: { service: 'together', model: 'default-model' },
+      apiKey: {},
+      autocomplete: { model: { service: 'openAi', model: 'default-autocomplete' } },
+    } });
+    mocks.user.mockResolvedValueOnce({ autocomplete });
+    expect((await getActorGenerationSettings()).autocompleteModel).toEqual(expected);
+  });
 });

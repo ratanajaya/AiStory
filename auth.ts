@@ -7,6 +7,7 @@ import { getAuthSessionOverrideUser } from "@/lib/authSessionOverride";
 import { KeyValueModel, UserModel } from "@/models";
 import { ApiKeyConfig, DefaultValue, GenerationProfileConfig, LlmConfig, LLMService, TtsConfig, User } from "@/types";
 import { normalizeGenerationProfileConfig } from "@/lib/generationProfiles";
+import { resolveAutocompleteModel } from "@/lib/autocompleteSettings";
 import _util from "./utils/_util";
 
 const { handlers, signIn, signOut, auth: baseAuth } = NextAuth({
@@ -86,6 +87,7 @@ async function getCurrentUser(): Promise<User | null> {
 async function getUserSettingWithFallback(): Promise<{
   selectedTts: TtsConfig;
   selectedLlm: LlmConfig;
+  autocompleteModel: LlmConfig | null;
   apiKey: ApiKeyConfig;
   generationProfiles: GenerationProfileConfig;
   personal: Record<LLMService, boolean>;
@@ -112,6 +114,7 @@ async function getUserSettingWithFallback(): Promise<{
 
   return {
     selectedLlm,
+    autocompleteModel: resolveAutocompleteModel(user?.autocomplete, defaultValue.autocomplete),
     selectedTts: resolveTtsConfig(user?.selectedTts, defaultValue.selectedTts),
     apiKey,
     generationProfiles: normalizeGenerationProfileConfig(defaultValue.generationProfiles),

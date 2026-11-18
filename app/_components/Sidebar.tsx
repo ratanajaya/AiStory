@@ -13,7 +13,7 @@ import { useAiModelCatalog } from "@/components/AiModelCatalogProvider";
 import { streamAiRequest } from "@/lib/aiStreamClient";
 import _constant from "@/utils/_constant";
 import _util from "@/utils/_util";
-import type { AiModelOption, LlmConfig, ApiKeyConfig, LLMService } from "@/types";
+import type { AiModelOption, AutocompletePreference, LlmConfig, ApiKeyConfig, LLMService } from "@/types";
 
 const emptyModels: AiModelOption[] = [];
 
@@ -68,6 +68,7 @@ export function Sidebar({
   // LLM settings
   const [selectedService, setSelectedService] = useState<string>(_constant.defaultSelectedLlm.service);
   const [selectedModel, setSelectedModel] = useState(_constant.defaultSelectedLlm.model);
+  const [autocomplete, setAutocomplete] = useState<AutocompletePreference>();
   const [modelKeys, setModelKeys] = useState<ApiKeyConfig>({ ..._constant.emptyApiKey });
   const [dirtyApiKeys, setDirtyApiKeys] = useState<Record<LLMService, boolean>>({ together: false, openAi: false });
 
@@ -90,6 +91,7 @@ export function Sidebar({
       try {
         const data = await fetcher<{
           selectedLlm?: { service: string; model: string };
+          autocomplete?: AutocompletePreference;
           apiKey?: ApiKeyConfig;
         }>("/api/user/settings");
 
@@ -101,6 +103,7 @@ export function Sidebar({
         if (data?.apiKey) {
           setApiKeys(_util.normalizeApiKeyConfig(data.apiKey));
         }
+        setAutocomplete(data?.autocomplete ?? null);
       } catch (error) {
         console.error("Failed to fetch settings:", error);
       } finally {
@@ -169,6 +172,7 @@ export function Sidebar({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         selectedLlm,
+        autocomplete,
         apiKey: _util.normalizeApiKeyConfig(apiKeys),
       }),
     });
@@ -348,6 +352,7 @@ export function Sidebar({
               modelLoading={modelLoading}
               modelLoadError={modelLoadError}
               llmError={llmError}
+              autocomplete={{ value: autocomplete, onChange: setAutocomplete, modelKeys, inherit: true, disabled: !loaded || saving || testing }}
               variant="sidebar"
             />
 

@@ -146,6 +146,7 @@ export interface Book {
 
 export interface DefaultValue {
   selectedTts?: TtsConfig | null;
+  autocomplete?: AutocompletePreference;
   promptBuilder: PromptBuilderConfig;
   generationProfiles: GenerationProfileConfig;
   selectedLlm: LlmConfig;
@@ -188,6 +189,14 @@ export interface LlmConfig {
   model: string;
 }
 
+// A null preference inherits the default. An explicit null model turns suggestions off.
+export type AutocompletePreference = { model: LlmConfig | null } | null;
+
+export interface AutocompleteAvailability {
+  model: LlmConfig | null;
+  available: boolean;
+}
+
 export interface AiModelOption {
   id: string;
   label: string;
@@ -196,6 +205,7 @@ export interface AiModelOption {
 
 export interface User {
   selectedTts?: TtsConfig | null;
+  autocomplete?: AutocompletePreference;
   email: string;
   isAdmin: boolean;
   registeredAt: Date;

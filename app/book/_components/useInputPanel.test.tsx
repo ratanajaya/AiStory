@@ -13,6 +13,8 @@ import useInputPanel from './useInputPanel';
 
 const book: Book = { bookId: 'b1', templateId: 't1', name: 'Book', draftOutline: 'Existing direction',
   storySegments: [], segmentSummaries: [], chapters: [], longTermMemory: createEmptyLongTermMemoryState() };
+const draftCalls = () => mocks.fetcher.mock.calls.filter(([url]) => url.endsWith('/draft'));
+const autocompleteCalls = () => mocks.fetcher.mock.calls.filter(([url]) => url === '/api/ai/autocomplete');
 
 function Harness({ currentBook = book, modeDisabled = false, disabled = false, ready = true }: {
   currentBook?: Book; modeDisabled?: boolean; disabled?: boolean; ready?: boolean;
@@ -22,7 +24,7 @@ function Harness({ currentBook = book, modeDisabled = false, disabled = false, r
     <button onClick={() => void panel.flushDraft()}>Save draft</button></>;
 }
 beforeEach(() => { vi.clearAllMocks(); mocks.fetcher.mockResolvedValue({}); });
-afterEach(() => { cleanup(); vi.useRealTimers(); });
+afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.useRealTimers(); });
 
 it('shows four compact toggles and no idea generator or visible mode label', () => {
   render(<Harness />);
@@ -50,9 +52,12 @@ it('switches every mode without clearing text or generating and saves direction 
     expect(mocks.input).toHaveBeenLastCalledWith({ input1: 'Confrontation, argument, forgiveness', narrationMode: mode });
   }
   await user.click(screen.getByRole('button', { name: 'Save draft' }));
-  await waitFor(() => expect(mocks.fetcher).toHaveBeenCalled());
-  expect(mocks.fetcher.mock.calls.every(([url]) => url === '/api/books/b1/draft')).toBe(true);
-  expect(JSON.parse(mocks.fetcher.mock.calls.at(-1)![1].body)).toEqual({ draftOutline: 'Confrontation, argument, forgiveness' });
+  await waitFor(() => expect(draftCalls().length).toBeGreaterThan(0));
+  expect(autocompleteCalls()).toHaveLength(0);
+  for (const [url, options] of draftCalls()) {
+    expect(url).toBe('/api/books/b1/draft');
+    expect(JSON.parse(options.body)).toEqual({ draftOutline: 'Confrontation, argument, forgiveness' });
+  }
 });
 
 it('resets to Full outline when opening another book and reopening the original', async () => {
@@ -96,13 +101,116 @@ it('debounces changes and flushes pending draft saves immediately', async () => 
   render(<Harness />);
   fireEvent.change(screen.getByRole('textbox'), { target: { value: 'First draft' } });
   await act(async () => { await vi.advanceTimersByTimeAsync(499); });
-  expect(mocks.fetcher).not.toHaveBeenCalled();
+  expect(draftCalls()).toHaveLength(0);
   await act(async () => { await vi.advanceTimersByTimeAsync(1); });
-  expect(mocks.fetcher).toHaveBeenCalledTimes(1);
+  expect(draftCalls()).toHaveLength(1);
   fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Before sign-in' } });
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Save draft' })); });
-  expect(mocks.fetcher).toHaveBeenCalledTimes(2);
-  expect(JSON.parse(mocks.fetcher.mock.calls.at(-1)![1].body)).toEqual({ draftOutline: 'Before sign-in' });
+  expect(draftCalls()).toHaveLength(2);
+  expect(JSON.parse(draftCalls()[1][1].body)).toEqual({ draftOutline: 'Before sign-in' });
   await act(async () => { await vi.advanceTimersByTimeAsync(500); });
-  expect(mocks.fetcher).toHaveBeenCalledTimes(2);
+  expect(draftCalls()).toHaveLength(2);
+});
+
+async function openAutocomplete(complete: () => unknown = () => ({ suffix: ' and heads for the station.' })) {
+  vi.useFakeTimers();
+  mocks.fetcher.mockImplementation(async (url) => {
+    if (url === '/api/viewer') return { autocomplete: { available: true, model: { service: 'openAi', model: 'test-chat' } } };
+    if (url === '/api/ai/autocomplete') return complete();
+    return {};
+  });
+  const view = render(<Harness />);
+  await act(async () => {});
+  const field = screen.getByRole<HTMLTextAreaElement>('textbox', { name: 'Segment direction' });
+  act(() => field.focus());
+  return { ...view, field };
+}
+
+async function advance(ms = 750) {
+  await act(async () => { await vi.advanceTimersByTimeAsync(ms); });
+}
+
+it('debounces edits, previews the suffix, and saves the exact text only after Tab accepts', async () => {
+  const { field } = await openAutocomplete();
+  const draft = 'Mara packs a bag';
+  await advance();
+  expect(autocompleteCalls()).toHaveLength(0);
+  fireEvent.change(field, { target: { value: 'Mara packs a' } });
+  await advance(700);
+  fireEvent.change(field, { target: { value: draft } });
+  await advance(749);
+  expect(autocompleteCalls()).toHaveLength(0);
+  await advance(1);
+  expect(JSON.parse(autocompleteCalls()[0][1].body)).toEqual({
+    bookId: 'b1', draftTail: draft,
+  });
+  expect(screen.getByRole('status').textContent).toContain('and heads for the station.');
+  expect(field.value).toBe(draft);
+  expect(JSON.parse(draftCalls().at(-1)![1].body)).toEqual({ draftOutline: draft });
+  expect(fireEvent.keyDown(field, { key: 'Tab' })).toBe(false);
+  const accepted = draft + ' and heads for the station.';
+  expect(field.value).toBe(accepted);
+  expect(field.selectionStart).toBe(accepted.length);
+  expect(fireEvent.keyDown(field, { key: 'Tab' })).toBe(true);
+  await advance(2_000);
+  expect(autocompleteCalls()).toHaveLength(1);
+  expect(JSON.parse(draftCalls().at(-1)![1].body)).toEqual({ draftOutline: accepted });
+});
+
+it('waits for composition and discards a late response after the caret moves', async () => {
+  let finish: (value: { suffix: string }) => void = () => {};
+  const { field } = await openAutocomplete(() => new Promise(resolve => { finish = resolve; }));
+  fireEvent.compositionStart(field);
+  fireEvent.change(field, { target: { value: 'Mara finds a letter' } });
+  await advance();
+  expect(autocompleteCalls()).toHaveLength(0);
+  fireEvent.compositionEnd(field);
+  await advance();
+  expect(autocompleteCalls()).toHaveLength(1);
+  field.setSelectionRange(1, 1);
+  fireEvent.select(field);
+  expect(autocompleteCalls()[0][1].signal.aborted).toBe(true);
+  await act(async () => finish({ suffix: ' that she recognizes.' }));
+  expect(screen.getByRole('status').textContent).toBe('');
+});
+
+it('sends only the textarea text for the owned book and supports Escape and button acceptance', async () => {
+  const { field } = await openAutocomplete();
+  expect(screen.queryByRole('switch', { name: 'Include story context' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Events' }));
+  fireEvent.change(field, { target: { value: 'Mara finds a letter' } });
+  await advance();
+  expect(JSON.parse(autocompleteCalls()[0][1].body)).toEqual({ bookId: 'b1', draftTail: 'Mara finds a letter' });
+  expect(fireEvent.keyDown(field, { key: 'Escape' })).toBe(false);
+  expect(field.value).toBe('Mara finds a letter');
+  expect(screen.queryByRole('button', { name: /Accept suggestion/ })).toBeNull();
+  fireEvent.change(field, { target: { value: 'Mara packs a case' } });
+  await advance();
+  fireEvent.click(screen.getByRole('button', { name: /Accept suggestion/ }));
+  expect(field.value).toBe('Mara packs a case and heads for the station.');
+});
+
+it('shows a wrapped suggestion outside the editor when clipped and returns it inline when it fits', async () => {
+  const suffix = '\nShe hears the door close.';
+  let suffixRect = new DOMRect(12, 60, 160, 20);
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 240, 64));
+  vi.spyOn(HTMLElement.prototype, 'getClientRects').mockImplementation(function (this: HTMLElement) {
+    const rects = this.textContent === suffix ? [suffixRect] : [];
+    return Object.assign(rects, { item: (index: number) => rects[index] ?? null });
+  });
+  const { field, container } = await openAutocomplete(() => ({ suffix }));
+  const draft = 'Mara waits in the hallway.';
+  fireEvent.change(field, { target: { value: draft } });
+  await advance();
+
+  const inline = within(container).getByText(suffix.trim());
+  const fallback = screen.getAllByText(suffix.trim()).find(element => element !== inline);
+  expect(inline.parentElement?.style.visibility).toBe('hidden');
+  expect(fallback?.style.visibility).toBe('visible');
+  expect(field.value).toBe(draft);
+
+  suffixRect = new DOMRect(12, 36, 160, 20);
+  fireEvent.scroll(field);
+  expect(screen.getByText(suffix.trim())).toBe(inline);
+  expect(inline.parentElement?.style.visibility).toBe('');
 });
