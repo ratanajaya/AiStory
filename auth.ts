@@ -9,6 +9,7 @@ import { ApiKeyConfig, DefaultValue, GenerationProfileConfig, LlmConfig, LLMServ
 import { normalizeGenerationProfileConfig } from "@/lib/generationProfiles";
 import { resolveAutocompleteModel } from "@/lib/autocompleteSettings";
 import { resolveModelPayload } from "@/lib/modelPayload";
+import { getConfiguredApiKeys, resolveApiKeys } from '@/lib/apiKeySettings';
 import _util from "./utils/_util";
 
 const { handlers, signIn, signOut, auth: baseAuth } = NextAuth({
@@ -110,11 +111,6 @@ async function getUserSettingWithFallback(): Promise<{
     service: _util.altString(user?.selectedLlm?.service, defaultValue.selectedLlm.service) as LLMService,
     model: _util.altString(user?.selectedLlm?.model, defaultValue.selectedLlm.model)!,
   };
-  const apiKey: ApiKeyConfig = {
-    together: _util.altString(user?.apiKey?.together, defaultValue.apiKey.together)!,
-    openAi: _util.altString(user?.apiKey?.openAi, defaultValue.apiKey.openAi)!,
-    refuseless: _util.altString(user?.apiKey?.refuseless, defaultValue.apiKey?.refuseless ?? null),
-  };
   const autocompleteModel = resolveAutocompleteModel(user?.autocomplete, defaultValue.autocomplete);
 
   return {
@@ -123,14 +119,10 @@ async function getUserSettingWithFallback(): Promise<{
     storyPayload: resolveModelPayload(selectedLlm, user?.modelPayloads?.story, defaultValue.modelPayloads?.story),
     autocompletePayload: resolveModelPayload(autocompleteModel, user?.modelPayloads?.autocomplete, defaultValue.modelPayloads?.autocomplete),
     selectedTts: resolveTtsConfig(user?.selectedTts, defaultValue.selectedTts),
-    apiKey,
+    apiKey: resolveApiKeys(user?.apiKey, defaultValue.apiKey),
     generationProfiles: normalizeGenerationProfileConfig(defaultValue.generationProfiles),
     // Funding must describe the same user record that supplied the credentials.
-    personal: {
-      together: Boolean(_util.toInputString(user?.apiKey?.together)),
-      openAi: Boolean(_util.toInputString(user?.apiKey?.openAi)),
-      refuseless: Boolean(_util.toInputString(user?.apiKey?.refuseless)),
-    },
+    personal: getConfiguredApiKeys(user?.apiKey),
     trialAccount: Boolean(user?.trialAccount),
   };
 }

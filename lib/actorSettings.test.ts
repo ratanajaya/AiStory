@@ -36,6 +36,18 @@ describe('account generation credentials and funding', () => {
     expect(mocks.user).toHaveBeenCalledTimes(1);
   });
 
+  it.each([null, '   ', ' personal-refuseless '])('uses the same credential fallback for Refuseless (%j)', async key => {
+    const selectedLlm = { service: 'refuseless', model: 'story-model' };
+    mocks.defaults.mockResolvedValueOnce({ value: { selectedLlm, apiKey: { refuseless: ' app-refuseless ' } } });
+    mocks.user.mockResolvedValueOnce({ apiKey: { refuseless: key } });
+    const settings = await getActorGenerationSettings();
+    expect(settings).toMatchObject({
+      selectedLlm,
+      apiKey: { refuseless: key?.trim() || 'app-refuseless' },
+      personal: { refuseless: Boolean(key?.trim()) },
+    });
+  });
+
   it.each([
     [undefined, { service: 'openAi', model: 'default-autocomplete' }],
     [{ model: null }, null],

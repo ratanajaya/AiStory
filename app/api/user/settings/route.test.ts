@@ -79,15 +79,29 @@ describe('account model checks', () => {
   });
 });
 
-it('reports that Refuseless is configured and keeps its key when omitted', async () => {
-  mocks.find.mockResolvedValue({ apiKey: { refuseless: 'saved-key' } });
+it('reports only which keys are configured and keeps keys when omitted', async () => {
+  mocks.find.mockResolvedValue({ apiKey: { together: 'together-key', openAi: 'openai-key', refuseless: 'saved-key' } });
   const response = await (await GET()).json();
-  expect(response).toMatchObject({ refuselessKeyConfigured: true, apiKey: { refuseless: '' } });
-  expect(JSON.stringify(response)).not.toContain('saved-key');
+  expect(response.configured).toEqual({ together: true, openAi: true, refuseless: true });
+  expect(response).not.toHaveProperty('apiKey');
 
   const selectedLlm = { service: 'refuseless', model: 'story-model' };
-  expect((await put({ selectedLlm, apiKey: { together: 'other-key' } })).status).toBe(200);
+  expect((await put({ selectedLlm, apiKey: { together: 'other-key', refuseless: '  ' } })).status).toBe(200);
   expect(mocks.update.mock.calls[0][1].$set).toEqual({ selectedLlm, 'apiKey.together': 'other-key' });
   expect((await put({ apiKey: { refuseless: null } })).status).toBe(200);
   expect(mocks.update.mock.calls[1][1].$set).toEqual({ 'apiKey.refuseless': null });
+});
+
+it('checks a newly submitted Refuseless key in the same request as the story model', async () => {
+  const selectedLlm = { service: 'refuseless', model: 'story-model' };
+  const story = { ...selectedLlm, shape: { allowTemperature: true } };
+  mocks.find.mockResolvedValueOnce({ apiKey: { openAi: 'saved-openai' } });
+  mocks.probe.mockResolvedValueOnce({ ok: true, payloads: { story } });
+  expect((await put({ selectedLlm, apiKey: { refuseless: ' new-key ' }, testModels: true })).status).toBe(200);
+  expect(mocks.probe).toHaveBeenCalledWith(selectedLlm, undefined, {
+    together: '', openAi: 'saved-openai', refuseless: 'new-key',
+  }, expect.any(AbortSignal));
+  expect(mocks.update.mock.calls[0][1].$set).toEqual({
+    selectedLlm, 'apiKey.refuseless': 'new-key', 'modelPayloads.story': story,
+  });
 });

@@ -2,20 +2,20 @@ import { validateTtsConfig } from '@/lib/ttsConfig';
 import { NextResponse } from 'next/server';
 import { errorResponse, errorResponseFromMessage } from '@/lib/apiError';
 import { decryptGuestKey, encryptGuestKey, getGuestWorkspace, guestSettings, sameOrigin } from '@/lib/guest';
-import { supportedLlmServices, validateLlmConfig } from '@/lib/llmSettings';
+import { validateLlmConfig } from '@/lib/llmSettings';
+import { getConfiguredApiKeys, validateApiKeyUpdates } from '@/lib/apiKeySettings';
 import { checkModelPayloads } from '@/lib/modelPayloadProbe';
 import { GuestWorkspaceModel, KeyValueModel } from '@/models';
-import type { ApiKeyConfig, DefaultValue, LlmConfig } from '@/types';
+import type { DefaultValue, LlmConfig } from '@/types';
 import _constant from '@/utils/_constant';
-import _util from '@/utils/_util';
 
 export async function GET() {
   try {
     const settings = await guestSettings();
     if (!settings) return errorResponseFromMessage('Unauthorized', 401);
-    return NextResponse.json({ selectedTts: settings.guest.selectedTts ?? null, selectedLlm: settings.selectedLlm, configured: {
-      together: Boolean(settings.apiKey.together), openAi: Boolean(settings.apiKey.openAi), refuseless: Boolean(settings.apiKey.refuseless),
-    } });
+    return NextResponse.json({
+      selectedTts: settings.guest.selectedTts ?? null, selectedLlm: settings.selectedLlm, configured: getConfiguredApiKeys(settings.apiKey),
+    });
   } catch (error) { return errorResponse(error); }
 }
 
@@ -40,18 +40,11 @@ export async function PUT(request: Request) {
       story = result.value;
       updates.selectedLlm = story;
     }
-    const submittedKeys: Partial<ApiKeyConfig> = {};
-    if ('apiKey' in body) {
-      if (!body.apiKey || typeof body.apiKey !== 'object' || Array.isArray(body.apiKey)) return errorResponseFromMessage('Invalid API keys', 400);
-      for (const service of supportedLlmServices) {
-        if (!(service in body.apiKey)) continue;
-        const value = body.apiKey[service];
-        if (value !== null && typeof value !== 'string') return errorResponseFromMessage('Invalid API key', 400);
-        const normalized = _util.toIdentifierString(value);
-        if (normalized.length > 512) return errorResponseFromMessage('API key is too long', 400);
-        submittedKeys[service] = normalized || null;
-        updates[`encryptedKeys.${service}`] = normalized ? encryptGuestKey(normalized) : null;
-      }
+    const keyResult = validateApiKeyUpdates(body.apiKey);
+    if (!keyResult.ok) return errorResponseFromMessage(keyResult.message, 400);
+    const submittedKeys = keyResult.value;
+    for (const [service, key] of Object.entries(submittedKeys)) {
+      updates[`encryptedKeys.${service}`] = key ? encryptGuestKey(key) : null;
     }
     if (body.testModels) {
       const selected: LlmConfig | null = story === undefined ? guest.selectedLlm : story;
@@ -67,5 +60,5 @@ export async function PUT(request: Request) {
     const updated = await GuestWorkspaceModel.updateOne({ guestId: guest.guestId, state: 'active', expiresAt: { $gt: new Date() } }, { $set: updates });
     if (!updated.matchedCount) return errorResponseFromMessage('Guest workspace expired', 401);
     return GET();
-  } catch (error) { return errorResponse(error); }
+  } catch { return errorResponseFromMessage('Could not save guest settings.', 500); }
 }

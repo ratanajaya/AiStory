@@ -1,41 +1,17 @@
-import { NextResponse } from "next/server";
-import { getUserSettingWithFallback } from "@/auth";
-import { errorResponse, errorResponseFromMessage } from "@/lib/apiError";
-import { fetchTogetherChatModels, TogetherModelsError } from "@/lib/togetherModels";
-import { getActor, guestSettings } from '@/lib/guest';
-import _util from "@/utils/_util";
+import { NextResponse } from 'next/server';
+import { errorResponseFromMessage } from '@/lib/apiError';
+import { getModelCatalogApiKey } from '@/lib/modelCatalogSettings';
+import { fetchTogetherChatModels, TogetherModelsError } from '@/lib/togetherModels';
 
 export async function POST(request: Request) {
-  const actor = await getActor();
-
-  if (!actor) {
-    return errorResponseFromMessage("Unauthorized", 401);
-  }
-
   try {
-    let body: { apiKey?: unknown } = {};
-    try {
-      body = await request.json();
-    } catch {
-      body = {};
-    }
+    const apiKey = await getModelCatalogApiKey(request, 'together');
+    if (typeof apiKey !== 'string') return apiKey;
+    if (!apiKey) return errorResponseFromMessage('Together API key is required to load models.', 400);
 
-    let apiKey = actor.kind === 'guest' ? _util.toInputString((await guestSettings())?.apiKey.together) : typeof body.apiKey === "string" ? _util.toInputString(body.apiKey) : "";
-    if (!apiKey && actor.kind === 'user') {
-      const settings = await getUserSettingWithFallback();
-      apiKey = _util.toInputString(settings.apiKey.together);
-    }
-
-    if (!apiKey) {
-      return errorResponseFromMessage("Together API key is required to load models.", 400);
-    }
-
-    const models = await fetchTogetherChatModels(apiKey);
-    return NextResponse.json({ models });
-  } catch (err) {
-    if (err instanceof TogetherModelsError) {
-      return errorResponseFromMessage(err.message, err.status);
-    }
-    return errorResponse(err);
+    return NextResponse.json({ models: await fetchTogetherChatModels(apiKey) });
+  } catch (error) {
+    if (error instanceof TogetherModelsError) return errorResponseFromMessage(error.message, error.status);
+    return errorResponseFromMessage('Could not load Together AI models.', 502);
   }
 }

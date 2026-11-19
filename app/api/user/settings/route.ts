@@ -3,10 +3,11 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import dbConnect from "@/lib/mongodb";
 import { KeyValueModel, UserModel } from "@/models";
-import { supportedLlmServices, validateLlmConfig } from "@/lib/llmSettings";
+import { validateLlmConfig } from "@/lib/llmSettings";
+import { getConfiguredApiKeys, validateApiKeyUpdates } from '@/lib/apiKeySettings';
 import { normalizeAutocompletePreference, validateAutocompletePreference } from "@/lib/autocompleteSettings";
 import { checkModelPayloads } from '@/lib/modelPayloadProbe';
-import type { ApiKeyConfig, AutocompletePreference, DefaultValue, LlmConfig } from '@/types';
+import type { AutocompletePreference, DefaultValue, LlmConfig } from '@/types';
 import _constant from '@/utils/_constant';
 import _util from "@/utils/_util";
 import { errorResponse, errorResponseFromMessage } from "@/lib/apiError";
@@ -31,12 +32,11 @@ export async function GET() {
     }
 
     return NextResponse.json({
-      ...user,
+      selectedLlm: user.selectedLlm,
       selectedTts: user.selectedTts ?? null,
       autocomplete: normalizeAutocompletePreference(user.autocomplete),
-      apiKey: { ..._util.normalizeApiKeyConfig(user.apiKey), refuseless: '' },
-      refuselessKeyConfigured: Boolean(_util.toInputString(user.apiKey?.refuseless)),
-    });
+      configured: getConfiguredApiKeys(user.apiKey),
+    }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (err) {
     return errorResponse(err);
   }
@@ -83,27 +83,18 @@ export async function PUT(request: Request) {
       updateData.selectedLlm = story;
     }
 
-    const submittedKeys: Partial<ApiKeyConfig> = {};
-    if (apiKey !== undefined) {
-      if (!apiKey || typeof apiKey !== 'object' || Array.isArray(apiKey)) return errorResponseFromMessage('Invalid API keys', 400);
-      for (const service of supportedLlmServices) {
-        if (!(service in apiKey)) continue;
-        const value = apiKey[service];
-        if (value !== null && typeof value !== 'string') return errorResponseFromMessage('Invalid API key', 400);
-        const normalized = _util.toIdentifierString(value);
-        if (normalized.length > 512) return errorResponseFromMessage('API key is too long', 400);
-        submittedKeys[service] = normalized || null;
-      }
-    }
+    const keyResult = validateApiKeyUpdates(apiKey);
+    if (!keyResult.ok) return errorResponseFromMessage(keyResult.message, 400);
+    const keyUpdates = Object.entries(keyResult.value);
 
     await dbConnect();
-    if (apiKey !== undefined || testModels) {
+    if (keyUpdates.length || testModels) {
       const existing = await UserModel.findOne({ email: session.user.email }, { apiKey: 1, selectedLlm: 1, autocomplete: 1 }).lean();
       if (!existing) return errorResponseFromMessage('User not found', 404);
-      const keys = { ..._util.normalizeApiKeyConfig(existing.apiKey), ...submittedKeys };
-      if (apiKey !== undefined) {
+      const keys = { ..._util.normalizeApiKeyConfig(existing.apiKey), ...keyResult.value };
+      if (keyUpdates.length) {
         if (existing.apiKey === null) updateData.apiKey = keys;
-        else for (const [service, key] of Object.entries(submittedKeys)) updateData[`apiKey.${service}`] = key;
+        else for (const [service, key] of keyUpdates) updateData[`apiKey.${service}`] = key;
       }
 
       if (testModels) {
@@ -128,7 +119,7 @@ export async function PUT(request: Request) {
     }
 
     return NextResponse.json({ success: true });
-  } catch (err) {
-    return errorResponse(err);
+  } catch {
+    return errorResponseFromMessage('Could not save account settings.', 500);
   }
 }

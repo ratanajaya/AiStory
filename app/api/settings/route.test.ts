@@ -80,7 +80,7 @@ it('checks admin candidate credentials and saves the verified shapes without ret
   const autocomplete = { model: { service: 'together', model: 'chat' } };
   const story = { ...settings.selectedLlm, shape: { allowTemperature: false } };
   const verifiedAutocomplete = { ...autocomplete.model, shape: { allowTemperature: true } };
-  const apiKey = { together: 'admin-together', openAi: 'admin-openai', refuseless: '' };
+  const apiKey = { together: 'admin-together', openAi: 'admin-openai', refuseless: null };
   mocks.probe.mockResolvedValueOnce({ ok: true, payloads: { story, autocomplete: verifiedAutocomplete } });
   const response = await save({ ...settings, autocomplete, apiKey, testModels: true });
   expect(await response.json()).toEqual({ success: true });
@@ -91,19 +91,26 @@ it('checks admin candidate credentials and saves the verified shapes without ret
   });
 });
 
-it('can test with a stored Refuseless key without sending it to the settings form', async () => {
+it('uses stored keys for the model check when omitted and returns only configuration status', async () => {
   const selectedLlm = { service: 'refuseless', model: 'story-model' };
   const apiKey = { together: 'shared-together', openAi: 'shared-openai', refuseless: 'shared-refuseless' };
   const defaults = { ...settings, selectedLlm, apiKey };
   mocks.find.mockResolvedValue({ value: defaults });
   const response = await (await GET()).json();
-  expect(response).toMatchObject({ refuselessKeyConfigured: true, apiKey: { refuseless: '' } });
-  expect(JSON.stringify(response)).not.toContain('shared-refuseless');
+  expect(response.configured).toEqual({ together: true, openAi: true, refuseless: true });
+  expect(response).not.toHaveProperty('apiKey');
 
-  const { together, openAi } = apiKey;
-  const story = { ...selectedLlm, shape: { allowTemperature: true } };
-  mocks.probe.mockResolvedValueOnce({ ok: true, payloads: { story } });
-  expect((await save({ ...defaults, apiKey: { together, openAi }, testModels: true })).status).toBe(200);
+  mocks.probe.mockResolvedValueOnce({ ok: true, payloads: {} });
+  expect((await save({ ...defaults, apiKey: { together: '', openAi: '' }, testModels: true })).status).toBe(200);
   expect(mocks.probe).toHaveBeenCalledWith(selectedLlm, undefined, apiKey, expect.any(AbortSignal));
-  expect(mocks.update.mock.calls[0][1].$set['value.apiKey.refuseless']).toBeUndefined();
+  expect(Object.keys(mocks.update.mock.calls[0][1].$set).some(path => path.startsWith('value.apiKey.'))).toBe(false);
+});
+
+it.each(['together', 'openAi', 'refuseless'] as const)('tests a freshly entered %s key before saving it', async service => {
+  const selectedLlm = { service, model: 'new-model' };
+  const story = { ...selectedLlm, shape: { allowTemperature: false } };
+  mocks.probe.mockResolvedValueOnce({ ok: true, payloads: { story } });
+  expect((await save({ ...settings, selectedLlm, apiKey: { [service]: ' new-key ' }, testModels: true })).status).toBe(200);
+  expect(mocks.probe).toHaveBeenCalledWith(selectedLlm, undefined, { ..._constant.emptyApiKey, [service]: 'new-key' }, expect.any(AbortSignal));
+  expect(mocks.update.mock.calls[0][1].$set[`value.apiKey.${service}`]).toBe('new-key');
 });

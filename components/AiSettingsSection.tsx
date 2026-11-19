@@ -1,11 +1,13 @@
 'use client';
 
+import { useId } from 'react';
 import { FormField } from '@/components/FormField';
 import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
 import { AutocompleteModelSelect, type AutocompleteModelSelectProps } from '@/components/AutocompleteModelSelect';
 import { AiModelOption, ApiKeyConfig, LLMService } from '@/types';
 import { isSupportedLlmService, supportedLlmServices } from '@/lib/llmSettings';
+import type { ConfiguredApiKeys } from '@/lib/apiKeySettings';
 import _constant from '@/utils/_constant';
 import _util from '@/utils/_util';
 
@@ -17,14 +19,14 @@ interface SelectOption {
 interface AiSettingsSectionProps {
   selectedService: string;
   selectedModel: string;
-  apiKey: ApiKeyConfig;
+  apiKey: Partial<ApiKeyConfig>;
   onServiceChange: (service: string) => void;
   onModelChange: (model: string) => void;
   onApiKeyChange: (key: keyof ApiKeyConfig, value: string) => void;
-  onApiKeyBlur?: (service: LLMService) => void;
-  refuselessKeyConfigured?: boolean;
-  removingRefuselessKey?: boolean;
-  onToggleRefuselessKeyRemoval?: () => void;
+  onApiKeyBlur: (service: LLMService, value: string) => void;
+  configured: Partial<ConfiguredApiKeys>;
+  onToggleKeyRemoval: (service: LLMService) => void;
+  keysDisabled?: boolean;
   models?: AiModelOption[];
   modelLoading?: boolean;
   modelLoadError?: string | null;
@@ -69,9 +71,9 @@ export function AiSettingsSection({
   onModelChange,
   onApiKeyChange,
   onApiKeyBlur,
-  refuselessKeyConfigured,
-  removingRefuselessKey,
-  onToggleRefuselessKeyRemoval,
+  configured,
+  onToggleKeyRemoval,
+  keysDisabled = false,
   models = [],
   modelLoading = false,
   modelLoadError = null,
@@ -81,6 +83,7 @@ export function AiSettingsSection({
   apiKeyTitle = 'API Keys',
   autocomplete,
 }: AiSettingsSectionProps) {
+  const id = useId();
   const isPage = variant === 'page';
   const isSupportedService = isSupportedLlmService(selectedService);
 
@@ -113,8 +116,9 @@ export function AiSettingsSection({
 
   const llmFields = (
     <>
-      <FormField label="Provider:">
+      <FormField label="Provider" htmlFor={`${id}-provider`}>
         <Select
+          id={`${id}-provider`}
           value={selectedService}
           onChange={(e) => onServiceChange(e.target.value)}
           options={serviceOptions}
@@ -122,8 +126,9 @@ export function AiSettingsSection({
         />
       </FormField>
 
-      <FormField label="Model:">
+      <FormField label="Model" htmlFor={`${id}-model`}>
         <Select
+          id={`${id}-model`}
           value={selectedModel}
           onChange={(e) => onModelChange(e.target.value)}
           options={modelOptions}
@@ -142,19 +147,24 @@ export function AiSettingsSection({
 
   const apiKeyFields = supportedLlmServices.map(service => {
     const label = _constant.llmServices[service].label;
-    const storedKey = service === 'refuseless' && refuselessKeyConfigured;
+    const keyId = `${id}-${service}`;
     return (
-      <FormField key={service} label={label}>
+      <FormField key={service} label={label} htmlFor={keyId}>
         <Input
+          id={keyId}
+          name={service}
           type="password"
+          autoComplete="off"
+          disabled={keysDisabled}
           value={_util.toInputString(apiKey[service])}
           onChange={(e) => onApiKeyChange(service, e.target.value)}
-          onBlur={() => onApiKeyBlur?.(service)}
-          placeholder={storedKey ? 'Replace saved Refuseless API key' : `${label} API key`}
+          onBlur={(e) => onApiKeyBlur(service, e.currentTarget.value)}
+          placeholder={configured[service] ? `Replace saved ${label} API key` : `${label} API key`}
         />
-        {storedKey && (
-          <button type="button" className="mt-1 text-sm text-red-500 underline" onClick={onToggleRefuselessKeyRemoval}>
-            {removingRefuselessKey ? 'Undo key removal' : 'Remove saved key'}
+        {configured[service] && (
+          <button type="button" disabled={keysDisabled} className="mt-1 text-sm text-red-500 underline"
+            onClick={() => onToggleKeyRemoval(service)}>
+            {apiKey[service] === null ? 'Undo key removal' : 'Remove saved key'}
           </button>
         )}
       </FormField>

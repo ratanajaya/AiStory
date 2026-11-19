@@ -35,9 +35,14 @@ describe('guest credentials', () => {
     expect(mocks.update.mock.calls[0][1]).toEqual({ $set: { 'encryptedKeys.openAi': 'encrypted:new-key' } });
     expect(mocks.update.mock.calls[0][0]).toMatchObject({ guestId: 'guest-one', state: 'active' });
   });
-  it.each([null, '', '  '])('removes an explicitly unset key (%s)', async (value) => {
-    await put({ apiKey: { together: value } });
+  it('removes an explicitly cleared key', async () => {
+    await put({ apiKey: { together: null } });
     expect(mocks.update.mock.calls[0][1]).toEqual({ $set: { 'encryptedKeys.together': null } });
+    expect(mocks.encrypt).not.toHaveBeenCalled();
+  });
+  it.each(['', '  '])('keeps stored keys when the input is blank (%j)', async (value) => {
+    await put({ apiKey: { together: value } });
+    expect(mocks.update.mock.calls[0][1]).toEqual({ $set: {} });
     expect(mocks.encrypt).not.toHaveBeenCalled();
   });
   it('rejects invalid keys before writing', async () => {

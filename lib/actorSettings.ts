@@ -6,6 +6,7 @@ import { getActor, guestSettings, type Actor } from '@/lib/guest';
 import { normalizeGenerationProfileConfig } from '@/lib/generationProfiles';
 import { resolveAutocompleteModel } from '@/lib/autocompleteSettings';
 import { resolveModelPayload } from '@/lib/modelPayload';
+import { getConfiguredApiKeys, resolveApiKeys } from '@/lib/apiKeySettings';
 import type { ApiKeyConfig, DefaultValue, GenerationProfileConfig, LlmConfig, LLMService, ModelPayloadShape, TtsConfig } from '@/types';
 
 export async function getActorGenerationSettings(resolvedActor?: Actor): Promise<{
@@ -36,17 +37,9 @@ export async function getActorGenerationSettings(resolvedActor?: Actor): Promise
     storyPayload: resolveModelPayload(selectedLlm, guest.guest.modelPayloads?.story, defaults.modelPayloads?.story),
     autocompletePayload: resolveModelPayload(autocompleteModel, undefined, defaults.modelPayloads?.autocomplete),
     selectedTts: resolveTtsConfig(guest.guest.selectedTts, defaults.selectedTts),
-    apiKey: {
-      together: guest.apiKey.together || defaults.apiKey.together,
-      openAi: guest.apiKey.openAi || defaults.apiKey.openAi,
-      refuseless: guest.apiKey.refuseless || defaults.apiKey?.refuseless || null,
-    },
+    apiKey: resolveApiKeys(guest.apiKey, defaults.apiKey),
     generationProfiles: normalizeGenerationProfileConfig(defaults.generationProfiles),
-    personal: {
-      together: Boolean(guest.apiKey.together),
-      openAi: Boolean(guest.apiKey.openAi),
-      refuseless: Boolean(guest.apiKey.refuseless),
-    },
+    personal: getConfiguredApiKeys(guest.apiKey),
     trialAccount: true,
   };
 }

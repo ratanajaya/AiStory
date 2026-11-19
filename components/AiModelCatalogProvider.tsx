@@ -22,7 +22,7 @@ interface AiModelCatalogContextValue {
 const AiModelCatalogContext = createContext<AiModelCatalogContextValue | null>(null);
 
 function cacheKey(service: LLMService, apiKey?: string | null, scope?: 'defaults') {
-  return `${service}\0${service === 'refuseless' ? scope ?? '' : ''}\0${_util.toInputString(apiKey)}`;
+  return `${service}\0${scope ?? ''}\0${_util.toInputString(apiKey)}`;
 }
 
 export function AiModelCatalogProvider({ children }: { children: React.ReactNode }) {
@@ -52,7 +52,7 @@ export function AiModelCatalogProvider({ children }: { children: React.ReactNode
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ apiKey: normalizedKey || undefined, scope: service === 'refuseless' ? scope : undefined }),
+            body: JSON.stringify({ apiKey: normalizedKey || undefined, scope }),
             silent: true,
           }
         );
