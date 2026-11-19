@@ -18,9 +18,15 @@ describe("llmSettings", () => {
 
     expect(result).toEqual({
       ok: false,
-      message: "Mistral is no longer supported; update settings to Together AI or OpenAI.",
+      message: "Mistral is no longer supported. Choose a supported provider.",
     });
     expect(getUnsupportedLlmMessage("mistral")).toContain("Mistral is no longer supported");
+  });
+
+  it("accepts Refuseless as a text provider", () => {
+    const config = { service: "refuseless", model: "deepseek-v4.1-flash-fast" };
+    expect(isSupportedLlmService(config.service)).toBe(true);
+    expect(validateLlmConfig(config)).toEqual({ ok: true, value: config });
   });
 
   it("rejects empty model values", () => {

@@ -56,6 +56,7 @@ const _util = {
     return {
       together: _util.toInputString(apiKey?.together),
       openAi: _util.toInputString(apiKey?.openAi),
+      refuseless: _util.toInputString(apiKey?.refuseless),
     };
   },
   generateTimestamp: () => {

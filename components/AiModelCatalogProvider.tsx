@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { useFetcher } from '@/components/FetcherProvider';
 import type { AiModelOption, LLMService } from '@/types';
+import { supportedLlmServices } from '@/lib/llmSettings';
 import _util from '@/utils/_util';
 
 interface CatalogEntry {
@@ -14,14 +15,14 @@ interface CatalogEntry {
 const loadingEntry: CatalogEntry = { models: [], loading: true, error: null };
 
 interface AiModelCatalogContextValue {
-  getEntry: (service: LLMService, apiKey?: string | null) => CatalogEntry;
-  loadModels: (service: LLMService, apiKey?: string | null, force?: boolean) => Promise<void>;
+  getEntry: (service: LLMService, apiKey?: string | null, scope?: 'defaults') => CatalogEntry;
+  loadModels: (service: LLMService, apiKey?: string | null, force?: boolean, scope?: 'defaults') => Promise<void>;
 }
 
 const AiModelCatalogContext = createContext<AiModelCatalogContextValue | null>(null);
 
-function cacheKey(service: LLMService, apiKey?: string | null) {
-  return `${service}\0${_util.toInputString(apiKey)}`;
+function cacheKey(service: LLMService, apiKey?: string | null, scope?: 'defaults') {
+  return `${service}\0${service === 'refuseless' ? scope ?? '' : ''}\0${_util.toInputString(apiKey)}`;
 }
 
 export function AiModelCatalogProvider({ children }: { children: React.ReactNode }) {
@@ -35,8 +36,8 @@ export function AiModelCatalogProvider({ children }: { children: React.ReactNode
     setEntries(entriesRef.current);
   }, []);
 
-  const loadModels = useCallback((service: LLMService, apiKey?: string | null, force = false) => {
-    const key = cacheKey(service, apiKey);
+  const loadModels = useCallback((service: LLMService, apiKey?: string | null, force = false, scope?: 'defaults') => {
+    const key = cacheKey(service, apiKey, scope);
     const existing = entriesRef.current[key];
     if (!force && existing && !existing.loading) return Promise.resolve();
     const inFlight = pending.current.get(key);
@@ -47,11 +48,11 @@ export function AiModelCatalogProvider({ children }: { children: React.ReactNode
       try {
         const normalizedKey = _util.toInputString(apiKey);
         const data = await fetcher<{ models: AiModelOption[] }>(
-          `/api/ai/models/${service === 'openAi' ? 'openai' : 'together'}`,
+          `/api/ai/models/${service.toLowerCase()}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(normalizedKey ? { apiKey: normalizedKey } : {}),
+            body: JSON.stringify({ apiKey: normalizedKey || undefined, scope: service === 'refuseless' ? scope : undefined }),
             silent: true,
           }
         );
@@ -75,12 +76,11 @@ export function AiModelCatalogProvider({ children }: { children: React.ReactNode
   }, [fetcher, setEntry]);
 
   useEffect(() => {
-    void loadModels('together');
-    void loadModels('openAi');
+    for (const service of supportedLlmServices) void loadModels(service);
   }, [loadModels]);
 
-  const getEntry = useCallback((service: LLMService, apiKey?: string | null) => {
-    return entries[cacheKey(service, apiKey)] ?? loadingEntry;
+  const getEntry = useCallback((service: LLMService, apiKey?: string | null, scope?: 'defaults') => {
+    return entries[cacheKey(service, apiKey, scope)] ?? loadingEntry;
   }, [entries]);
 
   return (

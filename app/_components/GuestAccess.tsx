@@ -6,9 +6,13 @@ import SignInToKeepLink from '@/app/_components/SignInToKeepLink';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useFetcher } from '@/components/FetcherProvider';
+import { isSupportedLlmService, supportedLlmServices } from '@/lib/llmSettings';
+import type { LLMService, LlmConfig } from '@/types';
+import _constant from '@/utils/_constant';
 
-type Viewer = { kind: 'visitor' | 'guest' | 'user'; isAdmin: boolean; expiresAt?: string; remaining?: { text: number; audio: number } | null; personal?: { together: boolean; openAi: boolean }; selectedLlm?: { service: 'together' | 'openAi'; model: string }; textFunding?: string; audioFunding?: string };
+type Viewer = { kind: 'visitor' | 'guest' | 'user'; isAdmin: boolean; expiresAt?: string; remaining?: { text: number; audio: number } | null; personal?: Record<LLMService, boolean>; selectedLlm?: LlmConfig; textFunding?: string; audioFunding?: string };
 type ModelOption = { id: string; label: string };
+const emptyKeys = { together: '', openAi: '', refuseless: '' };
 
 export function GuestAccess() {
   const pathname = usePathname();
@@ -18,8 +22,8 @@ export function GuestAccess() {
   const [open, setOpen] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   useEffect(() => { setDismissed(sessionStorage.getItem('aistory-reminder-dismissed') === '1'); }, []);
-  const [keys, setKeys] = useState({ together: '', openAi: '' });
-  const [provider, setProvider] = useState<'together' | 'openAi'>('together');
+  const [keys, setKeys] = useState(emptyKeys);
+  const [provider, setProvider] = useState<LLMService>('together');
   const [model, setModel] = useState('');
   const [models, setModels] = useState<ModelOption[]>([]);
   const [busy, setBusy] = useState(false);
@@ -28,9 +32,9 @@ export function GuestAccess() {
     try { setViewer(await fetcher<Viewer>('/api/viewer', { silent: true })); } catch { setViewer(null); }
   }, [fetcher]);
   useEffect(() => { void refresh(); const onFocus = () => void refresh(); const onOpen = () => setOpen(true); window.addEventListener('focus', onFocus); window.addEventListener('aistory:keys', onOpen); window.addEventListener('aistory:usage', onFocus); window.addEventListener('aistory:settings', onFocus); return () => { window.removeEventListener('focus', onFocus); window.removeEventListener('aistory:keys', onOpen); window.removeEventListener('aistory:usage', onFocus); window.removeEventListener('aistory:settings', onFocus); }; }, [refresh, pathname, status]);
-  useEffect(() => { if (viewer?.selectedLlm) { setProvider(viewer.selectedLlm.service); setModel(viewer.selectedLlm.model); } }, [viewer?.selectedLlm]);
+  useEffect(() => { if (!open && viewer?.selectedLlm) { setProvider(viewer.selectedLlm.service); setModel(viewer.selectedLlm.model); setModels([]); } }, [open, viewer?.selectedLlm]);
   async function loadModels() {
-    try { const result = await fetcher<{ models: ModelOption[] }>(`/api/ai/models/${provider === 'openAi' ? 'openai' : 'together'}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' , silent: true }); setModels(result.models); } catch { setModels([]); }
+    try { const result = await fetcher<{ models: ModelOption[] }>(`/api/ai/models/${provider.toLowerCase()}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' , silent: true }); setModels(result.models); } catch { setModels([]); }
   }
   async function save(test = false) {
     if (test && !keys[provider].trim() && !viewer?.personal?.[provider]) { setMessage('Add a personal key for the selected text provider before testing.'); return; }
@@ -40,19 +44,16 @@ export function GuestAccess() {
       if (viewer?.kind === 'visitor') await fetcher('/api/guest/session', { method: 'POST' });
       const keyUpdate = Object.fromEntries(Object.entries(keys).filter(([, value]) => value.trim()).map(([key, value]) => [key, value.trim()]));
       const url = viewer?.kind === 'user' ? '/api/user/settings' : '/api/guest/settings';
-      await fetcher(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ apiKey: keyUpdate, ...(model ? { selectedLlm: { service: provider, model } } : {}) }) });
-      setKeys({ together: '', openAi: '' });
+      await fetcher(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, silent: test, body: JSON.stringify({ apiKey: keyUpdate, ...(model ? { selectedLlm: { service: provider, model } } : {}), ...(test ? { testModels: true } : {}) }) });
+      setKeys(emptyKeys);
       await refresh(); window.dispatchEvent(new Event('aistory:settings'));
       if (keyUpdate[provider] || viewer?.personal?.[provider]) await loadModels();
-      if (test) {
-        await fetcher('/api/ai', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ feature: 'default', stream: false, messages: [{ role: 'user', content: 'Reply OK.' }] }) });
-      }
-      setMessage(test ? 'Key saved and test passed.' : 'Settings saved.');
+      setMessage(test ? 'Model checks passed. Settings saved.' : 'Settings saved.');
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Could not save settings.'); } finally { setBusy(false); }
   }
-  async function remove(service: 'together' | 'openAi') {
+  async function remove(service: LLMService) {
     setBusy(true);
-    try { await fetcher(viewer?.kind === 'user' ? '/api/user/settings' : '/api/guest/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ apiKey: { [service]: null } }) }); await refresh(); window.dispatchEvent(new Event('aistory:settings')); setMessage(`${service === 'openAi' ? 'OpenAI' : 'Together AI'} key removed.`); } catch (error) { setMessage(error instanceof Error ? error.message : 'Could not remove key.'); } finally { setBusy(false); }
+    try { await fetcher(viewer?.kind === 'user' ? '/api/user/settings' : '/api/guest/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ apiKey: { [service]: null } }) }); await refresh(); window.dispatchEvent(new Event('aistory:settings')); setMessage(`${_constant.llmServices[service].label} key removed.`); } catch (error) { setMessage(error instanceof Error ? error.message : 'Could not remove key.'); } finally { setBusy(false); }
   }
   if (!viewer || viewer.isAdmin) return null;
   const textWarn = viewer?.textFunding === 'trial' && viewer.remaining && viewer.remaining.text <= 4;
@@ -69,13 +70,13 @@ export function GuestAccess() {
     </div>}
     {open && <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true" aria-label="Use your own API key"><div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-lg bg-card p-6 text-foreground">
       <div className="flex justify-between"><h2 className="text-xl font-semibold">Keep creating with your own API key</h2><button onClick={() => setOpen(false)} aria-label="Close API key guide">×</button></div>
-      <p className="mt-3 text-sm">Add a Together AI or OpenAI API key to continue generating beyond AiStory’s free trial allowance. No AiStory sign-up is required. Usage is billed to your provider account, and provider limits still apply.</p>
+      <p className="mt-3 text-sm">Add a provider API key to continue generating beyond AiStory’s free trial allowance. No AiStory sign-up is required. Usage is billed to your provider account, and provider limits still apply.</p>
       <p className="mt-2 text-sm">{viewer?.kind === 'user' ? 'Your books and templates are saved to your Google account.' : 'Your guest workspace still expires after seven days. Sign in with Google to keep your books and templates.'}</p>
-      <div className="mt-4 text-sm"><p><strong>Together AI:</strong> Story generation and audio. <a className="text-primary underline" target="_blank" rel="noreferrer" href="https://support.together.ai/articles/4999040689-where-to-find-your-api-key">Find or create a Together API key</a>.</p><p className="mt-2"><strong>OpenAI:</strong> Story generation and audio. <a className="text-primary underline" target="_blank" rel="noreferrer" href="https://developers.openai.com/api/docs/quickstart">OpenAI API-key quickstart</a>.</p></div>
+      <div className="mt-4 text-sm"><p><strong>Together AI:</strong> Story generation and audio. <a className="text-primary underline" target="_blank" rel="noreferrer" href="https://support.together.ai/articles/4999040689-where-to-find-your-api-key">Find or create a Together API key</a>.</p><p className="mt-2"><strong>OpenAI:</strong> Story generation and audio. <a className="text-primary underline" target="_blank" rel="noreferrer" href="https://developers.openai.com/api/docs/quickstart">OpenAI API-key quickstart</a>.</p><p className="mt-2"><strong>Refuseless:</strong> Story generation. <a className="text-primary underline" target="_blank" rel="noreferrer" href="https://docs.refuseless.com/quickstart">Refuseless API-key quickstart</a>.</p></div>
       <ol className="mt-4 list-inside list-decimal text-sm"><li>Create a provider account, set up billing or credits, and create a key.</li><li>Paste it into the matching field below.</li><li>Select a text provider/model and choose Save & test. Testing may incur a small provider charge.</li></ol>
       <p className="mt-3 text-xs text-muted-foreground">Audio uses the key for your selected speech provider to bypass the free audio allowance.</p>
-      {(['together', 'openAi'] as const).map((service) => <div key={service} className="mt-3"><label className="block text-sm">{service === 'together' ? 'Together AI' : 'OpenAI'} key {viewer?.personal?.[service] ? '(configured)' : ''}<input className="mt-1 w-full rounded border border-border bg-background p-2" type="password" autoComplete="off" value={keys[service]} onChange={(event) => setKeys((previous) => ({ ...previous, [service]: event.target.value }))} placeholder="Paste a new key to replace the current one" /></label>{viewer?.personal?.[service] && <button disabled={busy} className="mt-1 text-xs text-red-400 underline" onClick={() => remove(service)}>Remove key</button>}</div>)}
-      <label className="mt-3 block text-sm">Text provider<select className="mt-1 w-full rounded border border-border bg-background p-2" value={provider} onChange={(event) => { setProvider(event.target.value as 'together' | 'openAi'); setModel(''); setModels([]); }}><option value="together">Together AI</option><option value="openAi">OpenAI</option></select></label>
+      {supportedLlmServices.map((service) => <div key={service} className="mt-3"><label className="block text-sm">{_constant.llmServices[service].label} key {viewer?.personal?.[service] ? '(configured)' : ''}<input className="mt-1 w-full rounded border border-border bg-background p-2" type="password" autoComplete="off" value={keys[service]} onChange={(event) => setKeys((previous) => ({ ...previous, [service]: event.target.value }))} placeholder="Paste a new key to replace the current one" /></label>{viewer?.personal?.[service] && <button disabled={busy} className="mt-1 text-xs text-red-400 underline" onClick={() => remove(service)}>Remove key</button>}</div>)}
+      <label className="mt-3 block text-sm">Text provider<select className="mt-1 w-full rounded border border-border bg-background p-2" value={provider} onChange={(event) => { const next = event.target.value; if (isSupportedLlmService(next)) { setProvider(next); setModel(''); setModels([]); } }}>{supportedLlmServices.map(service => <option key={service} value={service}>{_constant.llmServices[service].label}</option>)}</select></label>
       <label className="mt-3 block text-sm">Model<input list="guest-models" className="mt-1 w-full rounded border border-border bg-background p-2" value={model} onChange={(event) => setModel(event.target.value)} placeholder="Model ID" /><datalist id="guest-models">{models.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</datalist></label>
       <div className="mt-4 flex gap-3"><button disabled={busy} className="rounded bg-primary px-3 py-2 text-primary-foreground" onClick={() => save(false)}>Save</button><button disabled={busy} className="rounded border border-border px-3 py-2" onClick={() => save(true)}>Save & test</button><button disabled={busy} className="rounded border border-border px-3 py-2" onClick={() => void loadModels()}>Load models</button></div>
       {viewer.kind !== 'visitor' && <div className="mt-5"><TtsSettingsSection actorKind={viewer.kind} credentialsDirty={Boolean(keys.together.trim() || keys.openAi.trim())} /></div>}

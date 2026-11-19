@@ -83,6 +83,7 @@ export async function guestSettings() {
   return { guest, selectedLlm: guest.selectedLlm as LlmConfig | null, apiKey: {
     together: decryptGuestKey(guest.encryptedKeys?.together),
     openAi: decryptGuestKey(guest.encryptedKeys?.openAi),
+    refuseless: decryptGuestKey(guest.encryptedKeys?.refuseless),
   } };
 }
 

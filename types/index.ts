@@ -112,6 +112,7 @@ export interface PromptBuilderConfig {
 export interface ApiKeyConfig {
   together: string | null;
   openAi: string | null;
+  refuseless: string | null;
 }
 
 export interface Template {
@@ -146,6 +147,8 @@ export interface Book {
 
 export interface DefaultValue {
   selectedTts?: TtsConfig | null;
+  autocomplete?: AutocompletePreference;
+  modelPayloads?: ModelPayloads;
   promptBuilder: PromptBuilderConfig;
   generationProfiles: GenerationProfileConfig;
   selectedLlm: LlmConfig;
@@ -169,10 +172,11 @@ export interface GenerationProfile {
 
 export type GenerationProfileConfig = Record<AiGenerationFeature, GenerationProfile>;
 
-export type LLMService = 'together' | 'openAi';
+export type TtsService = 'together' | 'openAi';
+export type LLMService = TtsService | 'refuseless';
 
 export interface TtsConfig {
-  service: LLMService;
+  service: TtsService;
   model: string;
   voice: string;
 }
@@ -188,6 +192,30 @@ export interface LlmConfig {
   model: string;
 }
 
+export type ModelPayloadReasoning = 'openai-none' | 'openai-medium' | 'together-enabled' | 'together-max';
+
+export interface ModelPayloadShape {
+  allowTemperature: boolean;
+  reasoning?: ModelPayloadReasoning;
+}
+
+export interface VerifiedModelPayload extends LlmConfig {
+  shape: ModelPayloadShape;
+}
+
+export interface ModelPayloads {
+  story?: VerifiedModelPayload;
+  autocomplete?: VerifiedModelPayload;
+}
+
+// A null preference inherits the default. An explicit null model turns suggestions off.
+export type AutocompletePreference = { model: LlmConfig | null } | null;
+
+export interface AutocompleteAvailability {
+  model: LlmConfig | null;
+  available: boolean;
+}
+
 export interface AiModelOption {
   id: string;
   label: string;
@@ -196,6 +224,8 @@ export interface AiModelOption {
 
 export interface User {
   selectedTts?: TtsConfig | null;
+  autocomplete?: AutocompletePreference;
+  modelPayloads?: ModelPayloads;
   email: string;
   isAdmin: boolean;
   registeredAt: Date;

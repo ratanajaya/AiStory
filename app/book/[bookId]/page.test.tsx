@@ -2,8 +2,9 @@
 
 import { Suspense } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { AiStreamHandlers } from '@/lib/aiStreamClient';
 import { createEmptyLongTermMemoryState } from '@/lib/bookMemory';
 import type { Book, Template } from '@/types';
 
@@ -108,10 +109,12 @@ const template = {
 } satisfies Template;
 
 async function openBook() {
+  let view!: ReturnType<typeof render>;
   await act(async () => {
-    render(<Suspense fallback={<div>Loading...</div>}><BookPage params={Promise.resolve({ bookId: 'book-1' })} /></Suspense>);
+    view = render(<Suspense fallback={<div>Loading...</div>}><BookPage params={Promise.resolve({ bookId: 'book-1' })} /></Suspense>);
   });
   await screen.findByTestId('segment-assistant-1');
+  return view;
 }
 
 async function redo() {
@@ -336,5 +339,145 @@ describe('starter narration', () => {
     const writes = mocks.fetcher.mock.calls.filter(([path, options]) => path.endsWith('/segments') && options?.method === 'POST');
     expect(writes).toHaveLength(1);
     expect(JSON.parse(writes[0][1].body).segment).toMatchObject({ role: 'assistant', content: 'Starter story', narrationModel: { service: 'together', model: 'starter-model' } });
+  });
+});
+
+describe('book chat', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mocks.readInput.mockReturnValue({ input1: 'Keep going', narrationMode: 'outline' });
+    mocks.fetcher.mockImplementation(async (path: string) => {
+      if (path === '/api/books/book-1') return book;
+      if (path === '/api/books/book-2') return { ...book, bookId: 'book-2', storySegments: [
+        { id: 'other', role: 'assistant', day: 0, content: 'Another story' },
+      ] };
+      if (path === '/api/templates/template-1/merged') return template;
+      return {};
+    });
+  });
+  afterEach(cleanup);
+
+  it('streams a reply once, keeps it when closed, and uses the latest story for follow-ups', async () => {
+    const firstReply = Promise.withResolvers<string>();
+    mocks.streamAiRequest.mockImplementationOnce((_request, handlers: AiStreamHandlers) => {
+      handlers.onModel?.({ service: 'together', model: 'review-model' });
+      handlers.onChunk('A strong opening');
+      return firstReply.promise;
+    }).mockResolvedValueOnce('A new scene').mockResolvedValueOnce('Build on the new scene.');
+
+    const user = userEvent.setup();
+    await openBook();
+    await user.click(screen.getByRole('button', { name: 'Chat' }));
+    const chat = within(screen.getByRole('dialog', { name: 'Book chat' }));
+    const message = chat.getByRole<HTMLTextAreaElement>('textbox', { name: 'Chat message' });
+    expect(chat.getByRole<HTMLButtonElement>('button', { name: 'Send' }).disabled).toBe(true);
+    await user.click(chat.getByRole('button', { name: 'Review the current story' }));
+    expect(message.value).toBe('Review the current story');
+    expect(mocks.streamAiRequest).not.toHaveBeenCalled();
+    await user.keyboard('{Enter}{Enter}');
+    await chat.findByText('A strong opening');
+    expect(mocks.streamAiRequest).toHaveBeenCalledTimes(1);
+    expect(mocks.streamAiRequest.mock.calls[0][0].messages[0].content).toContain('Original story');
+    expect(mocks.fetcher.mock.calls.every(([, options]) => !options?.method)).toBe(true);
+
+    await user.click(chat.getByRole('button', { name: 'Close' }));
+    expect(mocks.streamAiRequest.mock.calls[0][1].signal.aborted).toBe(false);
+    await act(async () => firstReply.resolve('A strong opening with room to grow.'));
+
+    await user.click(screen.getByRole('button', { name: 'SEND' }));
+    await waitFor(() => expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Accept' }).disabled).toBe(false));
+    await user.click(screen.getByRole('button', { name: 'Accept' }));
+    await screen.findByText('A new scene');
+
+    await user.click(screen.getByRole('button', { name: 'Chat' }));
+    const reopened = within(screen.getByRole('dialog', { name: 'Book chat' }));
+    expect(reopened.getByText('A strong opening with room to grow.')).toBeTruthy();
+    expect(reopened.getByText('Together AI · review-model')).toBeTruthy();
+    await user.type(reopened.getByRole('textbox', { name: 'Chat message' }), 'What next?');
+    await user.click(reopened.getByRole('button', { name: 'Send' }));
+    await reopened.findByText('Build on the new scene.');
+    expect(mocks.streamAiRequest.mock.calls[2][0].messages).toEqual([
+      { role: 'user', content: 'Review the current story' },
+      { role: 'assistant', content: 'A strong opening with room to grow.' },
+      { role: 'user', content: expect.stringContaining('A new scene') },
+    ]);
+    expect(mocks.streamAiRequest.mock.calls[2][0].messages[2].content).toContain('What next?');
+    expect(mocks.fetcher.mock.calls.filter(([, options]) => options?.method).map(([path]) => path))
+      .toEqual(['/api/books/book-1/segments', '/api/books/book-1/segments']);
+
+    await user.click(reopened.getByRole('button', { name: 'New chat' }));
+    expect(reopened.queryByRole('log')).toBeNull();
+    expect(reopened.getByRole('button', { name: 'Where do you think it should go next?' })).toBeTruthy();
+  });
+
+  it('restores the question and omits the failed exchange when retrying', async () => {
+    mocks.streamAiRequest.mockImplementationOnce(async (_request, handlers: AiStreamHandlers) => {
+      handlers.onChunk('Incomplete');
+      throw new Error('Provider busy');
+    }).mockResolvedValueOnce('Try a quieter scene.');
+
+    const user = userEvent.setup();
+    await openBook();
+    await user.click(screen.getByRole('button', { name: 'Chat' }));
+    const chat = within(screen.getByRole('dialog', { name: 'Book chat' }));
+    const question = 'Where do you think it should go next?';
+    await user.click(chat.getByRole('button', { name: question }));
+    await user.click(chat.getByRole('button', { name: 'Send' }));
+    expect((await chat.findByRole('alert')).textContent).toBe('Provider busy');
+    expect(chat.queryByText('Incomplete')).toBeNull();
+    expect(chat.getByRole<HTMLTextAreaElement>('textbox', { name: 'Chat message' }).value).toBe(question);
+
+    await user.click(chat.getByRole('button', { name: 'Send' }));
+    await chat.findByText('Try a quieter scene.');
+    expect(mocks.streamAiRequest.mock.calls[1][0]).toEqual(mocks.streamAiRequest.mock.calls[0][0]);
+    expect(chat.queryByRole('alert')).toBeNull();
+  });
+
+  it('aborts a pending reply and starts over when switching books', async () => {
+    const reply = Promise.withResolvers<string>();
+    mocks.streamAiRequest.mockReturnValueOnce(reply.promise).mockResolvedValueOnce('A review of the other story.');
+    const user = userEvent.setup();
+    const { rerender } = await openBook();
+    await user.click(screen.getByRole('button', { name: 'Chat' }));
+    const first = within(screen.getByRole('dialog', { name: 'Book chat' }));
+    await user.click(first.getByRole('button', { name: 'Review the current story' }));
+    await user.click(first.getByRole('button', { name: 'Send' }));
+
+    const nextParams = Promise.resolve({ bookId: 'book-2' });
+    await act(async () => rerender(<Suspense fallback={null}><BookPage params={nextParams} /></Suspense>));
+    await screen.findByText('Another story');
+    const firstStream: AiStreamHandlers = mocks.streamAiRequest.mock.calls[0][1];
+    expect(firstStream.signal?.aborted).toBe(true);
+    await act(async () => {
+      firstStream.onChunk('Stale reply');
+      reply.resolve('Stale reply');
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Chat' }));
+    const second = within(screen.getByRole('dialog', { name: 'Book chat' }));
+    expect(second.queryByRole('log')).toBeNull();
+    await user.click(second.getByRole('button', { name: 'Review the current story' }));
+    await user.click(second.getByRole('button', { name: 'Send' }));
+    await second.findByText('A review of the other story.');
+    expect(mocks.streamAiRequest.mock.calls[1][0].messages).toEqual([
+      { role: 'user', content: expect.stringContaining('Another story') },
+    ]);
+  });
+
+  it('sends story context beyond 64 KiB and displays the reply', async () => {
+    const longScene = '界'.repeat(22_000);
+    mocks.fetcher.mockResolvedValueOnce({ ...book, storySegments: [...book.storySegments, {
+      id: 'long-scene', role: 'assistant', day: 0, content: longScene,
+    }] });
+    mocks.streamAiRequest.mockResolvedValueOnce('A review of the long scene.');
+    const user = userEvent.setup();
+    await openBook();
+    await user.click(screen.getByRole('button', { name: 'Chat' }));
+    const chat = within(screen.getByRole('dialog', { name: 'Book chat' }));
+    await user.click(chat.getByRole('button', { name: 'Review the current story' }));
+    await user.click(chat.getByRole('button', { name: 'Send' }));
+    await chat.findByText('A review of the long scene.');
+    expect(mocks.streamAiRequest).toHaveBeenCalledTimes(1);
+    expect(mocks.streamAiRequest.mock.calls[0][0].messages[0].content).toContain(longScene);
   });
 });

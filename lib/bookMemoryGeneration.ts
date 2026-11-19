@@ -1,4 +1,3 @@
-import { REQUEST_LIMITS } from '@/lib/guestLimits';
 import { reserveTrial } from '@/lib/trial';
 import { createHash } from 'node:crypto';
 import type {
@@ -165,7 +164,6 @@ export async function generateLongTermMemoryProposal(options: {
     const batches = buildMemorySourceBatches(sourceSegments);
     for (const [batchIndex, batch] of batches.entries()) {
       const batchPrompt = createBatchPrompt({ mode: options.mode, template: options.template, workingMemory, existingIdentityCatalog, segments: batch });
-      if (Buffer.byteLength(JSON.stringify({ systemMessage: updaterSystemPrompt, messages: [{ role: 'user', content: batchPrompt }] }), 'utf8') > REQUEST_LIMITS.textBytes) throw new MemoryGenerationError('Memory input exceeds the 64 KiB request limit. Reduce the source or memory size.', 413);
       let response: { operations: unknown };
       if (options.request && trialFunded) {
         const reserved = await reserveTrial(options.request, 'text', 1);

@@ -21,6 +21,7 @@ const emptyPromptBuilder: PromptBuilderConfig = {
 const emptyApiKey: ApiKeyConfig = {
   together: '',
   openAi: '',
+  refuseless: '',
 };
 
 const defaultSelectedLlm: LlmConfig = {
@@ -55,6 +56,11 @@ const _constant = {
     openAi: {
       label: 'OpenAI',
       provider: 'openAi',
+      models: [],
+    },
+    refuseless: {
+      label: 'Refuseless',
+      provider: 'refuseless',
       models: [],
     },
   },

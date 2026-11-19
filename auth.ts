@@ -5,8 +5,10 @@ import authConfig from "./auth.config";
 import dbConnect from "@/lib/mongodb";
 import { getAuthSessionOverrideUser } from "@/lib/authSessionOverride";
 import { KeyValueModel, UserModel } from "@/models";
-import { ApiKeyConfig, DefaultValue, GenerationProfileConfig, LlmConfig, LLMService, TtsConfig, User } from "@/types";
+import { ApiKeyConfig, DefaultValue, GenerationProfileConfig, LlmConfig, LLMService, ModelPayloadShape, TtsConfig, User } from "@/types";
 import { normalizeGenerationProfileConfig } from "@/lib/generationProfiles";
+import { resolveAutocompleteModel } from "@/lib/autocompleteSettings";
+import { resolveModelPayload } from "@/lib/modelPayload";
 import _util from "./utils/_util";
 
 const { handlers, signIn, signOut, auth: baseAuth } = NextAuth({
@@ -86,6 +88,9 @@ async function getCurrentUser(): Promise<User | null> {
 async function getUserSettingWithFallback(): Promise<{
   selectedTts: TtsConfig;
   selectedLlm: LlmConfig;
+  autocompleteModel: LlmConfig | null;
+  storyPayload: ModelPayloadShape | undefined;
+  autocompletePayload: ModelPayloadShape | undefined;
   apiKey: ApiKeyConfig;
   generationProfiles: GenerationProfileConfig;
   personal: Record<LLMService, boolean>;
@@ -108,10 +113,15 @@ async function getUserSettingWithFallback(): Promise<{
   const apiKey: ApiKeyConfig = {
     together: _util.altString(user?.apiKey?.together, defaultValue.apiKey.together)!,
     openAi: _util.altString(user?.apiKey?.openAi, defaultValue.apiKey.openAi)!,
+    refuseless: _util.altString(user?.apiKey?.refuseless, defaultValue.apiKey?.refuseless ?? null),
   };
+  const autocompleteModel = resolveAutocompleteModel(user?.autocomplete, defaultValue.autocomplete);
 
   return {
     selectedLlm,
+    autocompleteModel,
+    storyPayload: resolveModelPayload(selectedLlm, user?.modelPayloads?.story, defaultValue.modelPayloads?.story),
+    autocompletePayload: resolveModelPayload(autocompleteModel, user?.modelPayloads?.autocomplete, defaultValue.modelPayloads?.autocomplete),
     selectedTts: resolveTtsConfig(user?.selectedTts, defaultValue.selectedTts),
     apiKey,
     generationProfiles: normalizeGenerationProfileConfig(defaultValue.generationProfiles),
@@ -119,6 +129,7 @@ async function getUserSettingWithFallback(): Promise<{
     personal: {
       together: Boolean(_util.toInputString(user?.apiKey?.together)),
       openAi: Boolean(_util.toInputString(user?.apiKey?.openAi)),
+      refuseless: Boolean(_util.toInputString(user?.apiKey?.refuseless)),
     },
     trialAccount: Boolean(user?.trialAccount),
   };

@@ -35,4 +35,37 @@ describe('account generation credentials and funding', () => {
     });
     expect(mocks.user).toHaveBeenCalledTimes(1);
   });
+
+  it.each([
+    [undefined, { service: 'openAi', model: 'default-autocomplete' }],
+    [{ model: null }, null],
+    [{ model: { service: 'together', model: 'account-autocomplete' } }, { service: 'together', model: 'account-autocomplete' }],
+  ])('resolves an account autocomplete preference of %j', async (autocomplete, expected) => {
+    mocks.defaults.mockResolvedValueOnce({ value: {
+      selectedLlm: { service: 'together', model: 'default-model' },
+      apiKey: {},
+      autocomplete: { model: { service: 'openAi', model: 'default-autocomplete' } },
+    } });
+    mocks.user.mockResolvedValueOnce({ autocomplete });
+    expect((await getActorGenerationSettings()).autocompleteModel).toEqual(expected);
+  });
+
+  it('resolves verified payloads from the same settings as each effective model', async () => {
+    const selectedLlm = { service: 'together', model: 'default-model' };
+    const autocomplete = { model: { service: 'openAi', model: 'gpt-6-luna' } };
+    const systemStoryShape = { allowTemperature: true };
+    const actorStoryShape = { allowTemperature: false };
+    const autocompleteShape = { allowTemperature: false, reasoning: 'openai-medium' };
+    mocks.defaults.mockResolvedValueOnce({ value: {
+      selectedLlm, autocomplete, apiKey: {}, modelPayloads: {
+        story: { ...selectedLlm, shape: systemStoryShape },
+        autocomplete: { ...autocomplete.model, shape: autocompleteShape },
+      },
+    } });
+    mocks.user.mockResolvedValueOnce({ modelPayloads: {
+      story: { ...selectedLlm, shape: actorStoryShape },
+      autocomplete: { service: 'openAi', model: 'stale-autocomplete', shape: { allowTemperature: true } },
+    } });
+    expect(await getActorGenerationSettings()).toMatchObject({ storyPayload: actorStoryShape, autocompletePayload: autocompleteShape });
+  });
 });

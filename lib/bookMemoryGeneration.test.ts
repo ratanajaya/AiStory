@@ -91,6 +91,16 @@ describe('long-term memory proposal generation', () => {
     expect(pathPattern.test('/entries/')).toBe(false);
   });
 
+  it('sends a memory prompt beyond 64 KiB to the provider', async () => {
+    const storyBackground = '界'.repeat(22_000);
+    chatObjectFull.mockResolvedValue({ operations: [] });
+
+    await generateLongTermMemoryProposal({ book: createBook(), template: { ...template, storyBackground }, mode: 'full' });
+
+    expect(chatObjectFull).toHaveBeenCalledTimes(1);
+    expect(chatObjectFull.mock.calls[0][1][0].content).toContain(storyBackground);
+  });
+
   it('supports an incremental proposal that cleans legacy fields while preserving profile facts', async () => {
     const book = createBook();
     const processed = book.storySegments.filter((segment) => segment.role === 'assistant');

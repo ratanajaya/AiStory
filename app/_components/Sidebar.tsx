@@ -10,10 +10,10 @@ import { AiSettingsSection } from "@/components/AiSettingsSection";
 import { Button } from "@/components/Button";
 import { useFetcher } from "@/components/FetcherProvider";
 import { useAiModelCatalog } from "@/components/AiModelCatalogProvider";
-import { streamAiRequest } from "@/lib/aiStreamClient";
+import { getUnsupportedLlmMessage, isSupportedLlmService } from "@/lib/llmSettings";
 import _constant from "@/utils/_constant";
 import _util from "@/utils/_util";
-import type { AiModelOption, LlmConfig, ApiKeyConfig, LLMService } from "@/types";
+import type { AiModelOption, AutocompletePreference, LlmConfig, ApiKeyConfig, LLMService } from "@/types";
 
 const emptyModels: AiModelOption[] = [];
 
@@ -68,8 +68,11 @@ export function Sidebar({
   // LLM settings
   const [selectedService, setSelectedService] = useState<string>(_constant.defaultSelectedLlm.service);
   const [selectedModel, setSelectedModel] = useState(_constant.defaultSelectedLlm.model);
+  const [autocomplete, setAutocomplete] = useState<AutocompletePreference>();
   const [modelKeys, setModelKeys] = useState<ApiKeyConfig>({ ..._constant.emptyApiKey });
-  const [dirtyApiKeys, setDirtyApiKeys] = useState<Record<LLMService, boolean>>({ together: false, openAi: false });
+  const [dirtyApiKeys, setDirtyApiKeys] = useState<Partial<Record<LLMService, boolean>>>({});
+  const [refuselessKeyConfigured, setRefuselessKeyConfigured] = useState(false);
+  const [removeRefuselessKey, setRemoveRefuselessKey] = useState(false);
 
   // API Keys
   const [apiKeys, setApiKeys] = useState<ApiKeyConfig>({
@@ -90,7 +93,9 @@ export function Sidebar({
       try {
         const data = await fetcher<{
           selectedLlm?: { service: string; model: string };
+          autocomplete?: AutocompletePreference;
           apiKey?: ApiKeyConfig;
+          refuselessKeyConfigured?: boolean;
         }>("/api/user/settings");
 
         if (data?.selectedLlm) {
@@ -101,6 +106,8 @@ export function Sidebar({
         if (data?.apiKey) {
           setApiKeys(_util.normalizeApiKeyConfig(data.apiKey));
         }
+        setRefuselessKeyConfigured(Boolean(data?.refuselessKeyConfigured));
+        setAutocomplete(data?.autocomplete ?? null);
       } catch (error) {
         console.error("Failed to fetch settings:", error);
       } finally {
@@ -111,18 +118,20 @@ export function Sidebar({
     fetchSettings();
   }, [loaded, fetcher, viewerKind]);
 
-  const catalog = selectedService === 'together' || selectedService === 'openAi'
+  const isSupportedService = isSupportedLlmService(selectedService);
+  const catalog = isSupportedService
     ? getEntry(selectedService, modelKeys[selectedService])
     : null;
   const models = catalog?.models ?? emptyModels;
   const modelLoading = catalog?.loading ?? false;
   const modelLoadError = catalog?.error ?? null;
+  const removingSelectedKey = selectedService === 'refuseless' && removeRefuselessKey;
 
   useEffect(() => {
-    if (selectedService === "together" && !selectedModel && models.length > 0) {
+    if (isSupportedService && selectedService !== 'openAi' && !selectedModel && models.length > 0) {
       setSelectedModel(models[0].id);
     }
-  }, [selectedService, selectedModel, models]);
+  }, [isSupportedService, selectedService, selectedModel, models]);
 
   // Close sidebar when clicking outside
   useEffect(() => {
@@ -146,8 +155,9 @@ export function Sidebar({
     setSelectedModel(service === "openAi" ? _constant.defaultSelectedLlm.model : "");
   };
 
-  const handleApiKeyChange = (key: keyof ApiKeyConfig, value: string) => {
-    setTtsKeysDirty(true);
+  const handleApiKeyChange = (key: LLMService, value: string) => {
+    if (key === 'refuseless') setRemoveRefuselessKey(false);
+    else setTtsKeysDirty(true);
     setApiKeys((prev) => ({
       ...prev,
       [key]: value,
@@ -155,7 +165,7 @@ export function Sidebar({
     setDirtyApiKeys((prev) => ({ ...prev, [key]: true }));
   };
 
-  const saveCurrentSettings = async () => {
+  const saveCurrentSettings = async (testModels = false) => {
     const selectedLlm: LlmConfig | null =
       selectedService && selectedModel
         ? {
@@ -164,14 +174,26 @@ export function Sidebar({
           }
         : null;
 
+    const { refuseless, ...apiKey } = _util.normalizeApiKeyConfig(apiKeys);
+    const newRefuselessKey = removeRefuselessKey ? null : _util.toIdentifierString(refuseless) || undefined;
     await fetcher("/api/user/settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
+      silent: testModels,
       body: JSON.stringify({
         selectedLlm,
-        apiKey: _util.normalizeApiKeyConfig(apiKeys),
+        autocomplete,
+        apiKey: { ...apiKey, refuseless: newRefuselessKey },
+        ...(testModels ? { testModels } : {}),
       }),
     });
+    if (newRefuselessKey !== undefined) {
+      setRefuselessKeyConfigured(Boolean(newRefuselessKey));
+      setRemoveRefuselessKey(false);
+      setApiKeys(prev => ({ ...prev, refuseless: '' }));
+      setModelKeys(prev => ({ ...prev, refuseless: '' }));
+      void loadModels('refuseless', '', true);
+    }
     setTtsKeysDirty(false);
     window.dispatchEvent(new Event("aistory:settings"));
   };
@@ -206,27 +228,11 @@ export function Sidebar({
     setStatusMessage(null);
 
     try {
-      await saveCurrentSettings();
-
-      const result = await streamAiRequest(
-        {
-          feature: "default",
-          systemMessage: "You are a connectivity test. Reply with exactly: OK",
-          messages: [
-            {
-              role: "user",
-              content: "Reply with exactly OK.",
-            },
-          ],
-        },
-        {
-          onChunk: () => {},
-        }
-      );
+      await saveCurrentSettings(true);
 
       setStatusMessage({
         type: "success",
-        text: `Model test passed: ${result.slice(0, 80)}`,
+        text: "Model checks passed. Settings saved.",
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Model test failed";
@@ -236,20 +242,19 @@ export function Sidebar({
     }
   };
 
-  const isSupportedService = !selectedService || selectedService in _constant.llmServices;
   const modelUnavailable =
-    (selectedService === "together" || selectedService === "openAi") &&
+    isSupportedService && !removingSelectedKey &&
     Boolean(selectedModel) &&
     models.length > 0 &&
     !models.some((model) => model.id === selectedModel);
-  const llmError = !isSupportedService
-    ? "Mistral is no longer supported; choose Together AI or OpenAI."
+  const llmError = selectedService && !isSupportedService
+    ? getUnsupportedLlmMessage(selectedService)
     : modelUnavailable
       ? "The selected model is unavailable; choose a model from the fetched list."
-      : (selectedService === "together" || selectedService === "openAi") && !selectedModel && !modelLoading
+      : isSupportedService && !selectedModel && (!modelLoading || removingSelectedKey)
         ? "Select a model."
         : null;
-  const actionDisabled = saving || testing || modelLoading || Boolean(llmError) || Boolean(modelLoadError);
+  const actionDisabled = saving || testing || Boolean(llmError) || (!removingSelectedKey && (modelLoading || Boolean(modelLoadError)));
 
   if (viewerKind !== 'user') return (<>
     {isOpen && <div className="fixed inset-0 z-40 bg-black/50" onClick={onClose} />}
@@ -344,10 +349,17 @@ export function Sidebar({
               onModelChange={setSelectedModel}
               onApiKeyChange={handleApiKeyChange}
               onApiKeyBlur={handleApiKeyBlur}
+              refuselessKeyConfigured={refuselessKeyConfigured}
+              removingRefuselessKey={removeRefuselessKey}
+              onToggleRefuselessKeyRemoval={() => {
+                handleApiKeyChange('refuseless', '');
+                setRemoveRefuselessKey(!removeRefuselessKey);
+              }}
               models={models}
               modelLoading={modelLoading}
               modelLoadError={modelLoadError}
               llmError={llmError}
+              autocomplete={{ value: autocomplete, onChange: setAutocomplete, modelKeys, inherit: true, disabled: !loaded || saving || testing }}
               variant="sidebar"
             />
 
@@ -367,6 +379,7 @@ export function Sidebar({
             </div>
             {statusMessage && (
               <div
+                role="status"
                 className={`text-xs ${
                   statusMessage.type === "success" ? "text-green-500" : "text-red-500"
                 }`}

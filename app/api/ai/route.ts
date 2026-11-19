@@ -1,4 +1,3 @@
-import { REQUEST_LIMITS } from '@/lib/guestLimits';
 import { safeProviderError } from '@/lib/providerError';
 import { getDynamicAiEndpoint } from '@/lib/aiEndpointDynamic';
 import { errorResponse, errorResponseFromMessage } from '@/lib/apiError';
@@ -21,7 +20,6 @@ export async function POST(request: Request) {
       return errorResponseFromMessage('feature is required and must be supported', 400);
     }
 
-    if (Buffer.byteLength(JSON.stringify({ systemMessage, messages }), 'utf8') > REQUEST_LIMITS.textBytes) return errorResponseFromMessage('Text input is too large', 413);
     if (systemMessage != null && typeof systemMessage !== 'string' || messages.some((message) => !message || !['user', 'assistant', 'system'].includes(message.role) || typeof message.content !== 'string')) return errorResponseFromMessage('Invalid text messages', 400);
     const { endpoint: aiEndpoint, generationProfiles, selectedLlm, trialFunded } = await getDynamicAiEndpoint();
     if (trialFunded) {
