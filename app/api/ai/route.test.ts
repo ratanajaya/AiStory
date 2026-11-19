@@ -52,6 +52,34 @@ describe('POST /api/ai stream metadata', () => {
     expect(await response.text()).toBe('First part');
   });
 
+  it('streams a chat follow-up beyond 64 KiB using the default profile and one trial reservation', async () => {
+    const generationProfiles = getDefaultGenerationProfiles();
+    const chatStreamFull = vi.fn(async (
+      _system: unknown,
+      _messages: unknown,
+      _profile: unknown,
+      onChunk: (chunk: string) => void,
+    ) => onChunk('Develop the second idea.'));
+    mocks.getDynamicAiEndpoint.mockResolvedValue({
+      endpoint: { chatStreamFull }, generationProfiles,
+      selectedLlm: { service: 'openAi', model: 'selected-model' }, trialFunded: true,
+    });
+    const messages = [
+      { role: 'user', content: 'What are some possible next steps?' },
+      { role: 'assistant', content: 'Here are two directions.' },
+      { role: 'user', content: `${'界'.repeat(22_000)}\n\nTell me more about the second one.` },
+    ];
+    const request = new Request('http://localhost/api/ai', {
+      method: 'POST', body: JSON.stringify({ feature: 'default', systemMessage: 'Discuss the book.', messages }),
+    });
+
+    const response = await POST(request);
+    expect(response.headers.get('X-AI-Model')).toBe('selected-model');
+    expect(await response.text()).toBe('Develop the second idea.');
+    expect(mocks.reserve).toHaveBeenCalledExactlyOnceWith(request, 'text', 1);
+    expect(chatStreamFull).toHaveBeenCalledExactlyOnceWith('Discuss the book.', messages, generationProfiles.default, expect.any(Function));
+  });
+
   it('does not charge the trial when a personal key funds the selected provider', async () => {
     const response = await POST(new Request('http://localhost/api/ai', { method: 'POST', body: JSON.stringify({ feature: 'default', stream: false, messages: [{ role: 'user', content: 'Hi' }] }) }));
     expect(response.status).toBe(200);

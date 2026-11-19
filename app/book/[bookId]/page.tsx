@@ -24,6 +24,7 @@ import SegmentEnhancerModal from '../_components/SegmentEnhancerModal';
 import SegmentSummarizerModal from '../_components/SegmentSummarizerModal';
 import ChapterWrapperModal from '../_components/ChapterWrapperModal';
 import BookNameEditor from '../_components/BookNameEditor';
+import BookChat from '../_components/BookChat';
 import _constant from '@/utils/_constant';
 import { BookUIModel } from '@/types/extendedTypes';
 import { createNarrationRequest } from '@/lib/narrationRequest';
@@ -670,9 +671,10 @@ function BookPageContent({ bookId }: { bookId: string }) {
                 }}
                 onStatusChange={setSbp}
               />
-              <div className="mb-2 flex justify-end gap-2">
+              <div className="mb-2 flex flex-wrap justify-end gap-2">
                 <ReleaseBookButton bookId={bookId} onBusyChange={setReleaseBusy}
                   disabled={loading || starter.pending || sbp.loading || candidateSaving || segmentCandidate !== null || enhancer.visible || summarizer.visible || chapterWrapper.visible || memoryVisible} />
+                <BookChat book={bookUiModel} template={template} />
                 <Button
                   type="button"
                   variant="outline"
