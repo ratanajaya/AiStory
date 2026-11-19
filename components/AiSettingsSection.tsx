@@ -5,6 +5,7 @@ import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
 import { AutocompleteModelSelect, type AutocompleteModelSelectProps } from '@/components/AutocompleteModelSelect';
 import { AiModelOption, ApiKeyConfig, LLMService } from '@/types';
+import { isSupportedLlmService, supportedLlmServices } from '@/lib/llmSettings';
 import _constant from '@/utils/_constant';
 import _util from '@/utils/_util';
 
@@ -21,6 +22,9 @@ interface AiSettingsSectionProps {
   onModelChange: (model: string) => void;
   onApiKeyChange: (key: keyof ApiKeyConfig, value: string) => void;
   onApiKeyBlur?: (service: LLMService) => void;
+  refuselessKeyConfigured?: boolean;
+  removingRefuselessKey?: boolean;
+  onToggleRefuselessKeyRemoval?: () => void;
   models?: AiModelOption[];
   modelLoading?: boolean;
   modelLoadError?: string | null;
@@ -65,6 +69,9 @@ export function AiSettingsSection({
   onModelChange,
   onApiKeyChange,
   onApiKeyBlur,
+  refuselessKeyConfigured,
+  removingRefuselessKey,
+  onToggleRefuselessKeyRemoval,
   models = [],
   modelLoading = false,
   modelLoadError = null,
@@ -75,7 +82,7 @@ export function AiSettingsSection({
   autocomplete,
 }: AiSettingsSectionProps) {
   const isPage = variant === 'page';
-  const isSupportedService = selectedService in _constant.llmServices;
+  const isSupportedService = isSupportedLlmService(selectedService);
 
   const serviceOptions: SelectOption[] = Object.entries(_constant.llmServices).map(([key, service]) => ({
     value: key,
@@ -133,29 +140,26 @@ export function AiSettingsSection({
     </>
   );
 
-  const apiKeyFields = (
-    <>
-      <FormField label="Together:">
+  const apiKeyFields = supportedLlmServices.map(service => {
+    const label = _constant.llmServices[service].label;
+    const storedKey = service === 'refuseless' && refuselessKeyConfigured;
+    return (
+      <FormField key={service} label={label}>
         <Input
           type="password"
-          value={_util.toInputString(apiKey.together)}
-          onChange={(e) => onApiKeyChange('together', e.target.value)}
-          onBlur={() => onApiKeyBlur?.('together')}
-          placeholder="Together API key"
+          value={_util.toInputString(apiKey[service])}
+          onChange={(e) => onApiKeyChange(service, e.target.value)}
+          onBlur={() => onApiKeyBlur?.(service)}
+          placeholder={storedKey ? 'Replace saved Refuseless API key' : `${label} API key`}
         />
+        {storedKey && (
+          <button type="button" className="mt-1 text-sm text-red-500 underline" onClick={onToggleRefuselessKeyRemoval}>
+            {removingRefuselessKey ? 'Undo key removal' : 'Remove saved key'}
+          </button>
+        )}
       </FormField>
-
-      <FormField label="OpenAI:">
-        <Input
-          type="password"
-          value={_util.toInputString(apiKey.openAi)}
-          onChange={(e) => onApiKeyChange('openAi', e.target.value)}
-          onBlur={() => onApiKeyBlur?.('openAi')}
-          placeholder="OpenAI API key"
-        />
-      </FormField>
-    </>
-  );
+    );
+  });
 
   if (isPage) {
     return (

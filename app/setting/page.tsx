@@ -11,6 +11,7 @@ import { Button } from '@/components/Button';
 import { PromptEditorSection } from '@/components/PromptEditorSection';
 import { GenerationProfilesSection } from '@/components/GenerationProfilesSection';
 import { normalizeGenerationProfileConfig } from '@/lib/generationProfiles';
+import { getUnsupportedLlmMessage, isSupportedLlmService, supportedLlmServices } from '@/lib/llmSettings';
 import _constant from '@/utils/_constant';
 import _util from '@/utils/_util';
 
@@ -38,7 +39,9 @@ export default function SettingPage() {
 
   const [formData, setFormData] = useState<SettingsFormData>(emptyDefaultValue);
   const [modelKeys, setModelKeys] = useState<ApiKeyConfig>({ ..._constant.emptyApiKey });
-  const [dirtyApiKeys, setDirtyApiKeys] = useState<Record<LLMService, boolean>>({ together: false, openAi: false });
+  const [dirtyApiKeys, setDirtyApiKeys] = useState<Partial<Record<LLMService, boolean>>>({});
+  const [refuselessKeyConfigured, setRefuselessKeyConfigured] = useState(false);
+  const [removeRefuselessKey, setRemoveRefuselessKey] = useState(false);
   const [ttsKeysDirty, setTtsKeysDirty] = useState(false);
   const [savingMode, setSavingMode] = useState<'save' | 'test' | null>(null);
   const loading = savingMode !== null;
@@ -49,7 +52,7 @@ export default function SettingPage() {
     const fetchSettings = async () => {
       try {
         setFetchLoading(true);
-        const data = await fetcher<DefaultValue>('/api/settings', {
+        const data = await fetcher<DefaultValue & { refuselessKeyConfigured?: boolean }>('/api/settings', {
           errorMessage: 'Failed to fetch settings',
         });
         const apiKey = _util.normalizeApiKeyConfig(data.apiKey);
@@ -65,8 +68,8 @@ export default function SettingPage() {
           },
         });
         setModelKeys(apiKey);
-        void loadModels('together', apiKey.together);
-        void loadModels('openAi', apiKey.openAi);
+        setRefuselessKeyConfigured(Boolean(data.refuselessKeyConfigured));
+        for (const service of supportedLlmServices) void loadModels(service, apiKey[service], false, 'defaults');
       } catch {
       } finally {
         setFetchLoading(false);
@@ -76,16 +79,19 @@ export default function SettingPage() {
     fetchSettings();
   }, [fetcher, loadModels]);
 
-  const catalog = formData.selectedLlm.service === 'together' || formData.selectedLlm.service === 'openAi'
-    ? getEntry(formData.selectedLlm.service, modelKeys[formData.selectedLlm.service])
+  const selectedService = formData.selectedLlm.service;
+  const isSupportedService = isSupportedLlmService(selectedService);
+  const catalog = isSupportedService
+    ? getEntry(selectedService, modelKeys[selectedService], 'defaults')
     : null;
   const models = catalog?.models ?? emptyModels;
   const modelLoading = catalog?.loading ?? false;
   const modelLoadError = catalog?.error ?? null;
+  const removingSelectedKey = selectedService === 'refuseless' && removeRefuselessKey;
 
   useEffect(() => {
     if (
-      formData.selectedLlm.service === 'together' &&
+      isSupportedService && selectedService !== 'openAi' &&
       !formData.selectedLlm.model &&
       models.length > 0
     ) {
@@ -97,13 +103,15 @@ export default function SettingPage() {
         },
       }));
     }
-  }, [formData.selectedLlm.service, formData.selectedLlm.model, models]);
+  }, [isSupportedService, selectedService, formData.selectedLlm.model, models]);
 
   const saveSettings = async (testModels = false) => {
     setSavingMode(testModels ? 'test' : 'save');
     setSaveMessage(null);
 
     try {
+      const { refuseless, ...apiKey } = _util.normalizeApiKeyConfig(formData.apiKey);
+      const newRefuselessKey = removeRefuselessKey ? null : _util.toIdentifierString(refuseless) || undefined;
       await fetcher('/api/settings', {
         method: 'PUT',
         headers: {
@@ -113,12 +121,19 @@ export default function SettingPage() {
           ...formData,
           promptBuilder: _util.normalizePromptBuilderConfig(formData.promptBuilder),
           generationProfiles: normalizeGenerationProfileConfig(formData.generationProfiles),
-          apiKey: _util.normalizeApiKeyConfig(formData.apiKey),
+          apiKey: { ...apiKey, refuseless: newRefuselessKey },
           ...(testModels ? { testModels } : {}),
         }),
         errorMessage: 'Failed to update settings',
         silent: testModels,
       });
+      if (newRefuselessKey !== undefined) {
+        setRefuselessKeyConfigured(Boolean(newRefuselessKey));
+        setRemoveRefuselessKey(false);
+        setFormData(prev => ({ ...prev, apiKey: { ...prev.apiKey, refuseless: '' } }));
+        setModelKeys(prev => ({ ...prev, refuseless: '' }));
+        void loadModels('refuseless', '', true, 'defaults');
+      }
       setTtsKeysDirty(false);
       window.dispatchEvent(new Event('aistory:settings'));
       setSaveMessage({ text: testModels ? 'Model checks passed. Settings saved.' : 'Settings saved.' });
@@ -160,8 +175,9 @@ export default function SettingPage() {
     }));
   };
 
-  const handleApiKeyChange = (field: string, value: string) => {
-    setTtsKeysDirty(true);
+  const handleApiKeyChange = (field: LLMService, value: string) => {
+    if (field === 'refuseless') setRemoveRefuselessKey(false);
+    else setTtsKeysDirty(true);
     setFormData((prev) => ({
       ...prev,
       apiKey: {
@@ -169,9 +185,7 @@ export default function SettingPage() {
         [field]: value,
       },
     }));
-    if (field === 'together' || field === 'openAi') {
-      setDirtyApiKeys((prev) => ({ ...prev, [field]: true }));
-    }
+    setDirtyApiKeys((prev) => ({ ...prev, [field]: true }));
   };
 
   const handleApiKeyBlur = (service: LLMService) => {
@@ -179,7 +193,7 @@ export default function SettingPage() {
     const apiKey = _util.toInputString(formData.apiKey[service]);
     setDirtyApiKeys((prev) => ({ ...prev, [service]: false }));
     setModelKeys((prev) => ({ ...prev, [service]: apiKey }));
-    void loadModels(service, apiKey, true);
+    void loadModels(service, apiKey, true, 'defaults');
   };
 
   if (fetchLoading) {
@@ -191,22 +205,21 @@ export default function SettingPage() {
     );
   }
 
-  const isSupportedService = !formData.selectedLlm.service || formData.selectedLlm.service in _constant.llmServices;
   const modelUnavailable =
-    (formData.selectedLlm.service === 'together' || formData.selectedLlm.service === 'openAi') &&
+    isSupportedService && !removingSelectedKey &&
     Boolean(formData.selectedLlm.model) &&
     models.length > 0 &&
     !models.some((model) => model.id === formData.selectedLlm.model);
   const llmError = !formData.selectedLlm.service
     ? 'Select a provider.'
     : !isSupportedService
-    ? 'Mistral is no longer supported; choose Together AI or OpenAI.'
+    ? getUnsupportedLlmMessage(selectedService)
     : modelUnavailable
       ? 'The selected model is unavailable; choose a model from the fetched list.'
-      : (formData.selectedLlm.service === 'together' || formData.selectedLlm.service === 'openAi') && !formData.selectedLlm.model && !modelLoading
+      : !formData.selectedLlm.model && (!modelLoading || removingSelectedKey)
         ? 'Select a model.'
         : null;
-  const saveDisabled = loading || modelLoading || Boolean(llmError) || Boolean(modelLoadError);
+  const saveDisabled = loading || Boolean(llmError) || (!removingSelectedKey && (modelLoading || Boolean(modelLoadError)));
 
   return (
     <div className="p-8 max-w-3xl">
@@ -232,6 +245,12 @@ export default function SettingPage() {
           onModelChange={handleSelectedModelChange}
           onApiKeyChange={handleApiKeyChange}
           onApiKeyBlur={handleApiKeyBlur}
+          refuselessKeyConfigured={refuselessKeyConfigured}
+          removingRefuselessKey={removeRefuselessKey}
+          onToggleRefuselessKeyRemoval={() => {
+            handleApiKeyChange('refuseless', '');
+            setRemoveRefuselessKey(!removeRefuselessKey);
+          }}
           models={models}
           modelLoading={modelLoading}
           modelLoadError={modelLoadError}
@@ -240,6 +259,7 @@ export default function SettingPage() {
             value: formData.autocomplete,
             onChange: autocomplete => setFormData(previous => ({ ...previous, autocomplete })),
             modelKeys,
+            scope: 'defaults',
             disabled: loading,
           }}
           variant="page"

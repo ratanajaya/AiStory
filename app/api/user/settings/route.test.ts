@@ -62,7 +62,7 @@ describe('account model checks', () => {
     mocks.probe.mockResolvedValueOnce({ ok: true, payloads: { story, autocomplete: verifiedAutocomplete } });
     const response = await put({ testModels: true, selectedLlm, autocomplete, apiKey: { openAi: ' new-key ' } });
     expect(await response.json()).toEqual({ success: true });
-    expect(mocks.probe).toHaveBeenCalledWith(selectedLlm, autocomplete.model, { openAi: 'new-key', together: 'existing-personal-key' }, expect.any(AbortSignal));
+    expect(mocks.probe).toHaveBeenCalledWith(selectedLlm, autocomplete.model, { openAi: 'new-key', together: 'existing-personal-key', refuseless: '' }, expect.any(AbortSignal));
     expect(mocks.update).toHaveBeenCalledWith({ email: 'owner@example.com' }, { $set: {
       selectedLlm, autocomplete, 'apiKey.openAi': 'new-key', 'modelPayloads.story': story, 'modelPayloads.autocomplete': verifiedAutocomplete,
     } });
@@ -74,7 +74,20 @@ describe('account model checks', () => {
     mocks.probe.mockResolvedValueOnce({ ok: false, status: 502, message: 'Autocomplete model check failed.' });
     const response = await put({ testModels: true, selectedLlm: null, autocomplete, apiKey: { openAi: 'new-key' } });
     expect(response.status).toBe(502);
-    expect(mocks.probe).toHaveBeenCalledWith(selectedLlm, autocomplete.model, { openAi: 'new-key', together: 'existing-personal-key' }, expect.any(AbortSignal));
+    expect(mocks.probe).toHaveBeenCalledWith(selectedLlm, autocomplete.model, { openAi: 'new-key', together: 'existing-personal-key', refuseless: '' }, expect.any(AbortSignal));
     expect(mocks.update).not.toHaveBeenCalled();
   });
+});
+
+it('reports that Refuseless is configured and keeps its key when omitted', async () => {
+  mocks.find.mockResolvedValue({ apiKey: { refuseless: 'saved-key' } });
+  const response = await (await GET()).json();
+  expect(response).toMatchObject({ refuselessKeyConfigured: true, apiKey: { refuseless: '' } });
+  expect(JSON.stringify(response)).not.toContain('saved-key');
+
+  const selectedLlm = { service: 'refuseless', model: 'story-model' };
+  expect((await put({ selectedLlm, apiKey: { together: 'other-key' } })).status).toBe(200);
+  expect(mocks.update.mock.calls[0][1].$set).toEqual({ selectedLlm, 'apiKey.together': 'other-key' });
+  expect((await put({ apiKey: { refuseless: null } })).status).toBe(200);
+  expect(mocks.update.mock.calls[1][1].$set).toEqual({ 'apiKey.refuseless': null });
 });

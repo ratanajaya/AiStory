@@ -108,6 +108,7 @@ describe("_util", () => {
       ).toEqual({
         together: " together-key ",
         openAi: "",
+        refuseless: "",
       });
     });
   });

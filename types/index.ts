@@ -112,6 +112,7 @@ export interface PromptBuilderConfig {
 export interface ApiKeyConfig {
   together: string | null;
   openAi: string | null;
+  refuseless: string | null;
 }
 
 export interface Template {
@@ -171,10 +172,11 @@ export interface GenerationProfile {
 
 export type GenerationProfileConfig = Record<AiGenerationFeature, GenerationProfile>;
 
-export type LLMService = 'together' | 'openAi';
+export type TtsService = 'together' | 'openAi';
+export type LLMService = TtsService | 'refuseless';
 
 export interface TtsConfig {
-  service: LLMService;
+  service: TtsService;
   model: string;
   voice: string;
 }

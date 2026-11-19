@@ -55,6 +55,16 @@ describe('claim workspace', () => {
     expect(mocks.userUpdate).not.toHaveBeenCalled();
     expect(mocks.books).not.toHaveBeenCalled();
   });
+  it('transfers a guest Refuseless key and keeps an existing account key when present', async () => {
+    const guest = await mocks.guest();
+    mocks.guest.mockResolvedValue({ ...guest, encryptedKeys: { refuseless: 'guest-key' } });
+    expect((await claim()).status).toBe(200);
+    expect(mocks.userUpdate.mock.calls[0][1].$set['apiKey.refuseless']).toBe('guest-key');
+
+    mocks.user.mockResolvedValue({ ...await mocks.user(), apiKey: { refuseless: 'account-key' } });
+    expect(await (await claim()).json()).toEqual({ claimed: true, preservedKeys: ['refuseless'] });
+    expect(mocks.userUpdate.mock.calls[1][1].$set['apiKey.refuseless']).toBeUndefined();
+  });
   it('rejects another account claiming the same workspace', async () => {
     mocks.guest.mockResolvedValue({ state: 'claimed', claimedBy: 'other@example.com' });
     expect((await claim()).status).toBe(409);

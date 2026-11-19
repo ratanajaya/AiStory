@@ -1,4 +1,4 @@
-import type { LLMService, TtsModelOption } from '@/types';
+import type { TtsModelOption, TtsService } from '@/types';
 import _util from '@/utils/_util';
 
 export class TtsError extends Error {
@@ -42,7 +42,7 @@ export function normalizeTogetherTtsModels(input: unknown): TtsModelOption[] {
   return [...models.values()];
 }
 
-export async function fetchTtsModels(service: LLMService, apiKey: string | null | undefined, signal?: AbortSignal): Promise<TtsModelOption[]> {
+export async function fetchTtsModels(service: TtsService, apiKey: string | null | undefined, signal?: AbortSignal): Promise<TtsModelOption[]> {
   if (!_util.toInputString(apiKey)) throw new TtsError(`${service === 'openAi' ? 'OpenAI' : 'Together AI'} API key is not configured.`);
   const response = await fetch(service === 'openAi' ? 'https://api.openai.com/v1/models' : 'https://api.together.xyz/v1/voices', {
     headers: { Authorization: `Bearer ${apiKey}` }, cache: 'no-store',

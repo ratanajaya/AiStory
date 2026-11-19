@@ -7,6 +7,8 @@ import { BookModel, GuestUploadModel, GuestWorkspaceModel, TemplateModel, UserMo
 import { decryptGuestKey, GUEST_COOKIE, hashGuestToken, sameOrigin } from '@/lib/guest';
 import { errorResponse, errorResponseFromMessage } from '@/lib/apiError';
 import { matchesModelPayload } from '@/lib/modelPayload';
+import { supportedLlmServices } from '@/lib/llmSettings';
+import type { LLMService } from '@/types';
 import _util from '@/utils/_util';
 
 export async function POST(request: Request) {
@@ -19,7 +21,7 @@ export async function POST(request: Request) {
   if (!token) return NextResponse.json({ claimed: false });
   try {
     await dbConnect();
-    let result: { claimed: boolean; preservedKeys?: string[] } = { claimed: false };
+    let result: { claimed: boolean; preservedKeys?: LLMService[] } = { claimed: false };
     await mongoose.connection.transaction(async (dbSession) => {
       const guest = await GuestWorkspaceModel.findOne({ tokenHash: hashGuestToken(token) }).session(dbSession);
       if (!guest || guest.state === 'claimed' && guest.claimedBy === accountEmail) {
@@ -31,9 +33,9 @@ export async function POST(request: Request) {
       if (!user) throw new Error('Account not found');
       const acquired = await GuestWorkspaceModel.updateOne({ _id: guest._id, state: 'active', expiresAt: { $gt: new Date() } }, { $set: { state: 'claimed', claimedBy: accountEmail, claimedExpiresAt: new Date(Date.now() + 86_400_000) }, $unset: { encryptedKeys: '' } }, { session: dbSession });
       if (!acquired.matchedCount) throw new Error('Guest workspace unavailable');
-      const preservedKeys: string[] = [];
+      const preservedKeys: LLMService[] = [];
       const updates: Record<string, unknown> = {};
-      for (const provider of ['together', 'openAi'] as const) {
+      for (const provider of supportedLlmServices) {
         const key = decryptGuestKey(guest.encryptedKeys?.[provider]);
         if (!key) continue;
         if (_util.toInputString(user.apiKey?.[provider])) preservedKeys.push(provider);

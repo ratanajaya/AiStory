@@ -8,7 +8,7 @@ vi.mock('@/lib/actorSettings', () => ({ getActorGenerationSettings: vi.fn() }));
 
 const fetcher = vi.fn<typeof fetch>();
 const profile = { temperature: 0.35, maxOutputTokens: 128, timeoutMs: 5_000, maxRetries: 0 };
-const keys = { openAi: 'personal-openai', together: 'personal-together' };
+const keys = { openAi: 'personal-openai', together: 'personal-together', refuseless: 'personal-refuseless' };
 const signal = new AbortController().signal;
 const openAi = (model: string): LlmConfig => ({ service: 'openAi', model });
 const together = (model: string): LlmConfig => ({ service: 'together', model });
@@ -21,7 +21,7 @@ const openAiText = () => Response.json({
   output: [{ type: 'message', role: 'assistant', id: 'msg_1', content: [{ type: 'output_text', text: 'OK', annotations: [] }] }],
   usage: { input_tokens: 8, output_tokens: 1 },
 });
-const togetherText = (content = 'OK') => Response.json({
+const chatText = (content = 'OK') => Response.json({
   choices: [{ message: { role: 'assistant', content }, finish_reason: 'stop' }],
   usage: { prompt_tokens: 8, completion_tokens: 1 },
 });
@@ -69,7 +69,7 @@ it.each([
   { model: kimi, param: 'reasoning_effort', expected: { reasoning_effort: 'max' } },
 ])('uses the Together reasoning form for $model.model', async ({ model, param, expected }) => {
   fetcher.mockResolvedValueOnce(providerError(422, `Missing required parameter: ${param}`, 'missing_required_parameter', param))
-    .mockResolvedValueOnce(togetherText());
+    .mockResolvedValueOnce(chatText());
   await expect(checkModelPayloads(model, null, keys, signal)).resolves.toMatchObject({ ok: true });
   expect(requestBody(0)).toMatchObject({ temperature: 0.7 });
   expect(requestBody(1)).toMatchObject({ ...expected, temperature: 0.7, max_tokens: 256 });
@@ -78,7 +78,7 @@ it.each([
 it('reuses the verified Together shape for streaming and JSON schema output', async () => {
   fetcher.mockResolvedValueOnce(providerError(400, 'Temperature is not supported for this model.', 'unsupported_parameter', 'temperature'))
     .mockResolvedValueOnce(providerError(400, 'Reasoning is required.', 'missing_required_parameter', 'reasoning'))
-    .mockResolvedValueOnce(togetherText());
+    .mockResolvedValueOnce(chatText());
   const checked = await checkModelPayloads(qwen, null, keys, signal);
   expect(checked).toMatchObject({ ok: true, payloads: { story: { shape: { allowTemperature: false, reasoning: 'together-enabled' } } } });
   if (!checked.ok) throw new Error(checked.message);
@@ -87,7 +87,7 @@ it('reuses the verified Together shape for streaming and JSON schema output', as
 
   const chunk = JSON.stringify({ choices: [{ delta: { content: 'OK' }, finish_reason: 'stop' }] });
   fetcher.mockResolvedValueOnce(new Response(`data: ${chunk}\n\ndata: [DONE]\n\n`, { headers: { 'content-type': 'text/event-stream' } }));
-  fetcher.mockResolvedValueOnce(togetherText('{"operations":[]}'));
+  fetcher.mockResolvedValueOnce(chatText('{"operations":[]}'));
   const onChunk = vi.fn();
   await endpoint.chatStream(null, 'Generate', profile, onChunk);
   expect(onChunk).toHaveBeenCalledWith('OK');
@@ -98,6 +98,39 @@ it('reuses the verified Together shape for streaming and JSON schema output', as
   expect(requestBody(4)).toMatchObject({ reasoning: { enabled: true }, response_format: { type: 'json_schema' }, max_tokens: 128 });
   expect(requestBody(3)).not.toHaveProperty('temperature');
   expect(requestBody(4)).not.toHaveProperty('temperature');
+});
+
+it('uses the Refuseless chat API for model checks, streaming, and structured output', async () => {
+  const model: LlmConfig = { service: 'refuseless', model: 'deepseek-v4.1-flash-fast' };
+  fetcher.mockResolvedValueOnce(chatText());
+  const result = await checkModelPayloads(model, model, keys, signal);
+  expect(result).toMatchObject({ ok: true, payloads: {
+    story: { ...model, shape: { allowTemperature: true } },
+    autocomplete: { ...model, shape: { allowTemperature: true } },
+  } });
+
+  const endpoint = createConfiguredAiEndpoint(model, keys.refuseless);
+  const reasoning = JSON.stringify({ choices: [{ delta: { reasoning_content: 'Thinking' } }] });
+  const answer = JSON.stringify({ choices: [{ delta: { content: 'Story text' }, finish_reason: 'stop' }] });
+  fetcher.mockResolvedValueOnce(new Response(`data: ${reasoning}\n\ndata: ${answer}\n\ndata: [DONE]\n\n`, {
+    headers: { 'content-type': 'text/event-stream' },
+  }));
+  fetcher.mockResolvedValueOnce(chatText('{"operations":[]}'));
+  const onChunk = vi.fn();
+  await endpoint.chatStream(null, 'Generate', profile, onChunk);
+  expect(onChunk.mock.calls).toEqual([['Story text']]);
+  await expect(endpoint.chatObjectFull(null, [{ role: 'user', content: 'Generate' }], profile, {
+    type: 'object', properties: { operations: { type: 'array', items: {} } }, required: ['operations'],
+  })).resolves.toEqual({ operations: [] });
+
+  expect(fetcher).toHaveBeenCalledTimes(3);
+  for (const [url, request] of fetcher.mock.calls) {
+    expect(url).toBe('https://api.refuseless.com/v1/chat/completions');
+    expect(new Headers(request?.headers).get('authorization')).toBe('Bearer personal-refuseless');
+  }
+  expect(requestBody(0)).toMatchObject({ model: model.model, max_tokens: 256 });
+  expect(requestBody(1)).toMatchObject({ model: model.model, stream: true, max_tokens: 128 });
+  expect(requestBody(2)).toMatchObject({ model: model.model, response_format: { type: 'json_schema' } });
 });
 
 it('checks every key before making a provider request', async () => {

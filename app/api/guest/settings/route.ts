@@ -2,7 +2,7 @@ import { validateTtsConfig } from '@/lib/ttsConfig';
 import { NextResponse } from 'next/server';
 import { errorResponse, errorResponseFromMessage } from '@/lib/apiError';
 import { decryptGuestKey, encryptGuestKey, getGuestWorkspace, guestSettings, sameOrigin } from '@/lib/guest';
-import { validateLlmConfig } from '@/lib/llmSettings';
+import { supportedLlmServices, validateLlmConfig } from '@/lib/llmSettings';
 import { checkModelPayloads } from '@/lib/modelPayloadProbe';
 import { GuestWorkspaceModel, KeyValueModel } from '@/models';
 import type { ApiKeyConfig, DefaultValue, LlmConfig } from '@/types';
@@ -14,7 +14,7 @@ export async function GET() {
     const settings = await guestSettings();
     if (!settings) return errorResponseFromMessage('Unauthorized', 401);
     return NextResponse.json({ selectedTts: settings.guest.selectedTts ?? null, selectedLlm: settings.selectedLlm, configured: {
-      together: Boolean(settings.apiKey.together), openAi: Boolean(settings.apiKey.openAi),
+      together: Boolean(settings.apiKey.together), openAi: Boolean(settings.apiKey.openAi), refuseless: Boolean(settings.apiKey.refuseless),
     } });
   } catch (error) { return errorResponse(error); }
 }
@@ -43,7 +43,7 @@ export async function PUT(request: Request) {
     const submittedKeys: Partial<ApiKeyConfig> = {};
     if ('apiKey' in body) {
       if (!body.apiKey || typeof body.apiKey !== 'object' || Array.isArray(body.apiKey)) return errorResponseFromMessage('Invalid API keys', 400);
-      for (const service of ['together', 'openAi'] as const) {
+      for (const service of supportedLlmServices) {
         if (!(service in body.apiKey)) continue;
         const value = body.apiKey[service];
         if (value !== null && typeof value !== 'string') return errorResponseFromMessage('Invalid API key', 400);

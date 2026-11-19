@@ -3,6 +3,7 @@ import mongoose, { Schema } from 'mongoose';
 import { StorySegment, SegmentSummary, Chapter, Template, Book, User, ApiKeyConfig, LlmConfig, LongTermMemoryState, ModelPayloads, ModelPayloadShape, VerifiedModelPayload } from '@/types';
 import { narrationModeIds } from '@/lib/narrationModes';
 import { modelPayloadReasoning } from '@/lib/modelPayload';
+import { supportedLlmServices } from '@/lib/llmSettings';
 
 // Sub-schemas for Book components
 const StorySegmentSchema = new Schema<StorySegment>({
@@ -17,7 +18,7 @@ const StorySegmentSchema = new Schema<StorySegment>({
   narrationMode: { type: String, enum: narrationModeIds, default: undefined },
   narrationModel: {
     type: new Schema<LlmConfig>({
-      service: { type: String, enum: ['together', 'openAi'], required: true },
+      service: { type: String, enum: [...supportedLlmServices], required: true },
       model: { type: String, required: true },
     }, { _id: false }),
     default: undefined,
@@ -139,11 +140,12 @@ export const KeyValueModel = mongoose.models.KeyValue || mongoose.model<KeyValue
 // User schemas
 const ApiKeyConfigSchema = new Schema<ApiKeyConfig>({
   together: { type: String, default: null },
-  openAi: { type: String, default: null }
+  openAi: { type: String, default: null },
+  refuseless: { type: String, default: null },
 }, { _id: false });
 
 const LlmConfigSchema = new Schema<LlmConfig>({
-  service: { type: String, enum: ['together', 'openAi'], required: true },
+  service: { type: String, enum: [...supportedLlmServices], required: true },
   model: { type: String, required: true }
 }, { _id: false });
 
@@ -153,7 +155,7 @@ const ModelPayloadShapeSchema = new Schema<ModelPayloadShape>({
 }, { _id: false });
 
 const VerifiedModelPayloadSchema = new Schema<VerifiedModelPayload>({
-  service: { type: String, enum: ['together', 'openAi'], required: true },
+  service: { type: String, enum: [...supportedLlmServices], required: true },
   model: { type: String, required: true },
   shape: { type: ModelPayloadShapeSchema, required: true },
 }, { _id: false });
@@ -181,7 +183,7 @@ const UserSchema = new Schema<User>({
     default: null,
   },
   selectedTts: { type: TtsConfigSchema, default: null },
-  apiKey: { type: ApiKeyConfigSchema, default: () => ({ together: null, openAi: null }) },
+  apiKey: { type: ApiKeyConfigSchema, default: () => ({ together: null, openAi: null, refuseless: null }) },
   trialTextUsed: { type: Number, default: 0 },
   trialAudioUsed: { type: Number, default: 0 },
   trialAccount: { type: Boolean, default: false }
@@ -201,7 +203,11 @@ const GuestWorkspaceSchema = new Schema({
   selectedLlm: { type: LlmConfigSchema, default: null },
   modelPayloads: { type: ModelPayloadsSchema, default: undefined },
   selectedTts: { type: TtsConfigSchema, default: null },
-  encryptedKeys: { together: { type: String, default: null }, openAi: { type: String, default: null } },
+  encryptedKeys: {
+    together: { type: String, default: null },
+    openAi: { type: String, default: null },
+    refuseless: { type: String, default: null },
+  },
   trialTextUsed: { type: Number, default: 0 },
   trialAudioUsed: { type: Number, default: 0 },
   uploadCount: { type: Number, default: 0 },

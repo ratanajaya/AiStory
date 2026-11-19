@@ -4,7 +4,7 @@ Full-stack interactive fiction platform with **multi-provider LLM generation**, 
 
 ## Highlights
 
-- **Multi-LLM Story Generation** — Together AI and OpenAI via unified Vercel AI SDK with real-time token streaming
+- **Multi-LLM Story Generation** — Together AI, OpenAI, and Refuseless via the Vercel AI SDK with real-time token streaming
 - **AI Text-to-Speech** — Together AI and OpenAI model/voice selection, sample previews, and IndexedDB caching with automatic invalidation
 - **Template-Driven Prompts** — Customizable prompt builders with placeholder substitution for repeatable story workflows
 - **Audio Queue Playback** — Sequential narration with intelligent prefetching and chapter-aware playback barriers
@@ -41,7 +41,7 @@ Full-stack interactive fiction platform with **multi-provider LLM generation**, 
 
 ### Multi-Provider LLM Engine
 
-Two LLM providers wired through Vercel AI SDK, using Together AI and OpenAI models. Selectable per-user with system-wide fallback defaults.
+Together AI, OpenAI, and Refuseless models are selectable per user with system-wide fallback defaults. To use Refuseless, add a Refuseless API key, select Refuseless and a model in the LLM settings, then choose **Save & test**. Guests can add the key under **Use your own API key**. [Refuseless quickstart](https://docs.refuseless.com/quickstart)
 
 The AI route supports dual response modes — chunked streaming for real-time UI updates during story generation, and synchronous JSON for structured operations like summarization:
 

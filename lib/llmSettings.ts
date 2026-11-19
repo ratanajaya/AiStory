@@ -1,7 +1,7 @@
 import type { LLMService, LlmConfig } from "@/types";
 import _util from "@/utils/_util";
 
-const supportedLlmServices = ["together", "openAi"] as const satisfies readonly LLMService[];
+export const supportedLlmServices = ["together", "openAi", "refuseless"] as const satisfies readonly LLMService[];
 
 export function isSupportedLlmService(service: unknown): service is LLMService {
   return typeof service === "string" && supportedLlmServices.includes(service as LLMService);
@@ -9,7 +9,7 @@ export function isSupportedLlmService(service: unknown): service is LLMService {
 
 export function getUnsupportedLlmMessage(service: unknown) {
   if (service === "mistral") {
-    return "Mistral is no longer supported; update settings to Together AI or OpenAI.";
+    return "Mistral is no longer supported. Choose a supported provider.";
   }
   return "Unsupported LLM service configured.";
 }

@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import dbConnect from "@/lib/mongodb";
 import { KeyValueModel, UserModel } from "@/models";
-import { validateLlmConfig } from "@/lib/llmSettings";
+import { supportedLlmServices, validateLlmConfig } from "@/lib/llmSettings";
 import { normalizeAutocompletePreference, validateAutocompletePreference } from "@/lib/autocompleteSettings";
 import { checkModelPayloads } from '@/lib/modelPayloadProbe';
 import type { ApiKeyConfig, AutocompletePreference, DefaultValue, LlmConfig } from '@/types';
@@ -34,7 +34,8 @@ export async function GET() {
       ...user,
       selectedTts: user.selectedTts ?? null,
       autocomplete: normalizeAutocompletePreference(user.autocomplete),
-      apiKey: _util.normalizeApiKeyConfig(user.apiKey),
+      apiKey: { ..._util.normalizeApiKeyConfig(user.apiKey), refuseless: '' },
+      refuselessKeyConfigured: Boolean(_util.toInputString(user.apiKey?.refuseless)),
     });
   } catch (err) {
     return errorResponse(err);
@@ -85,7 +86,7 @@ export async function PUT(request: Request) {
     const submittedKeys: Partial<ApiKeyConfig> = {};
     if (apiKey !== undefined) {
       if (!apiKey || typeof apiKey !== 'object' || Array.isArray(apiKey)) return errorResponseFromMessage('Invalid API keys', 400);
-      for (const service of ['together', 'openAi'] as const) {
+      for (const service of supportedLlmServices) {
         if (!(service in apiKey)) continue;
         const value = apiKey[service];
         if (value !== null && typeof value !== 'string') return errorResponseFromMessage('Invalid API key', 400);

@@ -7,7 +7,7 @@ export const modelPayloadReasoning = ['openai-none', 'openai-medium', 'together-
 // Limit the OpenAI sampling exceptions to models the installed Responses adapter
 // can serialize correctly. GPT-5.1 and GPT-5.2 already default to no reasoning.
 export function getDefaultModelPayload(model: LlmConfig): ModelPayloadShape {
-  if (model.service === 'together') return { allowTemperature: true };
+  if (model.service !== 'openAi') return { allowTemperature: true };
   if (/^gpt-5\.[12](?:-\d{4}-\d{2}-\d{2})?$/.test(model.model)) {
     return { allowTemperature: true, reasoning: 'openai-none' };
   }
@@ -18,7 +18,7 @@ export function matchesModelPayload(record: VerifiedModelPayload | undefined, mo
   if (!record || record.service !== model.service || record.model !== model.model) return false;
   const shape = record.shape;
   return typeof shape?.allowTemperature === 'boolean' && (shape.reasoning === undefined
-    || modelPayloadReasoning.includes(shape.reasoning) && shape.reasoning.startsWith(model.service === 'openAi' ? 'openai-' : 'together-'));
+    || modelPayloadReasoning.includes(shape.reasoning) && shape.reasoning.startsWith(`${model.service.toLowerCase()}-`));
 }
 
 export function resolveModelPayload(

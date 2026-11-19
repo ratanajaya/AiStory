@@ -2,6 +2,8 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { isSupportedLlmService } from '@/lib/llmSettings';
+import _constant from '@/utils/_constant';
 
 function FinishClaim() {
   const router = useRouter();
@@ -17,7 +19,8 @@ function FinishClaim() {
       const result = await response.json();
       window.dispatchEvent(new Event('aistory:usage'));
       if (!cancelled) {
-        if (result.preservedKeys?.length) setNotice({ providers: result.preservedKeys.map((provider: string) => provider === 'openAi' ? 'OpenAI' : 'Together AI').join(', '), destination });
+        const providers = (result.preservedKeys as unknown[] | undefined)?.filter(isSupportedLlmService).map(provider => _constant.llmServices[provider].label);
+        if (providers?.length) setNotice({ providers: providers.join(', '), destination });
         else router.replace(destination);
       }
     }).catch((reason) => { if (!cancelled) setError(reason instanceof Error ? reason.message : 'Claim failed'); });

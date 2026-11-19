@@ -22,8 +22,8 @@ function settings(service: LLMService, personal: boolean, trialAccount = true) {
   return {
     selectedLlm: { service, model: 'test-model' },
     selectedTts: DEFAULT_TTS_CONFIG,
-    apiKey: { together: personal ? 'personal-together' : 'app-together', openAi: personal ? 'personal-openai' : 'app-openai' },
-    personal: { together: personal, openAi: personal },
+    apiKey: { together: personal ? 'personal-together' : 'app-together', openAi: personal ? 'personal-openai' : 'app-openai', refuseless: personal ? 'personal-refuseless' : 'app-refuseless' },
+    personal: { together: personal, openAi: personal, refuseless: personal },
     trialAccount,
     generationProfiles: getDefaultGenerationProfiles(),
   };
@@ -52,7 +52,7 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-describe.each(['openAi', 'together'] as const)('%s generation funding', (service) => {
+describe.each(['openAi', 'together', 'refuseless'] as const)('%s generation funding', (service) => {
   it.each([false, true])('keeps memory funding stable when a key is added/removed mid-request (personal=%s)', async (personal) => {
     const initial = settings(service, personal);
     mocks.settings.mockResolvedValue(initial);

@@ -6,6 +6,7 @@ import { getActorGenerationSettings } from '@/lib/actorSettings';
 import { assertSupportedLlmConfig } from "@/lib/llmSettings";
 import type { GenerationProfile, GenerationProfileConfig, LlmConfig, ModelPayloadShape } from '@/types';
 import { getDefaultModelPayload, toModelGenerationOptions } from '@/lib/modelPayload';
+import { REFUSELESS_BASE_URL } from '@/lib/refuseless';
 import _util from '@/utils/_util';
 
 export interface AiEndpoint {
@@ -242,6 +243,18 @@ export function createConfiguredAiEndpoint(
       supportsStructuredOutputs: true,
     });
     return createAiSdkEndpoint(together(selectedLlm.model), togetherStructured(selectedLlm.model), trialFunded, payload);
+  }
+
+  if (selectedLlm.service === 'refuseless') {
+    if (!key) throw new Error('Refuseless API key is not configured');
+    const refuseless = createOpenAICompatible({
+      name: 'refuseless',
+      baseURL: REFUSELESS_BASE_URL,
+      apiKey: key,
+      supportsStructuredOutputs: true,
+    });
+    const model = refuseless(selectedLlm.model);
+    return createAiSdkEndpoint(model, model, trialFunded, payload);
   }
 
   if (!key) throw new Error('OpenAI API key is not configured');

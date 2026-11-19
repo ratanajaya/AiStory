@@ -5,6 +5,7 @@ import { useAiModelCatalog } from '@/components/AiModelCatalogProvider';
 import { FormField } from '@/components/FormField';
 import { Select } from '@/components/Select';
 import type { ApiKeyConfig, AutocompletePreference, LLMService, LlmConfig } from '@/types';
+import { supportedLlmServices } from '@/lib/llmSettings';
 import _constant from '@/utils/_constant';
 
 export interface AutocompleteModelSelectProps {
@@ -13,16 +14,17 @@ export interface AutocompleteModelSelectProps {
   modelKeys: ApiKeyConfig;
   inherit?: boolean;
   disabled?: boolean;
+  scope?: 'defaults';
 }
 
 function optionValue(model: LlmConfig) {
   return JSON.stringify([model.service, model.model]);
 }
 
-export function AutocompleteModelSelect({ value, onChange, modelKeys, inherit, disabled }: AutocompleteModelSelectProps) {
+export function AutocompleteModelSelect({ value, onChange, modelKeys, inherit, disabled, scope }: AutocompleteModelSelectProps) {
   const id = useId();
   const { getEntry } = useAiModelCatalog();
-  const catalog = (['together', 'openAi'] as const).map(service => ({ service, ...getEntry(service, modelKeys[service]) }));
+  const catalog = supportedLlmServices.map(service => ({ service, ...getEntry(service, modelKeys[service], scope) }));
   const models = new Map<string, LlmConfig>();
   const groups = catalog.map(({ service, models: entries, loading }) => {
     const options = entries.map(entry => {

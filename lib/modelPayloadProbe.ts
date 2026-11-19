@@ -2,6 +2,7 @@ import { APICallError } from 'ai';
 import { createConfiguredAiEndpoint } from '@/lib/aiEndpointDynamic';
 import { getDefaultModelPayload } from '@/lib/modelPayload';
 import type { ApiKeyConfig, LlmConfig, ModelPayloadShape, ModelPayloads } from '@/types';
+import _constant from '@/utils/_constant';
 import _util from '@/utils/_util';
 
 const probeProfile = { temperature: 0.7, maxOutputTokens: 256, timeoutMs: 15_000, maxRetries: 0 };
@@ -88,8 +89,8 @@ export async function checkModelPayloads(
   const requests = checks.map(check => ({ ...check, key: _util.toIdentifierString(keys[check.model.service]) }));
   const missing = requests.find(check => !check.key);
   if (missing) {
-    const providerKey = missing.model.service === 'openAi' ? 'an OpenAI API key' : 'a Together AI API key';
-    return { ok: false, status: 400, message: `Set ${providerKey} to test the ${missing.label.toLowerCase()} model.` };
+    const provider = _constant.llmServices[missing.model.service].label;
+    return { ok: false, status: 400, message: `Set the ${provider} API key to test the ${missing.label.toLowerCase()} model.` };
   }
 
   const deadline = AbortSignal.any([signal, AbortSignal.timeout(30_000)]);

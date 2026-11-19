@@ -113,6 +113,7 @@ async function getUserSettingWithFallback(): Promise<{
   const apiKey: ApiKeyConfig = {
     together: _util.altString(user?.apiKey?.together, defaultValue.apiKey.together)!,
     openAi: _util.altString(user?.apiKey?.openAi, defaultValue.apiKey.openAi)!,
+    refuseless: _util.altString(user?.apiKey?.refuseless, defaultValue.apiKey?.refuseless ?? null),
   };
   const autocompleteModel = resolveAutocompleteModel(user?.autocomplete, defaultValue.autocomplete);
 
@@ -128,6 +129,7 @@ async function getUserSettingWithFallback(): Promise<{
     personal: {
       together: Boolean(_util.toInputString(user?.apiKey?.together)),
       openAi: Boolean(_util.toInputString(user?.apiKey?.openAi)),
+      refuseless: Boolean(_util.toInputString(user?.apiKey?.refuseless)),
     },
     trialAccount: Boolean(user?.trialAccount),
   };

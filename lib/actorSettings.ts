@@ -39,9 +39,14 @@ export async function getActorGenerationSettings(resolvedActor?: Actor): Promise
     apiKey: {
       together: guest.apiKey.together || defaults.apiKey.together,
       openAi: guest.apiKey.openAi || defaults.apiKey.openAi,
+      refuseless: guest.apiKey.refuseless || defaults.apiKey?.refuseless || null,
     },
     generationProfiles: normalizeGenerationProfileConfig(defaults.generationProfiles),
-    personal: { together: Boolean(guest.apiKey.together), openAi: Boolean(guest.apiKey.openAi) },
+    personal: {
+      together: Boolean(guest.apiKey.together),
+      openAi: Boolean(guest.apiKey.openAi),
+      refuseless: Boolean(guest.apiKey.refuseless),
+    },
     trialAccount: true,
   };
 }

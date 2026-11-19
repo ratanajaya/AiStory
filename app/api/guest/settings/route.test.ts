@@ -27,7 +27,7 @@ describe('guest credentials', () => {
   });
   it('returns configured flags without saved secrets', async () => {
     const response = await GET();
-    expect(await response.json()).toEqual({ selectedTts: null, selectedLlm: null, configured: { together: true, openAi: false } });
+    expect(await response.json()).toEqual({ selectedTts: null, selectedLlm: null, configured: { together: true, openAi: false, refuseless: false } });
   });
   it('encrypts a replacement and preserves omitted providers', async () => {
     expect((await put({ apiKey: { openAi: '  new-key  ' } })).status).toBe(200);
@@ -51,12 +51,12 @@ describe('guest credentials', () => {
   });
 
   it('writes the verified story payload with the encrypted candidate key', async () => {
-    const selectedLlm = { service: 'together', model: 'guest-chat' };
+    const selectedLlm = { service: 'refuseless', model: 'guest-chat' };
     const story = { ...selectedLlm, shape: { allowTemperature: false } };
     mocks.probe.mockResolvedValueOnce({ ok: true, payloads: { story } });
-    expect((await put({ testModels: true, selectedLlm, apiKey: { together: 'personal' } })).status).toBe(200);
-    expect(mocks.probe).toHaveBeenCalledWith(selectedLlm, null, { together: 'personal', openAi: '' }, expect.any(AbortSignal));
-    expect(mocks.update.mock.calls[0][1]).toEqual({ $set: { selectedLlm, 'encryptedKeys.together': 'encrypted:personal', 'modelPayloads.story': story } });
+    expect((await put({ testModels: true, selectedLlm, apiKey: { refuseless: 'personal' } })).status).toBe(200);
+    expect(mocks.probe).toHaveBeenCalledWith(selectedLlm, null, { together: '', openAi: '', refuseless: 'personal' }, expect.any(AbortSignal));
+    expect(mocks.update.mock.calls[0][1]).toEqual({ $set: { selectedLlm, 'encryptedKeys.refuseless': 'encrypted:personal', 'modelPayloads.story': story } });
   });
 
   it('keeps an expired or claimed workspace from being updated after a check', async () => {
