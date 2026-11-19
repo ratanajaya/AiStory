@@ -40,14 +40,11 @@ export function GuestAccess() {
       if (viewer?.kind === 'visitor') await fetcher('/api/guest/session', { method: 'POST' });
       const keyUpdate = Object.fromEntries(Object.entries(keys).filter(([, value]) => value.trim()).map(([key, value]) => [key, value.trim()]));
       const url = viewer?.kind === 'user' ? '/api/user/settings' : '/api/guest/settings';
-      await fetcher(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ apiKey: keyUpdate, ...(model ? { selectedLlm: { service: provider, model } } : {}) }) });
+      await fetcher(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, silent: test, body: JSON.stringify({ apiKey: keyUpdate, ...(model ? { selectedLlm: { service: provider, model } } : {}), ...(test ? { testModels: true } : {}) }) });
       setKeys({ together: '', openAi: '' });
       await refresh(); window.dispatchEvent(new Event('aistory:settings'));
       if (keyUpdate[provider] || viewer?.personal?.[provider]) await loadModels();
-      if (test) {
-        await fetcher('/api/ai', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ feature: 'default', stream: false, messages: [{ role: 'user', content: 'Reply OK.' }] }) });
-      }
-      setMessage(test ? 'Key saved and test passed.' : 'Settings saved.');
+      setMessage(test ? 'Model checks passed. Settings saved.' : 'Settings saved.');
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Could not save settings.'); } finally { setBusy(false); }
   }
   async function remove(service: 'together' | 'openAi') {

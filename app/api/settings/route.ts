@@ -6,6 +6,7 @@ import { KeyValueModel } from '@/models';
 import { DefaultValue } from '@/types';
 import { validateLlmConfig } from '@/lib/llmSettings';
 import { normalizeAutocompletePreference, validateAutocompletePreference } from '@/lib/autocompleteSettings';
+import { checkModelPayloads } from '@/lib/modelPayloadProbe';
 import { normalizeGenerationProfileConfig, validateGenerationProfileConfig } from '@/lib/generationProfiles';
 import _constant from '@/utils/_constant';
 import _util from '@/utils/_util';
@@ -79,8 +80,9 @@ export async function PUT(request: Request) {
     }
 
     await dbConnect();
-    const body: DefaultValue = await request.json();
+    const body: DefaultValue & { testModels?: boolean } = await request.json();
     if (!body || typeof body !== 'object' || Array.isArray(body)) return errorResponseFromMessage('Invalid settings', 400);
+    if (body.testModels !== undefined && typeof body.testModels !== 'boolean') return errorResponseFromMessage('Invalid model test option', 400);
     const promptResult = validatePromptBuilderConfig(body.promptBuilder);
     if (!promptResult.ok) return errorResponseFromMessage(promptResult.message, 400);
     const llmResult = validateLlmConfig(body.selectedLlm);
@@ -97,17 +99,35 @@ export async function PUT(request: Request) {
 
     const ttsResult = validateTtsConfig(body.selectedTts);
     if (!ttsResult.ok) return errorResponseFromMessage(ttsResult.message, 400);
+    if (body.apiKey != null && (typeof body.apiKey !== 'object' || Array.isArray(body.apiKey)
+      || (['openAi', 'together'] as const).some(service => body.apiKey[service] != null && typeof body.apiKey[service] !== 'string'))) {
+      return errorResponseFromMessage('Invalid API keys', 400);
+    }
+    const keys = _util.normalizeApiKeyConfig(body.apiKey);
     const update: Record<string, unknown> = {
       'value.promptBuilder': promptResult.value,
       'value.generationProfiles': generationProfileResult.value,
-      'value.apiKey': _util.normalizeApiKeyConfig(body.apiKey),
+      'value.apiKey': keys,
       'value.selectedLlm': llmResult.value,
     };
     if ('selectedTts' in body) update['value.selectedTts'] = resolveTtsConfig(ttsResult.value);
+    let autocomplete: DefaultValue['autocomplete'];
     if ('autocomplete' in body) {
       const result = validateAutocompletePreference(body.autocomplete);
       if (!result.ok) return errorResponseFromMessage(result.message, 400);
-      update['value.autocomplete'] = result.value;
+      autocomplete = result.value;
+      update['value.autocomplete'] = autocomplete;
+    }
+    if (body.testModels) {
+      if (autocomplete === undefined) {
+        const current = await KeyValueModel.findOne({ key: DEFAULT_KEY }).lean();
+        autocomplete = normalizeAutocompletePreference((current?.value as DefaultValue | undefined)?.autocomplete);
+      }
+      const probe = await checkModelPayloads(llmResult.value, autocomplete?.model, keys, request.signal);
+      if (!probe.ok) return errorResponseFromMessage(probe.message, probe.status);
+      update['value.modelPayloads.story'] = probe.payloads.story;
+      if (probe.payloads.autocomplete) update['value.modelPayloads.autocomplete'] = probe.payloads.autocomplete;
+      if (request.signal.aborted) return errorResponseFromMessage('Model check canceled.', 499);
     }
 
     const doc = await KeyValueModel.findOneAndUpdate(
@@ -116,7 +136,9 @@ export async function PUT(request: Request) {
       { upsert: true, new: true }
     );
 
-    const saved = doc.value as DefaultValue;
+    if (body.testModels) return NextResponse.json({ success: true });
+    const saved = { ...doc.value } as DefaultValue;
+    delete saved.modelPayloads;
     return NextResponse.json({
       ...saved,
       selectedTts: resolveTtsConfig(saved.selectedTts),

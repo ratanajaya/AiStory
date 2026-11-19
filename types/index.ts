@@ -147,6 +147,7 @@ export interface Book {
 export interface DefaultValue {
   selectedTts?: TtsConfig | null;
   autocomplete?: AutocompletePreference;
+  modelPayloads?: ModelPayloads;
   promptBuilder: PromptBuilderConfig;
   generationProfiles: GenerationProfileConfig;
   selectedLlm: LlmConfig;
@@ -189,6 +190,22 @@ export interface LlmConfig {
   model: string;
 }
 
+export type ModelPayloadReasoning = 'openai-none' | 'openai-medium' | 'together-enabled' | 'together-max';
+
+export interface ModelPayloadShape {
+  allowTemperature: boolean;
+  reasoning?: ModelPayloadReasoning;
+}
+
+export interface VerifiedModelPayload extends LlmConfig {
+  shape: ModelPayloadShape;
+}
+
+export interface ModelPayloads {
+  story?: VerifiedModelPayload;
+  autocomplete?: VerifiedModelPayload;
+}
+
 // A null preference inherits the default. An explicit null model turns suggestions off.
 export type AutocompletePreference = { model: LlmConfig | null } | null;
 
@@ -206,6 +223,7 @@ export interface AiModelOption {
 export interface User {
   selectedTts?: TtsConfig | null;
   autocomplete?: AutocompletePreference;
+  modelPayloads?: ModelPayloads;
   email: string;
   isAdmin: boolean;
   registeredAt: Date;

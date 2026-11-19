@@ -23,6 +23,7 @@ const model = { service: 'openAi', model: 'test-autocomplete' };
 const draft = { bookId: 'book-1', draftTail: 'Mara opens the window' };
 const settings = {
   autocompleteModel: model,
+  autocompletePayload: { allowTemperature: false, reasoning: 'openai-medium' },
   personal: { openAi: true, together: false },
   apiKey: { openAi: 'personal-openai', together: 'app-together' },
 };
@@ -45,7 +46,7 @@ it.each([guest, user])('uses the matching personal key for a $kind and leaves th
   expect(response.status).toBe(200);
   expect(await response.json()).toEqual({ suffix: ' and sees the tide rising.' });
   expect(mocks.bookExists).toHaveBeenCalledWith({ bookId: 'book-1', ...actor.filter });
-  expect(mocks.endpoint).toHaveBeenCalledWith(model, 'personal-openai');
+  expect(mocks.endpoint).toHaveBeenCalledWith(model, 'personal-openai', false, settings.autocompletePayload);
   const [, messages, profile, options] = mocks.completion.mock.calls[0];
   expect(messages).toEqual([{ role: 'user', content: draft.draftTail }]);
   expect(profile).toBe(autocompleteProfile);
@@ -69,7 +70,7 @@ it('allows a signed-in admin to use the app key for the selected provider', asyn
     apiKey: { openAi: 'app-openai', together: 'personal-together' },
   });
   expect((await POST(request())).status).toBe(200);
-  expect(mocks.endpoint).toHaveBeenCalledWith(model, 'app-openai');
+  expect(mocks.endpoint).toHaveBeenCalledWith(model, 'app-openai', false, settings.autocompletePayload);
   expect(mocks.reserveTrial).not.toHaveBeenCalled();
 });
 

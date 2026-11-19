@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     if (!book) return errorResponseFromMessage('Book not found', 404);
 
     request.signal.throwIfAborted();
-    const endpoint = createConfiguredAiEndpoint(model, apiKey);
+    const endpoint = createConfiguredAiEndpoint(model, apiKey, false, settings.autocompletePayload);
     const text = await endpoint.chatCompletionFull(
       autocompleteSystemMessage,
       [{ role: 'user', content: input.draftTail }],

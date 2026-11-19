@@ -2,10 +2,11 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import _constant from '@/utils/_constant';
 import { defaultNarrationModePrompts } from '@/lib/narrationModes';
 
-const mocks = vi.hoisted(() => ({ user: vi.fn(), find: vi.fn(), update: vi.fn() }));
+const mocks = vi.hoisted(() => ({ user: vi.fn(), find: vi.fn(), update: vi.fn(), probe: vi.fn() }));
 vi.mock('@/auth', () => ({ getCurrentUser: mocks.user }));
 vi.mock('@/lib/mongodb', () => ({ default: vi.fn() }));
 vi.mock('@/models', () => ({ KeyValueModel: { findOne: mocks.find, findOneAndUpdate: mocks.update } }));
+vi.mock('@/lib/modelPayloadProbe', () => ({ checkModelPayloads: mocks.probe }));
 import { GET, PUT } from './route';
 
 const settings = { selectedTts: null, selectedLlm: _constant.defaultSelectedLlm, generationProfiles: { ..._constant.defaultGenerationProfiles, outlineIdeaGenerator: _constant.defaultGenerationProfiles.default },
@@ -38,6 +39,7 @@ it('drops retired settings while saving the new mode prompts', async () => {
   expect(saved['value.promptBuilder']).not.toHaveProperty('outlineIdeaGeneratorSystem');
   expect(saved['value.generationProfiles']).not.toHaveProperty('outlineIdeaGenerator');
   expect(saved).not.toHaveProperty('value.autocomplete');
+  expect(mocks.probe).not.toHaveBeenCalled();
 });
 
 it('reads and saves the default autocomplete selection independently of narration', async () => {
@@ -64,4 +66,19 @@ it('keeps global prompt settings admin-only', async () => {
   expect((await save(settings)).status).toBe(403);
   expect((await GET()).status).toBe(403);
   expect(mocks.update).not.toHaveBeenCalled();
+});
+
+it('checks admin candidate credentials and saves the verified shapes without returning credentials', async () => {
+  const autocomplete = { model: { service: 'together', model: 'chat' } };
+  const story = { ...settings.selectedLlm, shape: { allowTemperature: false } };
+  const verifiedAutocomplete = { ...autocomplete.model, shape: { allowTemperature: true } };
+  const apiKey = { together: 'admin-together', openAi: 'admin-openai' };
+  mocks.probe.mockResolvedValueOnce({ ok: true, payloads: { story, autocomplete: verifiedAutocomplete } });
+  const response = await save({ ...settings, autocomplete, apiKey, testModels: true });
+  expect(await response.json()).toEqual({ success: true });
+  expect(mocks.probe).toHaveBeenCalledWith(settings.selectedLlm, autocomplete.model, apiKey, expect.any(AbortSignal));
+  expect(mocks.update.mock.calls[0][1].$set).toMatchObject({
+    'value.modelPayloads.story': story,
+    'value.modelPayloads.autocomplete': verifiedAutocomplete,
+  });
 });

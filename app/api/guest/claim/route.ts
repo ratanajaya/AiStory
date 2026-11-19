@@ -6,6 +6,7 @@ import dbConnect from '@/lib/mongodb';
 import { BookModel, GuestUploadModel, GuestWorkspaceModel, TemplateModel, UserModel } from '@/models';
 import { decryptGuestKey, GUEST_COOKIE, hashGuestToken, sameOrigin } from '@/lib/guest';
 import { errorResponse, errorResponseFromMessage } from '@/lib/apiError';
+import { matchesModelPayload } from '@/lib/modelPayload';
 import _util from '@/utils/_util';
 
 export async function POST(request: Request) {
@@ -39,7 +40,11 @@ export async function POST(request: Request) {
         else updates[`apiKey.${provider}`] = key;
       }
       if (!user.selectedTts && guest.selectedTts) updates.selectedTts = guest.selectedTts;
-      if (!user.selectedLlm && guest.selectedLlm) updates.selectedLlm = guest.selectedLlm;
+      if (!user.selectedLlm && guest.selectedLlm) {
+        updates.selectedLlm = guest.selectedLlm;
+        const payload = guest.modelPayloads?.story;
+        if (matchesModelPayload(payload, guest.selectedLlm)) updates['modelPayloads.story'] = payload;
+      }
       if (user.trialAccount) {
         updates.trialTextUsed = Math.max(user.trialTextUsed || 0, guest.trialTextUsed || 0);
         updates.trialAudioUsed = Math.max(user.trialAudioUsed || 0, guest.trialAudioUsed || 0);

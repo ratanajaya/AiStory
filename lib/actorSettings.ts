@@ -5,11 +5,14 @@ import { KeyValueModel } from '@/models';
 import { getActor, guestSettings, type Actor } from '@/lib/guest';
 import { normalizeGenerationProfileConfig } from '@/lib/generationProfiles';
 import { resolveAutocompleteModel } from '@/lib/autocompleteSettings';
-import type { ApiKeyConfig, DefaultValue, GenerationProfileConfig, LlmConfig, LLMService, TtsConfig } from '@/types';
+import { resolveModelPayload } from '@/lib/modelPayload';
+import type { ApiKeyConfig, DefaultValue, GenerationProfileConfig, LlmConfig, LLMService, ModelPayloadShape, TtsConfig } from '@/types';
 
 export async function getActorGenerationSettings(resolvedActor?: Actor): Promise<{
   selectedTts: TtsConfig;
   autocompleteModel: LlmConfig | null;
+  storyPayload: ModelPayloadShape | undefined;
+  autocompletePayload: ModelPayloadShape | undefined;
   selectedLlm: LlmConfig; apiKey: ApiKeyConfig; generationProfiles: GenerationProfileConfig;
   personal: Record<LLMService, boolean>; trialAccount: boolean;
 }> {
@@ -25,9 +28,13 @@ export async function getActorGenerationSettings(resolvedActor?: Actor): Promise
   ]);
   if (!guest || !defaultDoc) throw new Error('Guest or default settings unavailable');
   const defaults = defaultDoc.value as DefaultValue;
+  const selectedLlm = guest.selectedLlm || defaults.selectedLlm;
+  const autocompleteModel = resolveAutocompleteModel(null, defaults.autocomplete);
   return {
-    selectedLlm: guest.selectedLlm || defaults.selectedLlm,
-    autocompleteModel: resolveAutocompleteModel(null, defaults.autocomplete),
+    selectedLlm,
+    autocompleteModel,
+    storyPayload: resolveModelPayload(selectedLlm, guest.guest.modelPayloads?.story, defaults.modelPayloads?.story),
+    autocompletePayload: resolveModelPayload(autocompleteModel, undefined, defaults.modelPayloads?.autocomplete),
     selectedTts: resolveTtsConfig(guest.guest.selectedTts, defaults.selectedTts),
     apiKey: {
       together: guest.apiKey.together || defaults.apiKey.together,

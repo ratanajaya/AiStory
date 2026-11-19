@@ -10,7 +10,6 @@ import { AiSettingsSection } from "@/components/AiSettingsSection";
 import { Button } from "@/components/Button";
 import { useFetcher } from "@/components/FetcherProvider";
 import { useAiModelCatalog } from "@/components/AiModelCatalogProvider";
-import { streamAiRequest } from "@/lib/aiStreamClient";
 import _constant from "@/utils/_constant";
 import _util from "@/utils/_util";
 import type { AiModelOption, AutocompletePreference, LlmConfig, ApiKeyConfig, LLMService } from "@/types";
@@ -158,7 +157,7 @@ export function Sidebar({
     setDirtyApiKeys((prev) => ({ ...prev, [key]: true }));
   };
 
-  const saveCurrentSettings = async () => {
+  const saveCurrentSettings = async (testModels = false) => {
     const selectedLlm: LlmConfig | null =
       selectedService && selectedModel
         ? {
@@ -170,10 +169,12 @@ export function Sidebar({
     await fetcher("/api/user/settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
+      silent: testModels,
       body: JSON.stringify({
         selectedLlm,
         autocomplete,
         apiKey: _util.normalizeApiKeyConfig(apiKeys),
+        ...(testModels ? { testModels } : {}),
       }),
     });
     setTtsKeysDirty(false);
@@ -210,27 +211,11 @@ export function Sidebar({
     setStatusMessage(null);
 
     try {
-      await saveCurrentSettings();
-
-      const result = await streamAiRequest(
-        {
-          feature: "default",
-          systemMessage: "You are a connectivity test. Reply with exactly: OK",
-          messages: [
-            {
-              role: "user",
-              content: "Reply with exactly OK.",
-            },
-          ],
-        },
-        {
-          onChunk: () => {},
-        }
-      );
+      await saveCurrentSettings(true);
 
       setStatusMessage({
         type: "success",
-        text: `Model test passed: ${result.slice(0, 80)}`,
+        text: "Model checks passed. Settings saved.",
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Model test failed";
@@ -372,6 +357,7 @@ export function Sidebar({
             </div>
             {statusMessage && (
               <div
+                role="status"
                 className={`text-xs ${
                   statusMessage.type === "success" ? "text-green-500" : "text-red-500"
                 }`}

@@ -14,7 +14,7 @@ import { normalizeGenerationProfileConfig } from '@/lib/generationProfiles';
 import _constant from '@/utils/_constant';
 import _util from '@/utils/_util';
 
-type SettingsFormData = Omit<DefaultValue, 'selectedLlm'> & {
+type SettingsFormData = Omit<DefaultValue, 'selectedLlm' | 'modelPayloads'> & {
   selectedLlm: {
     service: string;
     model: string;
@@ -40,9 +40,10 @@ export default function SettingPage() {
   const [modelKeys, setModelKeys] = useState<ApiKeyConfig>({ ..._constant.emptyApiKey });
   const [dirtyApiKeys, setDirtyApiKeys] = useState<Record<LLMService, boolean>>({ together: false, openAi: false });
   const [ttsKeysDirty, setTtsKeysDirty] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [savingMode, setSavingMode] = useState<'save' | 'test' | null>(null);
+  const loading = savingMode !== null;
   const [fetchLoading, setFetchLoading] = useState(true);
-  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [saveMessage, setSaveMessage] = useState<{ text: string; error?: boolean } | null>(null);
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -98,9 +99,8 @@ export default function SettingPage() {
     }
   }, [formData.selectedLlm.service, formData.selectedLlm.model, models]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
+  const saveSettings = async (testModels = false) => {
+    setSavingMode(testModels ? 'test' : 'save');
     setSaveMessage(null);
 
     try {
@@ -114,16 +114,18 @@ export default function SettingPage() {
           promptBuilder: _util.normalizePromptBuilderConfig(formData.promptBuilder),
           generationProfiles: normalizeGenerationProfileConfig(formData.generationProfiles),
           apiKey: _util.normalizeApiKeyConfig(formData.apiKey),
+          ...(testModels ? { testModels } : {}),
         }),
         errorMessage: 'Failed to update settings',
+        silent: testModels,
       });
       setTtsKeysDirty(false);
       window.dispatchEvent(new Event('aistory:settings'));
-      setSaveMessage('Settings saved successfully!');
-      setTimeout(() => setSaveMessage(null), 3000);
-    } catch {
+      setSaveMessage({ text: testModels ? 'Model checks passed. Settings saved.' : 'Settings saved.' });
+    } catch (error) {
+      if (testModels) setSaveMessage({ text: error instanceof Error ? error.message : 'Model check failed.', error: true });
     } finally {
-      setLoading(false);
+      setSavingMode(null);
     }
   };
 
@@ -210,7 +212,7 @@ export default function SettingPage() {
     <div className="p-8 max-w-3xl">
       <h1 className="text-2xl font-bold mb-4 text-secondary">Settings</h1>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={event => { event.preventDefault(); void saveSettings(); }} className="space-y-4">
         <PromptEditorSection
           promptBuilder={formData.promptBuilder}
           onPromptBuilderChange={handlePromptBuilderChange}
@@ -247,10 +249,13 @@ export default function SettingPage() {
 
         <div className="flex gap-4 items-center">
           <Button type="submit" disabled={saveDisabled} variant="primary">
-            {loading ? 'Saving...' : 'Save Settings'}
+            {savingMode === 'save' ? 'Saving...' : 'Save Settings'}
+          </Button>
+          <Button type="button" disabled={saveDisabled} variant="outline" onClick={() => void saveSettings(true)}>
+            {savingMode === 'test' ? 'Testing...' : 'Save & test'}
           </Button>
           {saveMessage && (
-            <span className="text-green-500 text-sm">{saveMessage}</span>
+            <span role="status" className={`text-sm ${saveMessage.error ? 'text-red-500' : 'text-green-500'}`}>{saveMessage.text}</span>
           )}
         </div>
       </form>
