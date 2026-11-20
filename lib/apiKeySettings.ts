@@ -25,7 +25,7 @@ export function resolveApiKeys(
   };
 }
 
-export function validateApiKeyUpdates(input: unknown):
+export function validateApiKeyUpdates(input: unknown, options: { blankMeansClear?: boolean } = {}):
   { ok: true; value: Partial<ApiKeyConfig> } | { ok: false; message: string } {
   const updates: Partial<ApiKeyConfig> = {};
   if (input === undefined) return { ok: true, value: updates };
@@ -38,7 +38,7 @@ export function validateApiKeyUpdates(input: unknown):
     if (value !== null && typeof value !== 'string') return { ok: false, message: 'Invalid API key' };
     const key = _util.toIdentifierString(value);
     if (key.length > 512) return { ok: false, message: 'API key is too long' };
-    if (key || value === null) updates[service] = key || null;
+    if (key || value === null || options.blankMeansClear) updates[service] = key || null;
   }
   return { ok: true, value: updates };
 }

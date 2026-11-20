@@ -14,7 +14,7 @@ vi.mock('@/components/FetcherProvider', () => ({
 function Consumer() {
   const { getEntry, loadModels } = useAiModelCatalog();
   const [service, setService] = React.useState<LLMService>('openAi');
-  const [key, setKey] = React.useState('');
+  const [key, setKey] = React.useState<string | null>('');
   const entry = getEntry(service, key);
   return (
     <div>
@@ -22,6 +22,8 @@ function Consumer() {
       <button onClick={() => setService(service === 'openAi' ? 'together' : 'openAi')}>Switch</button>
       <button onClick={() => setService('refuseless')}>Refuseless</button>
       <button onClick={() => { setKey('new-key'); void loadModels('openAi', 'new-key'); }}>Change key</button>
+      <button onClick={() => { setKey(null); void loadModels('openAi', null); }}>Clear key</button>
+      <button onClick={() => { setKey(''); void loadModels('openAi'); }}>Use saved key</button>
     </div>
   );
 }
@@ -51,5 +53,14 @@ describe('AiModelCatalogProvider', () => {
     expect(mocks.fetcher).toHaveBeenLastCalledWith('/api/ai/models/openai', expect.objectContaining({
       body: JSON.stringify({ apiKey: 'new-key' }),
     }));
+
+    fireEvent.click(screen.getByText('Clear key'));
+    await waitFor(() => expect(mocks.fetcher).toHaveBeenCalledTimes(5));
+    expect(mocks.fetcher).toHaveBeenLastCalledWith('/api/ai/models/openai', expect.objectContaining({
+      body: JSON.stringify({ apiKey: null }),
+    }));
+    fireEvent.click(screen.getByText('Use saved key'));
+    await waitFor(() => expect(screen.getByText('gpt-6-luna')).toBeTruthy());
+    expect(mocks.fetcher).toHaveBeenCalledTimes(5);
   });
 });

@@ -7,7 +7,6 @@ import { Select } from '@/components/Select';
 import { AutocompleteModelSelect, type AutocompleteModelSelectProps } from '@/components/AutocompleteModelSelect';
 import { AiModelOption, ApiKeyConfig, LLMService } from '@/types';
 import { isSupportedLlmService, supportedLlmServices } from '@/lib/llmSettings';
-import type { ConfiguredApiKeys } from '@/lib/apiKeySettings';
 import _constant from '@/utils/_constant';
 import _util from '@/utils/_util';
 
@@ -24,8 +23,6 @@ interface AiSettingsSectionProps {
   onModelChange: (model: string) => void;
   onApiKeyChange: (key: keyof ApiKeyConfig, value: string) => void;
   onApiKeyBlur: (service: LLMService, value: string) => void;
-  configured: Partial<ConfiguredApiKeys>;
-  onToggleKeyRemoval: (service: LLMService) => void;
   keysDisabled?: boolean;
   models?: AiModelOption[];
   modelLoading?: boolean;
@@ -71,8 +68,6 @@ export function AiSettingsSection({
   onModelChange,
   onApiKeyChange,
   onApiKeyBlur,
-  configured,
-  onToggleKeyRemoval,
   keysDisabled = false,
   models = [],
   modelLoading = false,
@@ -159,14 +154,8 @@ export function AiSettingsSection({
           value={_util.toInputString(apiKey[service])}
           onChange={(e) => onApiKeyChange(service, e.target.value)}
           onBlur={(e) => onApiKeyBlur(service, e.currentTarget.value)}
-          placeholder={configured[service] ? `Replace saved ${label} API key` : `${label} API key`}
+          placeholder={`${label} API key`}
         />
-        {configured[service] && (
-          <button type="button" disabled={keysDisabled} className="mt-1 text-sm text-red-500 underline"
-            onClick={() => onToggleKeyRemoval(service)}>
-            {apiKey[service] === null ? 'Undo key removal' : 'Remove saved key'}
-          </button>
-        )}
       </FormField>
     );
   });

@@ -37,6 +37,7 @@ function settingsResponse(value?: DefaultValue) {
     promptBuilder: mergePromptBuilderWithDefaults(value?.promptBuilder),
     generationProfiles: normalizeGenerationProfileConfig(value?.generationProfiles),
     configured: getConfiguredApiKeys(value?.apiKey),
+    apiKey: _util.normalizeApiKeyConfig(value?.apiKey),
     selectedLlm: {
       service: value?.selectedLlm?.service || _constant.defaultSelectedLlm.service,
       model: value?.selectedLlm?.model || _constant.defaultSelectedLlm.model,
@@ -86,7 +87,7 @@ export async function PUT(request: Request) {
 
     const ttsResult = validateTtsConfig(body.selectedTts);
     if (!ttsResult.ok) return errorResponseFromMessage(ttsResult.message, 400);
-    const keyResult = validateApiKeyUpdates(body.apiKey);
+    const keyResult = validateApiKeyUpdates(body.apiKey, { blankMeansClear: true });
     if (!keyResult.ok) return errorResponseFromMessage(keyResult.message, 400);
 
     const update: Record<string, unknown> = {

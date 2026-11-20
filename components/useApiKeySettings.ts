@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useAiModelCatalog } from '@/components/AiModelCatalogProvider';
-import type { ConfiguredApiKeys } from '@/lib/apiKeySettings';
+import { resolveApiKeys } from '@/lib/apiKeySettings';
 import { supportedLlmServices } from '@/lib/llmSettings';
 import type { ApiKeyConfig, LLMService } from '@/types';
 import _constant from '@/utils/_constant';
@@ -10,11 +10,20 @@ import _util from '@/utils/_util';
 
 export function useApiKeySettings(scope?: 'defaults') {
   const { getEntry, loadModels } = useAiModelCatalog();
-  const [draft, setDraft] = useState<Partial<ApiKeyConfig>>({});
-  const [configured, setConfigured] = useState<Partial<ConfiguredApiKeys>>({});
+  const [draft, setDraft] = useState<ApiKeyConfig>(_constant.emptyApiKey);
+  const [saved, setSaved] = useState<ApiKeyConfig>(_constant.emptyApiKey);
   const [modelKeys, setModelKeys] = useState<ApiKeyConfig>(_constant.emptyApiKey);
 
-  function refreshModels(service: LLMService, apiKey: string) {
+  const initialize = useCallback((keys: Partial<ApiKeyConfig> | null | undefined) => {
+    const normalized = _util.normalizeApiKeyConfig(keys);
+    const catalogKeys = resolveApiKeys(normalized, null);
+    setDraft(normalized);
+    setSaved(normalized);
+    setModelKeys(catalogKeys);
+    for (const service of supportedLlmServices) void loadModels(service, catalogKeys[service], false, scope);
+  }, [loadModels, scope]);
+
+  function refreshModels(service: LLMService, apiKey: string | null) {
     setModelKeys(previous => ({ ...previous, [service]: apiKey }));
     void loadModels(service, apiKey, true, scope);
   }
@@ -25,12 +34,8 @@ export function useApiKeySettings(scope?: 'defaults') {
 
   function onKeyBlur(service: LLMService, value: string) {
     if (value !== _util.toInputString(draft[service])) updateKey(service, value);
-    const key = _util.toIdentifierString(value);
+    const key = _util.toIdentifierString(value) || null;
     if (key !== modelKeys[service]) refreshModels(service, key);
-  }
-
-  function toggleRemoval(service: LLMService) {
-    setDraft(previous => ({ ...previous, [service]: previous[service] === null ? undefined : null }));
   }
 
   function getUpdates(form: HTMLFormElement): Partial<ApiKeyConfig> {
@@ -38,36 +43,30 @@ export function useApiKeySettings(scope?: 'defaults') {
     const updates: Partial<ApiKeyConfig> = {};
     for (const service of supportedLlmServices) {
       const value = formData.get(service);
-      const key = typeof value === 'string' ? _util.toIdentifierString(value) : '';
-      if (key) updates[service] = key;
-      else if (draft[service] === null) updates[service] = null;
+      if (typeof value === 'string') updates[service] = _util.toIdentifierString(value) || null;
     }
     return updates;
   }
 
   function markSaved(updates: Partial<ApiKeyConfig>) {
-    const flags: Partial<ConfiguredApiKeys> = {};
+    setDraft(previous => _util.normalizeApiKeyConfig({ ...previous, ...updates }));
+    setSaved(previous => _util.normalizeApiKeyConfig({ ...previous, ...updates }));
     for (const service of supportedLlmServices) {
       if (updates[service] === undefined) continue;
-      flags[service] = Boolean(updates[service]);
-      refreshModels(service, '');
+      refreshModels(service, _util.toIdentifierString(updates[service]) || null);
     }
-    setConfigured(previous => ({ ...previous, ...flags }));
-    setDraft({});
   }
 
   return {
     draft,
-    configured,
-    setConfigured,
+    initialize,
     modelKeys,
     getEntry,
-    loadModels,
     updateKey,
     onKeyBlur,
-    toggleRemoval,
     getUpdates,
     markSaved,
-    ttsKeysDirty: [draft.together, draft.openAi].some(key => key === null || !_util.isNullOrWhitespace(key)),
+    ttsKeysDirty: (['together', 'openAi'] as const).some(service =>
+      _util.toIdentifierString(draft[service]) !== _util.toIdentifierString(saved[service])),
   };
 }

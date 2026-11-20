@@ -4,8 +4,8 @@ import { auth } from "@/auth";
 import dbConnect from "@/lib/mongodb";
 import { KeyValueModel, UserModel } from "@/models";
 import { validateLlmConfig } from "@/lib/llmSettings";
-import { getConfiguredApiKeys, validateApiKeyUpdates } from '@/lib/apiKeySettings';
-import { normalizeAutocompletePreference, validateAutocompletePreference } from "@/lib/autocompleteSettings";
+import { getConfiguredApiKeys, resolveApiKeys, validateApiKeyUpdates } from '@/lib/apiKeySettings';
+import { normalizeAutocompletePreference, resolveAutocompleteModel, validateAutocompletePreference } from "@/lib/autocompleteSettings";
 import { checkModelPayloads } from '@/lib/modelPayloadProbe';
 import type { AutocompletePreference, DefaultValue, LlmConfig } from '@/types';
 import _constant from '@/utils/_constant';
@@ -36,6 +36,7 @@ export async function GET() {
       selectedTts: user.selectedTts ?? null,
       autocomplete: normalizeAutocompletePreference(user.autocomplete),
       configured: getConfiguredApiKeys(user.apiKey),
+      apiKey: _util.normalizeApiKeyConfig(user.apiKey),
     }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (err) {
     return errorResponse(err);
@@ -83,7 +84,7 @@ export async function PUT(request: Request) {
       updateData.selectedLlm = story;
     }
 
-    const keyResult = validateApiKeyUpdates(apiKey);
+    const keyResult = validateApiKeyUpdates(apiKey, { blankMeansClear: true });
     if (!keyResult.ok) return errorResponseFromMessage(keyResult.message, 400);
     const keyUpdates = Object.entries(keyResult.value);
 
@@ -99,10 +100,11 @@ export async function PUT(request: Request) {
 
       if (testModels) {
         const selected = story === undefined ? existing.selectedLlm : story;
-        const defaults = selected ? null : await KeyValueModel.findOne({ key: 'defaultValue' }).lean();
-        const effectiveStory = selected ?? (defaults?.value as DefaultValue | undefined)?.selectedLlm ?? _constant.defaultSelectedLlm;
-        const effectiveAutocomplete = autocomplete === undefined ? normalizeAutocompletePreference(existing.autocomplete) : autocomplete;
-        const probe = await checkModelPayloads(effectiveStory, effectiveAutocomplete?.model, keys, request.signal);
+        const defaultDoc = await KeyValueModel.findOne({ key: 'defaultValue' }).lean();
+        const defaults = defaultDoc?.value as DefaultValue | undefined;
+        const effectiveStory = selected ?? defaults?.selectedLlm ?? _constant.defaultSelectedLlm;
+        const effectiveAutocomplete = resolveAutocompleteModel(autocomplete === undefined ? existing.autocomplete : autocomplete, defaults?.autocomplete);
+        const probe = await checkModelPayloads(effectiveStory, effectiveAutocomplete, resolveApiKeys(keys, defaults?.apiKey), request.signal);
         if (!probe.ok) return errorResponseFromMessage(probe.message, probe.status);
         updateData['modelPayloads.story'] = probe.payloads.story;
         if (probe.payloads.autocomplete) updateData['modelPayloads.autocomplete'] = probe.payloads.autocomplete;

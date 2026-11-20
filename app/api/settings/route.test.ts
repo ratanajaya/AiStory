@@ -91,17 +91,19 @@ it('checks admin candidate credentials and saves the verified shapes without ret
   });
 });
 
-it('uses stored keys for the model check when omitted and returns only configuration status', async () => {
+it('returns saved global keys to admins and uses them for model checks when omitted', async () => {
   const selectedLlm = { service: 'refuseless', model: 'story-model' };
   const apiKey = { together: 'shared-together', openAi: 'shared-openai', refuseless: 'shared-refuseless' };
   const defaults = { ...settings, selectedLlm, apiKey };
   mocks.find.mockResolvedValue({ value: defaults });
-  const response = await (await GET()).json();
+  const result = await GET();
+  expect(result.headers.get('cache-control')).toBe('no-store');
+  const response = await result.json();
   expect(response.configured).toEqual({ together: true, openAi: true, refuseless: true });
-  expect(response).not.toHaveProperty('apiKey');
+  expect(response.apiKey).toEqual(apiKey);
 
   mocks.probe.mockResolvedValueOnce({ ok: true, payloads: {} });
-  expect((await save({ ...defaults, apiKey: { together: '', openAi: '' }, testModels: true })).status).toBe(200);
+  expect((await save({ ...defaults, apiKey: undefined, testModels: true })).status).toBe(200);
   expect(mocks.probe).toHaveBeenCalledWith(selectedLlm, undefined, apiKey, expect.any(AbortSignal));
   expect(Object.keys(mocks.update.mock.calls[0][1].$set).some(path => path.startsWith('value.apiKey.'))).toBe(false);
 });
@@ -113,4 +115,41 @@ it.each(['together', 'openAi', 'refuseless'] as const)('tests a freshly entered 
   expect((await save({ ...settings, selectedLlm, apiKey: { [service]: ' new-key ' }, testModels: true })).status).toBe(200);
   expect(mocks.probe).toHaveBeenCalledWith(selectedLlm, undefined, { ..._constant.emptyApiKey, [service]: 'new-key' }, expect.any(AbortSignal));
   expect(mocks.update.mock.calls[0][1].$set[`value.apiKey.${service}`]).toBe('new-key');
+});
+
+it.each(['together', 'openAi', 'refuseless'] as const)('does not use the previous global %s key after clearing it', async service => {
+  const { checkModelPayloads } = await vi.importActual<typeof import('@/lib/modelPayloadProbe')>('@/lib/modelPayloadProbe');
+  const selectedLlm = { service, model: 'story-model' };
+  mocks.find.mockResolvedValue({ value: { ...settings, apiKey: { [service]: 'old-global-key' } } });
+  mocks.probe.mockImplementationOnce(checkModelPayloads);
+  const response = await save({ ...settings, selectedLlm, apiKey: { [service]: '   ' }, testModels: true });
+  expect(response.status).toBe(400);
+  expect(await response.text()).toContain('API key to test the story model');
+  expect(mocks.update).not.toHaveBeenCalled();
+});
+
+it.each(['', '   ', null])('clears a global key on a normal save (%j)', async value => {
+  expect((await save({ ...settings, apiKey: { openAi: value } })).status).toBe(200);
+  expect(mocks.update.mock.calls[0][1].$set).toMatchObject({ 'value.apiKey.openAi': null });
+  expect(mocks.update.mock.calls[0][1].$set).not.toHaveProperty('value.apiKey.together');
+});
+
+it('keeps all default settings when autocomplete verification fails', async () => {
+  mocks.probe.mockResolvedValueOnce({ ok: false, status: 502, message: 'Autocomplete model check failed.' });
+  expect((await save({ ...settings, apiKey: { openAi: 'candidate-key' }, testModels: true })).status).toBe(502);
+  expect(mocks.update).not.toHaveBeenCalled();
+});
+
+it('keeps all default settings when the model check is canceled', async () => {
+  const controller = new AbortController();
+  mocks.probe.mockImplementationOnce(async () => {
+    controller.abort();
+    return { ok: true, payloads: {} };
+  });
+  const response = await PUT(new Request('http://localhost/api/settings', {
+    method: 'PUT', signal: controller.signal,
+    body: JSON.stringify({ ...settings, apiKey: { openAi: 'candidate-key' }, testModels: true }),
+  }));
+  expect(response.status).toBe(499);
+  expect(mocks.update).not.toHaveBeenCalled();
 });

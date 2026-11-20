@@ -16,7 +16,10 @@ export async function getModelCatalogApiKey(request: Request, service: LLMServic
 
   const enteredKey = typeof body?.apiKey === 'string' ? _util.toIdentifierString(body.apiKey) : '';
   if (enteredKey) return enteredKey;
-  if (defaultScope) {
+  // Explicit null previews clearing the scoped key; omission uses saved settings.
+  const cleared = body?.apiKey === null;
+  if (cleared && defaultScope) return '';
+  if (defaultScope || cleared) {
     const doc = await KeyValueModel.findOne({ key: 'defaultValue' }).lean();
     return _util.toIdentifierString((doc?.value as DefaultValue | undefined)?.apiKey?.[service]);
   }

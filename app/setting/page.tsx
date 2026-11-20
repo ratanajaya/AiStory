@@ -11,8 +11,7 @@ import { Button } from '@/components/Button';
 import { PromptEditorSection } from '@/components/PromptEditorSection';
 import { GenerationProfilesSection } from '@/components/GenerationProfilesSection';
 import { normalizeGenerationProfileConfig } from '@/lib/generationProfiles';
-import { getUnsupportedLlmMessage, isSupportedLlmService, supportedLlmServices } from '@/lib/llmSettings';
-import type { ConfiguredApiKeys } from '@/lib/apiKeySettings';
+import { getUnsupportedLlmMessage, isSupportedLlmService } from '@/lib/llmSettings';
 import _constant from '@/utils/_constant';
 import _util from '@/utils/_util';
 
@@ -36,7 +35,7 @@ const emptyDefaultValue: SettingsFormData = {
 export default function SettingPage() {
   const { fetcher } = useFetcher();
   const keys = useApiKeySettings('defaults');
-  const { loadModels, setConfigured } = keys;
+  const { initialize } = keys;
 
   const [formData, setFormData] = useState<SettingsFormData>(emptyDefaultValue);
   const [savingMode, setSavingMode] = useState<'save' | 'test' | null>(null);
@@ -48,7 +47,7 @@ export default function SettingPage() {
     const fetchSettings = async () => {
       try {
         setFetchLoading(true);
-        const data = await fetcher<SettingsFormData & { configured: ConfiguredApiKeys }>('/api/settings', {
+        const data = await fetcher<DefaultValue>('/api/settings', {
           errorMessage: 'Failed to fetch settings',
         });
         setFormData({
@@ -61,8 +60,7 @@ export default function SettingPage() {
             model: data.selectedLlm?.model || _constant.defaultSelectedLlm.model,
           },
         });
-        setConfigured(data.configured ?? {});
-        for (const service of supportedLlmServices) void loadModels(service, '', false, 'defaults');
+        initialize(data.apiKey);
       } catch {
       } finally {
         setFetchLoading(false);
@@ -70,7 +68,7 @@ export default function SettingPage() {
     };
 
     fetchSettings();
-  }, [fetcher, loadModels, setConfigured]);
+  }, [fetcher, initialize]);
 
   const selectedService = formData.selectedLlm.service;
   const isSupportedService = isSupportedLlmService(selectedService);
@@ -171,7 +169,7 @@ export default function SettingPage() {
   }
 
   const modelUnavailable =
-    isSupportedService && keys.draft[selectedService] !== null && !modelLoading &&
+    isSupportedService && !modelLoading &&
     Boolean(formData.selectedLlm.model) &&
     models.length > 0 &&
     !models.some((model) => model.id === formData.selectedLlm.model);
@@ -210,8 +208,6 @@ export default function SettingPage() {
           onModelChange={handleSelectedModelChange}
           onApiKeyChange={keys.updateKey}
           onApiKeyBlur={keys.onKeyBlur}
-          configured={keys.configured}
-          onToggleKeyRemoval={keys.toggleRemoval}
           keysDisabled={loading}
           models={models}
           modelLoading={modelLoading}

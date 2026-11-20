@@ -11,9 +11,8 @@ import { Button } from "@/components/Button";
 import { useFetcher } from "@/components/FetcherProvider";
 import { useApiKeySettings } from "@/components/useApiKeySettings";
 import { getUnsupportedLlmMessage, isSupportedLlmService } from "@/lib/llmSettings";
-import type { ConfiguredApiKeys } from '@/lib/apiKeySettings';
 import _constant from "@/utils/_constant";
-import type { AiModelOption, AutocompletePreference } from "@/types";
+import type { AiModelOption, ApiKeyConfig, AutocompletePreference } from "@/types";
 
 const emptyModels: AiModelOption[] = [];
 
@@ -61,7 +60,7 @@ export function Sidebar({
   const pathname = usePathname();
   const { fetcher } = useFetcher();
   const keys = useApiKeySettings();
-  const { setConfigured } = keys;
+  const { initialize } = keys;
   const [viewerKind, setViewerKind] = useState<'visitor' | 'guest' | 'user' | null>(null);
   useEffect(() => { fetcher<{ kind: 'visitor' | 'guest' | 'user' }>('/api/viewer', { silent: true }).then((viewer) => setViewerKind(viewer.kind)).catch(() => setViewerKind('visitor')); }, [fetcher, pathname]);
   const sidebarRef = useRef<HTMLDivElement>(null);
@@ -83,7 +82,7 @@ export function Sidebar({
         const data = await fetcher<{
           selectedLlm?: { service: string; model: string };
           autocomplete?: AutocompletePreference;
-          configured: ConfiguredApiKeys;
+          apiKey: ApiKeyConfig;
         }>("/api/user/settings");
 
         if (data?.selectedLlm) {
@@ -91,7 +90,7 @@ export function Sidebar({
           setSelectedModel(data.selectedLlm.model);
         }
 
-        setConfigured(data.configured ?? {});
+        initialize(data.apiKey);
         setAutocomplete(data?.autocomplete ?? null);
       } catch (error) {
         console.error("Failed to fetch settings:", error);
@@ -101,7 +100,7 @@ export function Sidebar({
     };
 
     fetchSettings();
-  }, [loaded, fetcher, viewerKind, setConfigured]);
+  }, [loaded, fetcher, viewerKind, initialize]);
 
   const isSupportedService = isSupportedLlmService(selectedService);
   const catalog = isSupportedService
@@ -171,7 +170,7 @@ export function Sidebar({
   };
 
   const modelUnavailable =
-    isSupportedService && keys.draft[selectedService] !== null && !modelLoading &&
+    isSupportedService && !modelLoading &&
     Boolean(selectedModel) &&
     models.length > 0 &&
     !models.some((model) => model.id === selectedModel);
@@ -277,8 +276,6 @@ export function Sidebar({
               onModelChange={setSelectedModel}
               onApiKeyChange={keys.updateKey}
               onApiKeyBlur={keys.onKeyBlur}
-              configured={keys.configured}
-              onToggleKeyRemoval={keys.toggleRemoval}
               keysDisabled={!loaded || savingMode !== null}
               models={models}
               modelLoading={modelLoading}
